@@ -1,0 +1,37 @@
+services:
+  mongo:
+    image: mongo:7.0.12
+    container_name: database-mongo
+    restart: always
+    ports:
+      - '127.0.0.1:27017:27017'
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - merk2-online-network
+
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: mongo-express-manager
+    restart: always
+    depends_on:
+      - mongo
+    ports:
+      - '127.0.0.1:8081:8081'
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongo
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      ME_CONFIG_BASICAUTH: 'false'
+    networks:
+      - merk2-online-network
+
+networks:
+  merk2-online-network:
+    driver: bridge
+
+volumes:
+  mongo_data:
