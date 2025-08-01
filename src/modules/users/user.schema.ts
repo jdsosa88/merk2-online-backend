@@ -35,7 +35,7 @@ export const UserSchema = SchemaFactory.createForClass(User);
 // UserSchema.set('timestamps', true);
 UserSchema.set('toJSON', {
   transform: (doc, ret) => {
-    delete ret.password;
-    return ret;
+     delete (ret as { password?: string }).password;
+        return ret;
   },
 });
