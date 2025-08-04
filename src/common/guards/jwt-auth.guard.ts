@@ -18,10 +18,10 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     }
     return super.canActivate(context);
   }
-   handleRequest(err: any, user: any, info: any, context: ExecutionContext) {
-    if (err) {   
-      if (!user) throw new UnauthorizedException('User not found'); 
-      let message = String(info?.message);      
+  handleRequest(err: any, user: any, info: any, context: ExecutionContext) {
+    if (err) {
+      if (!user) throw new UnauthorizedException('User not found');
+      let message = String(info?.message);
       throw new UnauthorizedException(message);
     }
     return user;

@@ -34,6 +34,7 @@ lerna-debug.log*
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+.zencoder/*
 
 # dotenv environment variable files
 .env
@@ -58,3 +59,8 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # package managers
 package-lock.json
 yarn.lock
+.yarn
+.yarn/*
+.yarnrc.yml
+.pnp
+.pnp.*

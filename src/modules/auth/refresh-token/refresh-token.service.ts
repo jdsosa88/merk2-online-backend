@@ -26,7 +26,7 @@ export class RefreshTokenService {
   async deletePreviousToken(
     refreshToken: string,
     userId: Types.ObjectId,
-    ip?: string, 
+    ip?: string,
     userAgent?: string
   ): Promise<RefreshToken | null> {
     return await this.refreshTokenModel.findOneAndDelete({
