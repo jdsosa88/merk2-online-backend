@@ -162,7 +162,9 @@ describe('VerificationCodeService', () => {
       mockModel.findOne.mockReturnValue({
         exec: jest.fn().mockResolvedValue(validRecord),
       });
-      mockModel.findByIdAndDelete.mockResolvedValue(validRecord);
+      mockModel.findByIdAndDelete.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(validRecord),
+      });
 
       // Act
       const result = await service.verifyCode(userId, code, type);

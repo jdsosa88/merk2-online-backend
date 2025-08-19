@@ -14,10 +14,9 @@ import {
 import * as bcrypt from 'bcrypt';
 import { Types } from 'mongoose';
 import { UserLoginDto } from './dto/user-login.dto';
-import { ActivateUserDto } from './dto/activate-user.dto';
+import { VerifyDefaultCodeUserDto } from './dto/verify-default-code-user.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { VerifyResetCodeDto } from './dto/verify-reset-code.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ApiResponseDto } from '../../common/dto/response.dto';
 import { AuthTokensDto } from './dto/atuh-tokens.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
@@ -295,33 +294,29 @@ describe('AuthService', () => {
 
   describe('logout', () => {
     it('should logout successfully', async () => {
-      const refreshTokenDto: RefreshTokenDto = {
-        refresh_token: 'valid-refresh-token',
-      };
+      const token: string = 'valid-refresh-token';
 
       mockRefreshTokenService.delete.mockResolvedValue(undefined);
 
-      const result = await service.logout(refreshTokenDto);
+      const result = await service.logout(token);
 
       expect(result).toBeInstanceOf(ApiResponseDto);
       expect(result.message).toBe('Logout successful');
-      expect(mockRefreshTokenService.delete).toHaveBeenCalledWith(refreshTokenDto.refresh_token);
+      expect(mockRefreshTokenService.delete).toHaveBeenCalledWith(token);
     });
 
     it('should handle logout error gracefully', async () => {
-      const refreshTokenDto: RefreshTokenDto = {
-        refresh_token: 'invalid-refresh-token',
-      };
+      const token: string = 'invalid-refresh-token';
 
       mockRefreshTokenService.delete.mockRejectedValue(new Error('Token not found'));
 
-      await expect(service.logout(refreshTokenDto))
+      await expect(service.logout(token))
         .rejects.toThrow('Token not found');
     });
   });
 
   describe('activateUser', () => {
-    const activateUserDto: ActivateUserDto = {
+    const verifyDefaultCodeDto: VerifyDefaultCodeUserDto = {
       id: mockObjectId.toString(),
       code: '123456',
     };
@@ -340,7 +335,7 @@ describe('AuthService', () => {
       mockRefreshTokenService.deletePreviousToken.mockResolvedValue(undefined);
       mockRefreshTokenService.create.mockResolvedValue(mockRefreshToken);
 
-      const result = await service.activateUser(activateUserDto, ip, userAgent);
+      const result = await service.activateUser(verifyDefaultCodeDto, ip, userAgent);
 
       expect(result).toBeInstanceOf(ApiResponseDto);
       expect(result.message).toBe('User activation successful');
@@ -353,14 +348,14 @@ describe('AuthService', () => {
     it('should throw NotFoundException when user not found', async () => {
       mockUsersService.findOne.mockResolvedValue(null);
 
-      await expect(service.activateUser(activateUserDto, ip, userAgent))
+      await expect(service.activateUser(verifyDefaultCodeDto, ip, userAgent))
         .rejects.toThrow(NotFoundException);
     });
 
     it('should throw BadRequestException when user is already active', async () => {
       mockUsersService.findOne.mockResolvedValue(mockUser); // mockUser.isActive = true
 
-      await expect(service.activateUser(activateUserDto, ip, userAgent))
+      await expect(service.activateUser(verifyDefaultCodeDto, ip, userAgent))
         .rejects.toThrow(BadRequestException);
     });
 
@@ -370,7 +365,7 @@ describe('AuthService', () => {
       mockUsersService.findOne.mockResolvedValue(inactiveUser);
       mockVerificationCodeService.verifyCode.mockResolvedValue(false);
 
-      await expect(service.activateUser(activateUserDto, ip, userAgent))
+      await expect(service.activateUser(verifyDefaultCodeDto, ip, userAgent))
         .rejects.toThrow(BadRequestException);
     });
   });

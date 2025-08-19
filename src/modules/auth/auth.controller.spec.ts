@@ -4,8 +4,7 @@ import { AuthService } from './auth.service';
 import { ApiKeyGuard } from '../../common/guards/api-key.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { UserLoginDto } from './dto/user-login.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { ActivateUserDto } from './dto/activate-user.dto';
+import { VerifyDefaultCodeUserDto } from './dto/verify-default-code-user.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { VerifyResetCodeDto } from './dto/verify-reset-code.dto';
 import { ApiResponseDto } from '../../common/dto/response.dto';
@@ -115,9 +114,7 @@ describe('AuthController', () => {
 
   describe('refresh', () => {
     it('should refresh token successfully', async () => {
-      const refreshTokenDto: RefreshTokenDto = {
-        refresh_token: 'valid_refresh_token',
-      };
+      const token: string = 'valid_refresh_token';
 
       const expectedResponse = new ApiResponseDto('Token refreshed successfully', {
         access_token: 'new_access_token',
@@ -126,22 +123,20 @@ describe('AuthController', () => {
 
       mockAuthService.refreshToken.mockResolvedValue(expectedResponse);
 
-      const result = await controller.refresh(refreshTokenDto);
+      const result = await controller.refresh(token);
 
       expect(authService.refreshToken).toHaveBeenCalledWith('valid_refresh_token');
       expect(result).toEqual(expectedResponse);
     });
 
     it('should throw UnauthorizedException with invalid refresh token', async () => {
-      const refreshTokenDto: RefreshTokenDto = {
-        refresh_token: 'invalid_refresh_token',
-      };
+      const token: string = 'invalid_refresh_token';      
 
       mockAuthService.refreshToken.mockRejectedValue(
         new UnauthorizedException('Invalid refresh token')
       );
 
-      await expect(controller.refresh(refreshTokenDto)).rejects.toThrow(
+      await expect(controller.refresh(token)).rejects.toThrow(
         UnauthorizedException
       );
     });
@@ -149,23 +144,21 @@ describe('AuthController', () => {
 
   describe('logout', () => {
     it('should logout successfully', async () => {
-      const refreshTokenDto: RefreshTokenDto = {
-        refresh_token: 'valid_refresh_token',
-      };
+      const token: string = 'valid_refresh_token';
 
       const expectedResponse = new ApiResponseDto('Logout successful');
       mockAuthService.logout.mockResolvedValue(expectedResponse);
 
-      const result = await controller.logout(refreshTokenDto);
+      const result = await controller.logout(token);
 
-      expect(authService.logout).toHaveBeenCalledWith(refreshTokenDto);
+      expect(authService.logout).toHaveBeenCalledWith(token);
       expect(result).toEqual(expectedResponse);
     });
   });
 
   describe('activateUser', () => {
     it('should activate user account successfully', async () => {
-      const activateUserDto: ActivateUserDto = {
+      const verifyDefaultCodeDto: VerifyDefaultCodeUserDto = {
         id: 'user123',
         code: '123456',
       };
@@ -179,10 +172,10 @@ describe('AuthController', () => {
         connection: { remoteAddress: '127.0.0.1' },
       };
 
-      const result = await controller.activateUser(mockRequest, activateUserDto);
+      const result = await controller.activateUser(mockRequest, verifyDefaultCodeDto);
 
       expect(authService.activateUser).toHaveBeenCalledWith(
-        activateUserDto,
+        verifyDefaultCodeDto,
         '127.0.0.1',
         'test-agent'
       );

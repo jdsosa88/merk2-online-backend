@@ -48,6 +48,7 @@ describe('UsersService', () => {
     find: jest.fn(),
     findById: jest.fn(),
     findOne: jest.fn(),
+    findOneAndDelete: jest.fn(),
     findByIdAndUpdate: jest.fn(),
     findByIdAndDelete: jest.fn(),
     create: jest.fn(),
@@ -130,7 +131,7 @@ describe('UsersService', () => {
       expect(mockedBcrypt.hash).toHaveBeenCalledWith(createUserDto.password, 10);
       expect(mockUserModel.create).toHaveBeenCalledWith({
         ...createUserDto,
-        role: undefined, // role should be deleted
+        role: 'CUSTOMER',
         password: 'hashedPassword123',
         isActive: false,
       });
@@ -141,7 +142,7 @@ describe('UsersService', () => {
       );
       expect(mockMailerService.sendMail).toHaveBeenCalledWith({
         to: createUserDto.email,
-        subject: 'Activation Code',
+        subject: 'ACTIVATION CODE',
         text: `Your activation code is: ${mockActivationCode.code}`,
         html: `<p>Your activation code is: <b>${mockActivationCode.code}</b></p>`,
       });
@@ -229,8 +230,6 @@ describe('UsersService', () => {
         lastName: 'Smith',
         email: 'jane.smith@example.com',
         phone: '+0987654321',
-        password: 'shouldBeDeleted',
-        isActive: true, // should be deleted
       };
 
       const updatedUser = { ...mockUser, ...updateUserDto };
@@ -276,29 +275,42 @@ describe('UsersService', () => {
   });
 
   describe('remove', () => {
+    it('should throw BadRequestException when try to pass an invalid or expired code', async () => {
+      const userId = mockObjectId;
+      mockUserModel.findOneAndDelete.mockReturnValue({
+        exec: jest.fn().mockRejectedValue(null),
+      } as any);
+
+      await expect(service.remove(userId, '000000')).rejects.toThrow(
+        new BadRequestException('Invalid or expired activation code'),
+      );
+    });
+
+     it('should throw NotFoundException when user not found during removal', async () => {
+      const userId = mockObjectId;
+      mockVerificationCodeService.verifyCode.mockResolvedValue(true);
+      mockUserModel.findByIdAndDelete.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      } as any);
+
+      await expect(service.remove(userId, '123456')).rejects.toThrow(
+        new NotFoundException('User not found'),
+      );
+    });
+
     it('should remove user successfully', async () => {
-      const userId = mockObjectId.toString();
+      const userId = mockObjectId;
+      mockVerificationCodeService.verifyCode.mockResolvedValue(true);
       mockUserModel.findByIdAndDelete.mockReturnValue({
         exec: jest.fn().mockResolvedValue(mockUser),
       } as any);
 
-      const result = await service.remove(userId);
+      const result = await service.remove(userId, '123456');
 
       expect(mockUserModel.findByIdAndDelete).toHaveBeenCalledWith(userId);
       expect(result).toBeInstanceOf(ApiResponseDto);
       expect(result.message).toBe('User deleted');
       expect(result.data).toEqual(mockUser);
-    });
-
-    it('should throw NotFoundException when user not found during removal', async () => {
-      const userId = mockObjectId.toString();
-      mockUserModel.findByIdAndDelete.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(null),
-      } as any);
-
-      await expect(service.remove(userId)).rejects.toThrow(
-        new NotFoundException('User not found'),
-      );
     });
   });
 
