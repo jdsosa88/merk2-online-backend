@@ -131,11 +131,11 @@ describe('JwtAuthGuard', () => {
     });
 
     it('should throw UnauthorizedException when user not found', () => {
-      const error = new Error('Token invalid');
+      const error = new Error('User not found');
 
       expect(() => {
         guard.handleRequest(error, null, null, mockExecutionContext);
-      }).toThrow(new UnauthorizedException('User not found'));
+      }).toThrow(new UnauthorizedException('Authentication error: User not found'));
     });
 
     it('should handle authentication errors properly', () => {
@@ -150,7 +150,7 @@ describe('JwtAuthGuard', () => {
 
       expect(() => {
         guard.handleRequest(error, mockUser, info, mockExecutionContext);
-      }).toThrow(new UnauthorizedException('Token has expired'));
+      }).toThrow(new UnauthorizedException('Authentication error: Token has expired'));
     });
 
     it('should handle authentication errors with string info message', () => {
@@ -165,10 +165,10 @@ describe('JwtAuthGuard', () => {
 
       expect(() => {
         guard.handleRequest(error, mockUser, info, mockExecutionContext);
-      }).toThrow(new UnauthorizedException('Invalid token signature'));
+      }).toThrow(new UnauthorizedException('Authentication error: Invalid token signature'));
     });
 
-    it('should handle authentication errors with undefined info', () => {
+    it('should handle authentication errors with info', () => {
       const error = new Error('Token invalid');
       const mockUser = {
         id: 'user123',
@@ -176,30 +176,22 @@ describe('JwtAuthGuard', () => {
       };
 
       expect(() => {
-        guard.handleRequest(error, mockUser, undefined, mockExecutionContext);
-      }).toThrow(new UnauthorizedException('undefined'));
+        guard.handleRequest(null, mockUser, error, mockExecutionContext);
+      }).toThrow(new UnauthorizedException('Authentication error: Token invalid'));
     });
 
-    it('should handle authentication errors with null info message', () => {
-      const error = new Error('Token invalid');
-      const mockUser = {
-        id: 'user123',
-        email: 'user@example.com',
-      };
-      const info = {
-        message: null,
-      };
-
+    it('should handle authentication errors with empty message', () => {
+      const error = new Error('');
       expect(() => {
-        guard.handleRequest(error, mockUser, info, mockExecutionContext);
-      }).toThrow(new UnauthorizedException('null'));
+        guard.handleRequest(null, null, error, mockExecutionContext);
+      }).toThrow(new UnauthorizedException('Authentication error: unknown token error'));
     });
 
-    it('should handle missing user without error', () => {
-      // When there's no error but also no user, should still return the user (null)
-      const result = guard.handleRequest(null, null, null, mockExecutionContext);
-
-      expect(result).toBe(null);
+    it('should handle missing user with user not found error', () => {
+      const error = new Error('User not found');
+      expect(() => {
+        guard.handleRequest(error, null, null, mockExecutionContext);
+      }).toThrow(new UnauthorizedException('Authentication error: User not found'));
     });
 
     it('should handle empty error and return user', () => {
@@ -207,42 +199,14 @@ describe('JwtAuthGuard', () => {
         id: 'user123',
         email: 'user@example.com',
         role: 'ADMIN',
+        isActive: true,
       };
 
       const result = guard.handleRequest(null, mockUser, null, mockExecutionContext);
 
       expect(result).toBe(mockUser);
     });
-
-    it('should handle error with number info message', () => {
-      const error = new Error('Token invalid');
-      const mockUser = {
-        id: 'user123',
-        email: 'user@example.com',
-      };
-      const info = {
-        message: 404,
-      };
-
-      expect(() => {
-        guard.handleRequest(error, mockUser, info, mockExecutionContext);
-      }).toThrow(new UnauthorizedException('404'));
-    });
-
-    it('should handle error with boolean info message', () => {
-      const error = new Error('Token invalid');
-      const mockUser = {
-        id: 'user123',
-        email: 'user@example.com',
-      };
-      const info = {
-        message: false,
-      };
-
-      expect(() => {
-        guard.handleRequest(error, mockUser, info, mockExecutionContext);
-      }).toThrow(new UnauthorizedException('false'));
-    });
+    
   });
 
   describe('Integration scenarios', () => {

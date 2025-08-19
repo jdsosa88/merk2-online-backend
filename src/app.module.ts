@@ -16,7 +16,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        uri: `mongodb://${config.get('MONGO_INITDB_ROOT_USERNAME')}:${config.get('MONGO_INITDB_ROOT_PASSWORD')}@localhost:27017/${config.get('MONGO_DB_NAME')}?authSource=admin`,
+        uri: `mongodb://${config.get('MONGO_INITDB_ROOT_USERNAME')}:${config.get('MONGO_INITDB_ROOT_PASSWORD')}@${config.get('MONGO_HOST')}:${config.get('MONGO_PORT')}/${config.get('MONGO_DB_NAME')}${config.get('MONGO_OPTIONS')}`,
       }),
     }),
     MailerModule.forRootAsync({
