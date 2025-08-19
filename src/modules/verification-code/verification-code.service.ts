@@ -10,7 +10,7 @@ export class VerificationCodeService {
     private verificationCodeModel: Model<VerificationCode>,
   ) { }
 
-  async createCode(userId: Types.ObjectId, type: string, expiresInHours = 2): Promise<VerificationCode> {
+  async createCode(userId: Types.ObjectId, type: string, expiresInHours: number = 2): Promise<VerificationCode> {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000);
     return this.verificationCodeModel.create({
@@ -23,26 +23,27 @@ export class VerificationCodeService {
 
   async verifyCode(userId: Types.ObjectId, code: string, type: string): Promise<boolean> {
     switch (type) {
-      case 'activation':
-        return await this.verifyActivationCode(userId, code);
       case 'verify_reset_password':
         return await this.verifyResetCode(userId, code);
       case 'reset_password':
         return await this.verifyResetCodeToChangePassword(userId, code);
+      case 'activation':
+      case 'delete':
+        return await this.verifyDefaultCode(userId, code, type);
       default:
         return false;
     }
   }
 
-  private async verifyActivationCode(userId: Types.ObjectId, code: string): Promise<boolean> {
+  private async verifyDefaultCode(userId: Types.ObjectId, code: string, type: string): Promise<boolean> {
     const now = new Date();
     const record = await this.verificationCodeModel.findOneAndDelete({
       user: userId,
       code,
-      type: 'activation',
+      type,
     }).exec();
     if (!record) return false;
-    if (record.expiresAt.getTime() < now.getTime()) return false;
+    if (record.expiresAt.getTime() <= now.getTime()) return false;
     return true;
   }
 
@@ -59,7 +60,7 @@ export class VerificationCodeService {
       }
     ).exec();
     if (!record) return false;
-    if (record.expiresAt.getTime() < now.getTime()) {
+    if (record.expiresAt.getTime() <= now.getTime()) {
       await this.verificationCodeModel.findByIdAndDelete(record._id).exec();
       return false;
     };
@@ -67,6 +68,7 @@ export class VerificationCodeService {
   }
 
   private async verifyResetCodeToChangePassword(userId: Types.ObjectId, code: string): Promise<boolean> {
+    const now = new Date();
     const record = await this.verificationCodeModel.findOne(
       {
         user: userId,
@@ -76,7 +78,10 @@ export class VerificationCodeService {
     ).exec();
     if (!record) return false;
     if (!record.isVerified) return false;
-    await this.verificationCodeModel.findByIdAndDelete(record._id);
+    await this.verificationCodeModel.findByIdAndDelete(record._id).exec();
+    if (record.expiresAt.getTime() <= now.getTime()) {
+      return false;
+    };
     return true;
   }
 
