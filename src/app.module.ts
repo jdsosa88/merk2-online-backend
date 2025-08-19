@@ -5,6 +5,7 @@ import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { VerificationCodeModule } from './modules/verification-code/verification-code.module';
 import { MailerModule } from '@nestjs-modules/mailer';
+import { CaslModule } from './modules/casl/casl.module';
 
 
 @Module({
@@ -39,6 +40,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
     UsersModule,
     AuthModule,
     VerificationCodeModule,
+    CaslModule,
   ],
 })
 export class AppModule { }
