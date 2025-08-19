@@ -6,8 +6,8 @@ export class ResetPasswordDto {
   @IsNumberString()
   readonly code: string;
 
-  @IsString()
   @IsNotEmpty()
+  @IsString()
   @Length(8, 50)
   readonly newPassword: string;
 }

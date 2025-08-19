@@ -1,7 +1,7 @@
 import { PartialType } from "@nestjs/mapped-types";
 import { CreateUserDto } from "./create-user.dto";
 import { IsEmail, IsIn, IsOptional, IsPhoneNumber, IsString, Length } from "class-validator";
-import { UserRole } from "../user.schema";
+import { Role, UserRole } from "../user.schema";
 
 export class UpdateUserDto {
 
@@ -24,8 +24,8 @@ export class UpdateUserDto {
   readonly phone: string;
 
   @IsOptional()
-  @IsIn(['ADMIN', 'CUSTOMER', 'MANAGER', 'TRAINER', 'DOORMAN'])
-  readonly role?: UserRole;
+  @IsIn([Role.ADMIN, Role.PROVIDER, Role.MESSENGER, Role.CUSTOMER])
+  role?: UserRole;
   
   password?: string;
   isActive?: boolean;

@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException, } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { User } from './user.schema';
+import { Role, User } from './user.schema';
 import { Model, Types } from 'mongoose';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -10,26 +10,27 @@ import { ApiResponseDto } from 'src/common/dto/response.dto';
 import { MailerService } from '@nestjs-modules/mailer';
 import { VerificationCodeService } from '../verification-code/verification-code.service';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ObjectValidationsUtils } from 'src/common/utils/object-validations';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(
-    User.name) private userModel: Model<User>,
+  constructor(
+    @InjectModel(User.name) private userModel: Model<User>,
     private readonly mailerService: MailerService,
     private readonly verificationCodeService: VerificationCodeService,
   ) { }
 
-  async create(createUserDto: CreateUserDto): Promise<ApiResponseDto<User>> {
+  async create(createUserDto: CreateUserDto, role = Role.CUSTOMER): Promise<ApiResponseDto<User>> {
     try {
-      delete createUserDto.role;
-      const user = await this.saveNewUser(createUserDto);
+      createUserDto.role = role;
+      const user: User = await this.saveNewUser(createUserDto);
+      if (role === Role.ADMIN) {
+        return new ApiResponseDto("Admin user created successfully", user);
+      }
       const userId: Types.ObjectId = user._id as Types.ObjectId;
       const activationCode = await this.verificationCodeService.createCode(userId, 'activation', 3);
-      await this.sendActivationCodeEmail(user.email, activationCode.code);
-      return new ApiResponseDto(
-        "User created, please check your email for the activation code",
-        user
-      );
+      await this.sendCodeEmail(user.email, 'activation', activationCode.code);
+      return new ApiResponseDto("User created, please check your email for the activation code", user);
     } catch (error) {
       throw error;
     }
@@ -57,22 +58,27 @@ export class UsersService {
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<ApiResponseDto<User>> {
     try {
-      delete updateUserDto.password;
-      delete updateUserDto.isActive;
-
-      const user = await this.userModel.findByIdAndUpdate(id, updateUserDto, { new: true }).exec();
-      if (!user) throw new NotFoundException('User not found');
-      return new ApiResponseDto("User updated", user);
+      return await this.saveUpdatedUser(id, updateUserDto);
     } catch (error) {
       throw error;
     }
   }
 
-  async remove(id: string): Promise<ApiResponseDto<User>> {
+  async createDeleteVerificationCode(userId: Types.ObjectId, email: string): Promise<ApiResponseDto> {
     try {
-      const user = await this.userModel.findByIdAndDelete(id).exec();
-      if (!user) throw new NotFoundException('User not found');
-      return new ApiResponseDto("User deleted", user);
+      const deleteCode = await this.verificationCodeService.createCode(userId, 'delete');
+      await this.sendCodeEmail(email, 'delete', deleteCode.code);
+      return new ApiResponseDto("A delete code has been sent to your email");
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async remove(id: Types.ObjectId, code: string): Promise<ApiResponseDto<User>> {
+    try {
+      const isVerifiedCode = await this.verificationCodeService.verifyCode(id, code, 'delete');
+      if (!isVerifiedCode) throw new BadRequestException('Invalid or expired activation code');
+      return this.deleteSavedUser(id);
     } catch (error) {
       throw error;
     }
@@ -117,6 +123,26 @@ export class UsersService {
     }
   }
 
+  async updateOtherUser(id: string, updateUserDto: UpdateUserDto): Promise<ApiResponseDto<User>> {
+    try {
+      if (new ObjectValidationsUtils().isDefinedObject(updateUserDto.password)) {
+        const newPassword: string = updateUserDto.password as string;
+        updateUserDto.password = await bcrypt.hash(newPassword, 10);        
+      }
+      return await this.saveUpdatedUser(id, updateUserDto);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async removeOtherUser(id: string): Promise<ApiResponseDto<User>> {
+    try {     
+      return this.deleteSavedUser(new Types.ObjectId(id));
+    } catch (error) {
+      throw error;
+    }
+  }
+
   async findByEmail(email: string, findWithPassword: boolean = true): Promise<User | null> {
     if (findWithPassword === true) {
       return await this.userModel.findOne({ email }).select('+password').exec();
@@ -125,21 +151,35 @@ export class UsersService {
   }
 
   private async saveNewUser(createUserDto: CreateUserDto): Promise<User> {
-    const { email } = createUserDto;    
+    const { email } = createUserDto;
     const existsUser = await this.userModel.exists({ email });
     if (existsUser) throw new ConflictException('Email already exists');
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-    const userToSave = { ...createUserDto, password: hashedPassword, isActive: false };
+    const userToSave = { 
+      ...createUserDto, 
+      password: hashedPassword, 
+      isActive: createUserDto.role === Role.ADMIN ? true : false };
     const user = await this.userModel.create(userToSave);
     return user;
   }
 
-  private async sendActivationCodeEmail(email: string, code: string): Promise<void> {
+  private async saveUpdatedUser(userId: string, updateUserDto: UpdateUserDto): Promise<ApiResponseDto<User>> {
+    const user = await this.userModel.findByIdAndUpdate(userId, updateUserDto, { new: true }).exec();
+    if (!user) throw new NotFoundException('User not found');
+    return new ApiResponseDto("User updated", user);
+  }
+
+  private async deleteSavedUser(userId: Types.ObjectId): Promise<ApiResponseDto<User>> {
+    const user = await this.userModel.findByIdAndDelete(userId).exec();
+    if (!user) throw new NotFoundException('User not found');
+    return new ApiResponseDto("User deleted", user);
+  }
+  private async sendCodeEmail(email: string, codeType: string, code: string): Promise<void> {
     await this.mailerService.sendMail({
       to: email,
-      subject: 'Activation Code',
-      text: `Your activation code is: ${code}`,
-      html: `<p>Your activation code is: <b>${code}</b></p>`,
+      subject: `${codeType.toUpperCase()} CODE`,
+      text: `Your ${codeType} code is: ${code}`,
+      html: `<p>Your ${codeType} code is: <b>${code}</b></p>`,
     });
   }
 

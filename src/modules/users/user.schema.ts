@@ -2,7 +2,12 @@ import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document } from "mongoose";
 
 export type UserRole = 'ADMIN' | 'CUSTOMER' | 'PROVIDER' | 'MESSENGER';
-
+export enum Role {
+  ADMIN = 'ADMIN',
+  CUSTOMER = 'CUSTOMER',
+  PROVIDER = 'PROVIDER',
+  MESSENGER = 'MESSENGER',
+}
 @Schema({ timestamps: true })
 export class User extends Document {
   @Prop({ required: true })
@@ -10,7 +15,7 @@ export class User extends Document {
 
   @Prop({ required: true })
   lastName: string;
-  
+
   @Prop({ required: true, unique: true })
   email: string;
 
@@ -25,7 +30,7 @@ export class User extends Document {
 
   @Prop({
     required: true,
-    enum: ['ADMIN', 'CUSTOMER', 'PROVIDER', 'MESSENGER'],
+    enum: [Role.ADMIN, Role.PROVIDER, Role.MESSENGER, Role.CUSTOMER],
     default: 'CUSTOMER'
   })
   role: UserRole;
