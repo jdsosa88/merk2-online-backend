@@ -12,12 +12,11 @@ import { RefreshToken } from './refresh-token/refresh-token.schema';
 import ms = require('ms');
 import { LoginResponseDto } from './dto/login-response.dto';
 import { Types } from 'mongoose';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { VerificationCodeService } from '../verification-code/verification-code.service';
 import { MailerService } from '@nestjs-modules/mailer';
 import { VerifyResetCodeDto } from './dto/verify-reset-code.dto';
-import { ActivateUserDto } from './dto/activate-user.dto';
+import { VerifyDefaultCodeUserDto } from './dto/verify-default-code-user.dto';
 
 
 @Injectable()
@@ -67,24 +66,24 @@ export class AuthService {
     }
   }
 
-  async logout(refreshToken: RefreshTokenDto): Promise<ApiResponseDto> {
+  async logout(refreshToken: string): Promise<ApiResponseDto> {
     try {
-      await this.refreshTokenService.delete(refreshToken.refresh_token);
+      await this.refreshTokenService.delete(refreshToken);
       return new ApiResponseDto('Logout successful');
     } catch (error) {
       throw error;
     }
   }
 
-  async activateUser(activateUserDto: ActivateUserDto, ip: string, userAgent: string): Promise<ApiResponseDto<LoginResponseDto>> {
+  async activateUser(verifyDefaultCodeDto: VerifyDefaultCodeUserDto, ip: string, userAgent: string): Promise<ApiResponseDto<LoginResponseDto>> {
     try {
-      const user = await this.usersService.findOne(activateUserDto.id);
+      const user = await this.usersService.findOne(verifyDefaultCodeDto.id);
       if (!user) throw new NotFoundException('User not found');
       if (user.isActive) throw new BadRequestException('The user is already active');
 
       const isVerifiedCode = await this.verificationCodeService.verifyCode(
         user._id as Types.ObjectId,
-        activateUserDto.code,
+        verifyDefaultCodeDto.code,
         'activation'
       );
       if (!isVerifiedCode) throw new BadRequestException('Invalid or expired activation code');

@@ -1,16 +1,12 @@
-import { Body, Controller, Post, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Headers, Post, Request, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UserLoginDto } from './dto/user-login.dto';
 import { ApiKeyGuard } from 'src/common/guards/api-key.guard';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { ApiResponseDto } from 'src/common/dto/response.dto';
-import { LoginResponseDto } from './dto/login-response.dto';
-import { AuthTokensDto } from './dto/atuh-tokens.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { VerifyResetCodeDto } from './dto/verify-reset-code.dto';
-import { ActivateUserDto } from './dto/activate-user.dto';
-
+import { VerifyDefaultCodeUserDto } from './dto/verify-default-code-user.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -26,20 +22,20 @@ export class AuthController {
 
   @Post('refresh-token')
   @UseGuards(ApiKeyGuard)
-  async refresh(@Body() refreshTokenDto: RefreshTokenDto): Promise<ApiResponseDto> {
-    return await this.authService.refreshToken(refreshTokenDto.refresh_token);
+  async refresh(@Headers('x-token') token: string): Promise<ApiResponseDto> {
+    return await this.authService.refreshToken(token);
   }
 
   @Post('logout')
   @UseGuards(JwtAuthGuard)
-  async logout(@Body() refreshToken: RefreshTokenDto): Promise<ApiResponseDto> {
-    return await this.authService.logout(refreshToken);
+  async logout(@Headers('x-token') token: string): Promise<ApiResponseDto> {
+    return await this.authService.logout(token);
 
   }
 
   @Post('/activate-account')
   @UseGuards(ApiKeyGuard)
-  async activateUser(@Request() req: any, @Body() activateUserDto: ActivateUserDto): Promise<ApiResponseDto> {
+  async activateUser(@Request() req: any, @Body() activateUserDto: VerifyDefaultCodeUserDto): Promise<ApiResponseDto> {
     const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
     const userAgent = req.headers['user-agent'];
     return await this.authService.activateUser(activateUserDto, ip, userAgent);

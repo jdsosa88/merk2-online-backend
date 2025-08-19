@@ -10,6 +10,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { RefreshToken, RefreshTokenSchema } from './refresh-token/refresh-token.schema';
 import { RefreshTokenService } from './refresh-token/refresh-token.service';
 import { VerificationCodeModule } from '../verification-code/verification-code.module';
+import { CaslModule } from 'src/modules/casl/casl.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { VerificationCodeModule } from '../verification-code/verification-code.m
         signOptions: { expiresIn: config.get<string>('JWT_ACCESS_EXPIRATION') },
       }),
     }),
+    CaslModule,
     UsersModule,
     VerificationCodeModule,
   ],
