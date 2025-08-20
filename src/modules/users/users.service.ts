@@ -11,6 +11,7 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { VerificationCodeService } from '../verification-code/verification-code.service';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ObjectValidationsUtils } from 'src/common/utils/object-validations';
+import { ListUsersQueryDto } from './dto/list-users-query.dto';
 
 @Injectable()
 export class UsersService {
@@ -36,14 +37,40 @@ export class UsersService {
     }
   }
 
-  async findAll(): Promise<ApiResponseDto<User[]>> {
+  async findAllPaginated(query: ListUsersQueryDto): Promise<ApiResponseDto<{ items: User[]; total: number; page: number; perPage: number; totalPages: number }>> {
     try {
-      const users = await this.userModel.find().exec();
-      return new ApiResponseDto(users);
+      const page: number = Number(query.page) || 1;
+      const perPage: number = Number(query.perPage) || 25;
+
+
+      const filter: any = {};
+      if (query.role && query.role.trim().length > 0) {
+        const roles = query.role.split(',').map(r => r.trim()).filter(Boolean);
+        if (roles.length > 0) {
+          filter.role = { $in: roles };
+        }
+      }
+
+      const items: User[] = await this.userModel
+        .find(filter)
+        .skip((page - 1) * perPage)
+        .limit(perPage)
+        .exec();
+      const total: number = await this.userModel.countDocuments(filter).exec();
+
+
+      const totalPages: number = Math.ceil(total / perPage) || 1;
+
+      return new ApiResponseDto({
+        items,
+        total,
+        page,
+        perPage,
+        totalPages,
+      });
     } catch (error) {
       throw error;
     }
-
   }
 
   async findOne(id: string): Promise<User> {
@@ -127,7 +154,7 @@ export class UsersService {
     try {
       if (new ObjectValidationsUtils().isDefinedObject(updateUserDto.password)) {
         const newPassword: string = updateUserDto.password as string;
-        updateUserDto.password = await bcrypt.hash(newPassword, 10);        
+        updateUserDto.password = await bcrypt.hash(newPassword, 10);
       }
       return await this.saveUpdatedUser(id, updateUserDto);
     } catch (error) {
@@ -136,7 +163,7 @@ export class UsersService {
   }
 
   async removeOtherUser(id: string): Promise<ApiResponseDto<User>> {
-    try {     
+    try {
       return this.deleteSavedUser(new Types.ObjectId(id));
     } catch (error) {
       throw error;
@@ -155,10 +182,11 @@ export class UsersService {
     const existsUser = await this.userModel.exists({ email });
     if (existsUser) throw new ConflictException('Email already exists');
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-    const userToSave = { 
-      ...createUserDto, 
-      password: hashedPassword, 
-      isActive: createUserDto.role === Role.ADMIN ? true : false };
+    const userToSave = {
+      ...createUserDto,
+      password: hashedPassword,
+      isActive: createUserDto.role === Role.ADMIN ? true : false
+    };
     const user = await this.userModel.create(userToSave);
     return user;
   }

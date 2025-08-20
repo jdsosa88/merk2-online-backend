@@ -17,6 +17,7 @@ import { SetPasswordDto } from './dto/set-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ApiResponseDto } from '../../common/dto/response.dto';
 import { VerificationCodeService } from '../verification-code/verification-code.service';
+import { ListUsersQueryDto } from './dto/list-users-query.dto';
 
 // Mock bcrypt
 jest.mock('bcrypt');
@@ -53,6 +54,7 @@ describe('UsersService', () => {
     findByIdAndDelete: jest.fn(),
     create: jest.fn(),
     exists: jest.fn(),
+    countDocuments: jest.fn(),
     exec: jest.fn(),
     select: jest.fn(),
   };
@@ -174,24 +176,58 @@ describe('UsersService', () => {
   describe('findAll', () => {
     it('should find all users successfully', async () => {
       const mockUsers = [mockUser];
-      mockUserModel.find.mockReturnValue({
+      const mockTotal = 1;
+
+      // Mock the chained query for finding users
+      const mockQuery = {
+        skip: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
         exec: jest.fn().mockResolvedValue(mockUsers),
-      } as any);
+      };
+      mockUserModel.find.mockReturnValueOnce(mockQuery as any);
 
-      const result = await service.findAll();
+      // Mock countDocuments query
+      const mockCountQuery = {
+        exec: jest.fn().mockResolvedValue(mockTotal),
+      };
+      mockUserModel.countDocuments.mockReturnValueOnce(mockCountQuery as any);
 
-      expect(mockUserModel.find).toHaveBeenCalled();
+      const query: ListUsersQueryDto = {
+        page: 1,
+        perPage: 25,
+      }
+      const result = await service.findAllPaginated(query);
+
+      expect(mockUserModel.find).toHaveBeenCalledWith({});
+      expect(mockQuery.skip).toHaveBeenCalledWith(0);
+      expect(mockQuery.limit).toHaveBeenCalledWith(25);
+      expect(mockUserModel.countDocuments).toHaveBeenCalledWith({});
       expect(result).toBeInstanceOf(ApiResponseDto);
-      expect(result.data).toEqual(mockUsers);
+      expect(result.data).toEqual({
+        items: mockUsers,
+        total: mockTotal,
+        page: 1,
+        perPage: 25,
+        totalPages: 1,
+      });
     });
 
     it('should handle database errors', async () => {
       const error = new Error('Database error');
-      mockUserModel.find.mockReturnValue({
+      
+      // Mock the chained query to throw an error
+      const mockQuery = {
+        skip: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
         exec: jest.fn().mockRejectedValue(error),
-      } as any);
+      };
+      mockUserModel.find.mockReturnValue(mockQuery as any);
 
-      await expect(service.findAll()).rejects.toThrow(error);
+      const query: ListUsersQueryDto = {
+        page: 1,
+        perPage: 25,
+      }
+      await expect(service.findAllPaginated(query)).rejects.toThrow(error);
     });
   });
 
@@ -286,7 +322,7 @@ describe('UsersService', () => {
       );
     });
 
-     it('should throw NotFoundException when user not found during removal', async () => {
+    it('should throw NotFoundException when user not found during removal', async () => {
       const userId = mockObjectId;
       mockVerificationCodeService.verifyCode.mockResolvedValue(true);
       mockUserModel.findByIdAndDelete.mockReturnValue({
