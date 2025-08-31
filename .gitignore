@@ -64,3 +64,6 @@ yarn.lock
 .yarnrc.yml
 .pnp
 .pnp.*
+
+# server
+ecosystem.config.js
