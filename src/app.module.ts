@@ -25,11 +25,12 @@ import { CaslModule } from './modules/casl/casl.module';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         transport: {
-          host: config.get('MAILER_HOST'),
+          host: config.get<string>('MAILER_HOST'),
           port: config.get<number>('MAILER_PORT'),
+          secure: config.get<boolean>('MAILER_SECURE') === true, // true -> 465, false -> 587
           auth: {
-            user: config.get('MAILER_AUTH_USER'),
-            pass: config.get('MAILER_AUTH_PASS'),
+            user: config.get<string>('MAILER_AUTH_USER'),
+            pass: config.get<string>('MAILER_AUTH_PASS'),
           },
         },
         defaults: {
