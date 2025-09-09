@@ -1,6 +1,13 @@
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+
 export class ApiResponseDto<T = any> {
+  @ApiProperty()
   readonly timestamp: string;
+
+  @ApiPropertyOptional()
   readonly message?: string;
+
+  @ApiPropertyOptional()
   readonly data?: T;
 
 
