@@ -10,10 +10,10 @@ jobs:
     environment: production   
 
     steps:
-      - name: Checkout código
+      - name: Code Checkout
         uses: actions/checkout@v3
 
-      - name: Desplegar en EC2 via SSH
+      - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.EC2_HOST }}
