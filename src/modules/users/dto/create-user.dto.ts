@@ -29,7 +29,7 @@ export class CreateUserDto {
   @ApiProperty({ example: '+5351657628' })
   @IsOptional()
   @IsMobilePhone()
-  readonly phone: string;
+  readonly phone?: string;
 
   @ApiPropertyOptional({ enum: Role, example: 'CUSTOMER' })
   @IsOptional()

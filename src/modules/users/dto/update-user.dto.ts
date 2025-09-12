@@ -9,23 +9,23 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   @Length(2, 50)
-  readonly firstName: string;
+  readonly firstName?: string;
 
   @ApiPropertyOptional({ minLength: 2, maxLength: 50, example: 'Example' })
   @IsOptional()
   @IsString()
   @Length(2, 50)
-  readonly lastName: string;
+  readonly lastName?: string;
 
   @ApiPropertyOptional({ example: 'user.example@email.com' })
   @IsOptional()
   @IsEmail()
-  readonly email: string;
+  readonly email?: string;
 
   @ApiPropertyOptional({ example: '+5351657628' })
   @IsOptional()
   @IsPhoneNumber()
-  readonly phone: string;
+  readonly phone?: string;
 
   @ApiPropertyOptional({ enum: Role, example: 'PROVIDER' })
   @IsOptional()

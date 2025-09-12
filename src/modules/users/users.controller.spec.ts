@@ -24,6 +24,7 @@ describe('UsersController', () => {
     remove: jest.fn(),
     updatePassword: jest.fn(),
     resetPassword: jest.fn(),
+    createDeleteVerificationCode: jest.fn(),
   };
 
   const mockUser = {
@@ -108,19 +109,6 @@ describe('UsersController', () => {
     });
   });
 
-  // describe('findAll', () => {
-  //   it('should return all users successfully', async () => {
-  //     const mockUsers = [mockUser];
-  //     const expectedResponse = new ApiResponseDto('Users retrieved successfully', mockUsers);
-  //     mockUsersService.findAll.mockResolvedValue(expectedResponse);
-
-  //     const result = await controller.findAll();
-
-  //     expect(usersService.findAll).toHaveBeenCalled();
-  //     expect(result).toEqual(expectedResponse);
-  //   });
-  // });
-
   describe('findOne', () => {
     it('should return current user profile', async () => {
       const mockRequest = { user: mockUser };
@@ -173,6 +161,33 @@ describe('UsersController', () => {
     });
   });
 
+  describe('requestDeleteVerificationCode', () => {
+    it('should request delete verification code successfully', async () => {
+      const expectedResponse = new ApiResponseDto('A delete code has been sent to your email');
+      mockUsersService.createDeleteVerificationCode.mockResolvedValue(expectedResponse);
+
+      const mockRequest = { user: mockUser };
+
+      const result = await controller.requestDeleteVerificationCode(mockRequest);
+
+      expect(usersService.createDeleteVerificationCode).toHaveBeenCalledWith(mockUser.id, mockUser.email);
+      expect(result).toEqual(expectedResponse);
+    });
+
+    it('should handle errors when requesting delete verification code', async () => {
+      mockUsersService.createDeleteVerificationCode.mockRejectedValue(
+        new NotFoundException('User not found')
+      );
+
+      const mockRequest = { user: mockUser };
+
+      await expect(
+        controller.requestDeleteVerificationCode(mockRequest)
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+
   describe('remove', () => {
     it('should remove user successfully', async () => {
       const expectedResponse = new ApiResponseDto('User deleted successfully');
@@ -201,8 +216,8 @@ describe('UsersController', () => {
     });
   });
 
-  describe('updatePassword', () => {
-    it('should update password successfully', async () => {
+  describe('setPassword', () => {
+    it('should set password successfully', async () => {
       const setPasswordDto: SetPasswordDto = {
         oldPassword: 'oldpassword123',
         newPassword: 'newpassword123',
@@ -213,7 +228,7 @@ describe('UsersController', () => {
 
       const mockRequest = { user: mockUser };
 
-      const result = await controller.updatePassword(mockRequest, setPasswordDto);
+      const result = await controller.setPassword(mockRequest, setPasswordDto);
 
       expect(usersService.updatePassword).toHaveBeenCalledWith(mockUser.id, setPasswordDto);
       expect(result).toEqual(expectedResponse);
@@ -232,13 +247,13 @@ describe('UsersController', () => {
       const mockRequest = { user: mockUser };
 
       await expect(
-        controller.updatePassword(mockRequest, setPasswordDto)
+        controller.setPassword(mockRequest, setPasswordDto)
       ).rejects.toThrow(UnauthorizedException);
     });
   });
 
-  describe('resetPassword', () => {
-    it('should reset password successfully', async () => {
+  describe('changeForgottenPassword', () => {
+    it('should change forgotten password successfully', async () => {
       const resetPasswordDto: ResetPasswordDto = {
         code: '123456',
         newPassword: 'newpassword123',
@@ -249,7 +264,7 @@ describe('UsersController', () => {
 
       const mockRequest = { user: mockUser };
 
-      const result = await controller.resetPassword(mockRequest, resetPasswordDto);
+      const result = await controller.changeForgottenPassword(mockRequest, resetPasswordDto);
 
       expect(usersService.resetPassword).toHaveBeenCalledWith(mockUser.id, resetPasswordDto);
       expect(result).toEqual(expectedResponse);
@@ -268,7 +283,7 @@ describe('UsersController', () => {
       const mockRequest = { user: mockUser };
 
       await expect(
-        controller.resetPassword(mockRequest, resetPasswordDto)
+        controller.changeForgottenPassword(mockRequest, resetPasswordDto)
       ).rejects.toThrow();
     });
   });

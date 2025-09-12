@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 
 import { UsersService } from './users.service';
-import { User, UserRole } from './user.schema';
+import { Role, User, UserRole } from './user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
@@ -106,7 +106,7 @@ describe('UsersService', () => {
   });
 
   describe('create', () => {
-    it('should create user successfully', async () => {
+    it('should create CUSTOMER user successfully', async () => {
       const createUserDto: CreateUserDto = {
         firstName: 'John',
         lastName: 'Doe',
@@ -153,6 +153,43 @@ describe('UsersService', () => {
       expect(result.data).toEqual(mockUser);
     });
 
+    it('should create ADMIN user successfully without sending activation code', async () => {
+      const createUserDto: CreateUserDto = {
+        firstName: 'Admin',
+        lastName: 'User',
+        email: 'admin@example.com',
+        password: 'password123',
+        phone: '+1234567890',
+        role: Role.ADMIN,
+      };
+
+      const mockAdminUser = {
+        ...mockUser,
+        ...createUserDto,
+        isActive: true,
+      };
+
+      mockUserModel.exists.mockResolvedValue(null);
+      mockUserModel.create.mockResolvedValue(mockAdminUser);
+
+      const result = await service.create(createUserDto, Role.ADMIN);
+
+      expect(mockUserModel.exists).toHaveBeenCalledWith({ email: createUserDto.email });
+      expect(mockedBcrypt.hash).toHaveBeenCalledWith(createUserDto.password, 10);
+      expect(mockUserModel.create).toHaveBeenCalledWith({
+        ...createUserDto,
+        role: Role.ADMIN,
+        password: 'hashedPassword123',
+        isActive: true, // Should be true for admin
+      });
+      // Should not send activation code for admin
+      expect(mockVerificationCodeService.createCode).not.toHaveBeenCalled();
+      expect(mockMailerService.sendMail).not.toHaveBeenCalled();
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toBe('Admin user created successfully');
+      expect(result.data).toEqual(mockAdminUser);
+    });
+
     it('should throw ConflictException when email already exists', async () => {
       const createUserDto: CreateUserDto = {
         firstName: 'John',
@@ -173,7 +210,7 @@ describe('UsersService', () => {
     });
   });
 
-  describe('findAll', () => {
+  describe('findAllPaginated', () => {
     it('should find all users successfully', async () => {
       const mockUsers = [mockUser];
       const mockTotal = 1;
@@ -212,9 +249,43 @@ describe('UsersService', () => {
       });
     });
 
+    it('should filter users by role', async () => {
+      const mockUsers = [mockUser];
+      const mockTotal = 1;
+      const query: ListUsersQueryDto = {
+        page: 1,
+        perPage: 25,
+        role: Role.CUSTOMER,
+      };
+
+      const mockQuery = {
+        skip: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue(mockUsers),
+      };
+      mockUserModel.find.mockReturnValueOnce(mockQuery as any);
+
+      const mockCountQuery = {
+        exec: jest.fn().mockResolvedValue(mockTotal),
+      };
+      mockUserModel.countDocuments.mockReturnValueOnce(mockCountQuery as any);
+
+      const result = await service.findAllPaginated(query);
+
+      expect(mockUserModel.find).toHaveBeenCalledWith({ role: { $in: [Role.CUSTOMER] } });
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.data).toEqual({
+        items: mockUsers,
+        total: mockTotal,
+        page: 1,
+        perPage: 25,
+        totalPages: 1,
+      });
+    });
+
     it('should handle database errors', async () => {
       const error = new Error('Database error');
-      
+
       // Mock the chained query to throw an error
       const mockQuery = {
         skip: jest.fn().mockReturnThis(),
@@ -310,12 +381,35 @@ describe('UsersService', () => {
     });
   });
 
+  describe('createDeleteVerificationCode', () => {
+    it('should create and send delete verification code', async () => {
+      const userId = mockObjectId;
+      const email = 'test@example.com';
+
+      mockVerificationCodeService.createCode.mockResolvedValue({ code: '123456' });
+      mockMailerService.sendMail.mockResolvedValue(undefined);
+
+      const result = await service.createDeleteVerificationCode(userId, email);
+
+      expect(mockVerificationCodeService.createCode).toHaveBeenCalledWith(
+        userId,
+        'delete',
+      );
+      expect(mockMailerService.sendMail).toHaveBeenCalledWith({
+        to: email,
+        subject: 'DELETE CODE',
+        text: 'Your delete code is: 123456',
+        html: '<p>Your delete code is: <b>123456</b></p>',
+      });
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toBe('A delete code has been sent to your email');
+    });
+  });
+
   describe('remove', () => {
     it('should throw BadRequestException when try to pass an invalid or expired code', async () => {
       const userId = mockObjectId;
-      mockUserModel.findOneAndDelete.mockReturnValue({
-        exec: jest.fn().mockRejectedValue(null),
-      } as any);
+      mockVerificationCodeService.verifyCode.mockResolvedValue(false); // Invalid code
 
       await expect(service.remove(userId, '000000')).rejects.toThrow(
         new BadRequestException('Invalid or expired activation code'),
@@ -343,6 +437,11 @@ describe('UsersService', () => {
 
       const result = await service.remove(userId, '123456');
 
+      expect(mockVerificationCodeService.verifyCode).toHaveBeenCalledWith(
+        userId,
+        '123456',
+        'delete',
+      );
       expect(mockUserModel.findByIdAndDelete).toHaveBeenCalledWith(userId);
       expect(result).toBeInstanceOf(ApiResponseDto);
       expect(result.message).toBe('User deleted');
@@ -500,6 +599,97 @@ describe('UsersService', () => {
 
       await expect(service.resetPassword(userId, resetPasswordDto)).rejects.toThrow(
         new BadRequestException('Invalid or expired reset password code'),
+      );
+    });
+  });
+
+  describe('updateOtherUser', () => {
+    it('should update other user including password', async () => {
+      const userId = mockObjectId.toString();
+      const notHashedPassword = 'newPassword123';
+      const updateUserDto: UpdateUserDto = {
+        firstName: 'Jane',
+        lastName: 'Smith',
+        email: 'jane.smith@example.com',
+        phone: '+0987654321',
+        password: notHashedPassword,
+      };
+
+      const updatedUser = { ...mockUser, ...updateUserDto, password: 'hashedNewPassword123' };
+
+      mockUserModel.findByIdAndUpdate.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(updatedUser),
+      } as any);
+
+      mockedBcrypt.hash.mockResolvedValue('hashedNewPassword123' as never);
+
+      const result = await service.updateOtherUser(userId, updateUserDto);
+
+      expect(mockedBcrypt.hash).toHaveBeenCalledWith(notHashedPassword, 10);
+      expect(mockUserModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        userId,
+        {
+          ...updateUserDto,
+          password: 'hashedNewPassword123',
+        },
+        { new: true },
+      );
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toBe('User updated');
+      expect(result.data).toEqual(updatedUser);
+    });
+
+    it('should update other user without password if not provided', async () => {
+      const userId = mockObjectId.toString();
+      const updateUserDto: UpdateUserDto = {
+        firstName: 'Jane',
+        lastName: 'Smith',
+        email: 'jane.smith@example.com',
+        phone: '+0987654321',
+      };
+
+      const updatedUser = { ...mockUser, ...updateUserDto };
+      mockUserModel.findByIdAndUpdate.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(updatedUser),
+      } as any);
+
+      const result = await service.updateOtherUser(userId, updateUserDto);
+
+      expect(mockedBcrypt.hash).not.toHaveBeenCalled();
+      expect(mockUserModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        userId,
+        updateUserDto,
+        { new: true },
+      );
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toBe('User updated');
+      expect(result.data).toEqual(updatedUser);
+    });
+  });
+
+  describe('removeOtherUser', () => {
+    it('should remove other user without code', async () => {
+      const userId = mockObjectId.toString();
+      mockUserModel.findByIdAndDelete.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockUser),
+      } as any);
+
+      const result = await service.removeOtherUser(userId);
+
+      expect(mockUserModel.findByIdAndDelete).toHaveBeenCalledWith(new Types.ObjectId(userId));
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toBe('User deleted');
+      expect(result.data).toEqual(mockUser);
+    });
+
+    it('should throw NotFoundException when user not found during removal', async () => {
+      const userId = mockObjectId.toString();
+      mockUserModel.findByIdAndDelete.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(null),
+      } as any);
+
+      await expect(service.removeOtherUser(userId)).rejects.toThrow(
+        new NotFoundException('User not found'),
       );
     });
   });
