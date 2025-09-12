@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
+import { AuthService } from './services/auth.service';
+import { AuthController } from './controllers/auth.controller';
 import { UsersModule } from '../users/users.module';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { MongooseModule } from '@nestjs/mongoose';
-import { RefreshToken, RefreshTokenSchema } from './refresh-token/refresh-token.schema';
-import { RefreshTokenService } from './refresh-token/refresh-token.service';
+import { RefreshToken, RefreshTokenSchema } from './schemas/refresh-token.schema';
+import { RefreshTokenService } from './services/refresh-token.service';
 import { VerificationCodeModule } from '../verification-code/verification-code.module';
 import { CaslModule } from 'src/modules/casl/casl.module';
 

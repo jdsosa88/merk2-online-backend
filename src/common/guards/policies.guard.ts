@@ -5,10 +5,10 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { CaslAbilityFactory } from '../../modules/casl/casl-ability.factory';
-import { PolicyHandler } from '../../modules/casl/policy-handler.interface';
-import { CHECK_POLICIES_KEY } from '../../modules/casl/policies.decorator';
-import { User } from '../../modules/users/user.schema';
+import { CaslAbilityFactory } from '../../modules/casl/factories/casl-ability.factory';
+import { PolicyHandler } from '../../modules/casl/interfaces/policy-handler.interface';
+import { CHECK_POLICIES_KEY } from '../../modules/casl/decorators/policies.decorator';
+import { User } from '../../modules/users/schemas/user.schema';
 
 @Injectable()
 export class PoliciesGuard implements CanActivate {

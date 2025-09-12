@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuthService } from './auth.service';
-import { UsersService } from '../users/users.service';
+import { AuthService } from '../services/auth.service';
+import { UsersService } from '../../users/services/users.service';
 import { JwtService } from '@nestjs/jwt';
-import { RefreshTokenService } from './refresh-token/refresh-token.service';
+import { RefreshTokenService } from '../services/refresh-token.service';
 import { ConfigService } from '@nestjs/config';
-import { VerificationCodeService } from '../verification-code/verification-code.service';
+import { VerificationCodeService } from '../../verification-code/services/verification-code.service';
 import { MailerService } from '@nestjs-modules/mailer';
 import {
   BadRequestException,
@@ -13,14 +13,13 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { Types } from 'mongoose';
-import { UserLoginDto } from './dto/user-login.dto';
-import { VerifyDefaultCodeUserDto } from './dto/verify-default-code-user.dto';
-import { ForgotPasswordDto } from './dto/forgot-password.dto';
-import { VerifyResetCodeDto } from './dto/verify-reset-code.dto';
-import { ApiResponseDto } from '../../common/dto/response.dto';
-import { AuthTokensDto } from './dto/atuh-tokens.dto';
-import { LoginResponseDto } from './dto/login-response.dto';
-import { UserRole } from '../users/user.schema';
+import { UserLoginDto } from '../dto/user-login.dto';
+import { VerifyDefaultCodeUserDto } from '../dto/verify-default-code-user.dto';
+import { ForgotPasswordDto } from '../dto/forgot-password.dto';
+import { VerifyResetCodeDto } from '../dto/verify-reset-code.dto';
+import { ApiResponseDto } from '../../../common/dto/response.dto';
+import { AuthTokensDto } from '../dto/atuh-tokens.dto';
+import { UserRole } from '../../users/schemas/user.schema';
 
 // Mock bcrypt
 jest.mock('bcrypt');

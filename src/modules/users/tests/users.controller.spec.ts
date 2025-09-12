@@ -1,17 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UsersController } from './users.controller';
-import { UsersService } from './users.service';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { ApiKeyGuard } from '../../common/guards/api-key.guard';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { SetPasswordDto } from './dto/set-password.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
-import { ApiResponseDto } from '../../common/dto/response.dto';
-import { User, UserRole } from './user.schema';
+import { UsersController } from '../controllers/users.controller';
+import { UsersService } from '../services/users.service';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+import { ApiKeyGuard } from '../../../common/guards/api-key.guard';
+import { CreateUserDto } from '../dto/create-user.dto';
+import { UpdateUserDto } from '../dto/update-user.dto';
+import { SetPasswordDto } from '../dto/set-password.dto';
+import { ResetPasswordDto } from '../dto/reset-password.dto';
+import { ApiResponseDto } from '../../../common/dto/response.dto';
+import { User, UserRole } from '../schemas/user.schema';
 import { UnauthorizedException, NotFoundException } from '@nestjs/common';
-import { VerificationCodeDto } from './dto/verification-code.dto';
-import { CaslAbilityFactory } from '../casl/casl-ability.factory';
+import { VerificationCodeDto } from '../dto/verification-code.dto';
+import { CaslAbilityFactory } from '../../casl/factories/casl-ability.factory';
 
 describe('UsersController', () => {
   let controller: UsersController;

@@ -1,22 +1,22 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { UsersService } from '../users/users.service';
+import { UsersService } from '../../users/services/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { UserLoginDto } from './dto/user-login.dto';
+import { UserLoginDto } from '../dto/user-login.dto';
 import { ApiResponseDto } from 'src/common/dto/response.dto';
-import { User } from '../users/user.schema';
-import { AuthTokensDto } from './dto/atuh-tokens.dto';
-import { RefreshTokenService } from './refresh-token/refresh-token.service';
+import { User } from '../../users/schemas/user.schema';
+import { AuthTokensDto } from '../dto/atuh-tokens.dto';
+import { RefreshTokenService } from '../services/refresh-token.service';
 import { ConfigService } from '@nestjs/config';
-import { RefreshToken } from './refresh-token/refresh-token.schema';
+import { RefreshToken } from '../schemas/refresh-token.schema';
 import ms = require('ms');
-import { LoginResponseDto } from './dto/login-response.dto';
+import { LoginResponseDto } from '../dto/login-response.dto';
 import { Types } from 'mongoose';
-import { ForgotPasswordDto } from './dto/forgot-password.dto';
-import { VerificationCodeService } from '../verification-code/verification-code.service';
+import { ForgotPasswordDto } from '../dto/forgot-password.dto';
+import { VerificationCodeService } from '../../verification-code/services/verification-code.service';
 import { MailerService } from '@nestjs-modules/mailer';
-import { VerifyResetCodeDto } from './dto/verify-reset-code.dto';
-import { VerifyDefaultCodeUserDto } from './dto/verify-default-code-user.dto';
+import { VerifyResetCodeDto } from '../dto/verify-reset-code.dto';
+import { VerifyDefaultCodeUserDto } from '../dto/verify-default-code-user.dto';
 
 
 @Injectable()

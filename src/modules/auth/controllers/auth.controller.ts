@@ -1,12 +1,12 @@
 import { Body, Controller, Headers, Post, Request, UseGuards } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { UserLoginDto } from './dto/user-login.dto';
+import { AuthService } from '../services/auth.service';
+import { UserLoginDto } from '../dto/user-login.dto';
 import { ApiKeyGuard } from 'src/common/guards/api-key.guard';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { ApiResponseDto } from 'src/common/dto/response.dto';
-import { ForgotPasswordDto } from './dto/forgot-password.dto';
-import { VerifyResetCodeDto } from './dto/verify-reset-code.dto';
-import { VerifyDefaultCodeUserDto } from './dto/verify-default-code-user.dto';
+import { ForgotPasswordDto } from '../dto/forgot-password.dto';
+import { VerifyResetCodeDto } from '../dto/verify-reset-code.dto';
+import { VerifyDefaultCodeUserDto } from '../dto/verify-default-code-user.dto';
 import { ApiHeader, ApiOperation, ApiProperty, ApiPropertyOptional, ApiResponse } from '@nestjs/swagger';
 import { SwaggerResponseUtils } from 'src/common/utils/swagger-response-utils';
 

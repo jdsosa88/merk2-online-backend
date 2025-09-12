@@ -1,22 +1,22 @@
-import { Body, Controller, Delete, Get, Patch, Post, Query, Request, UseGuards, ValidationPipe } from '@nestjs/common';
-import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { Body, Controller, Delete, Get, Patch, Post, Query, Request, UseGuards } from '@nestjs/common';
+import { UsersService } from '../services/users.service';
+import { CreateUserDto } from '../dto/create-user.dto';
+import { UpdateUserDto } from '../dto/update-user.dto';
 import { ApiKeyGuard } from 'src/common/guards/api-key.guard';
-import { SetPasswordDto } from './dto/set-password.dto';
+import { SetPasswordDto } from '../dto/set-password.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { Public } from 'src/common/decorators/public.decorator';
 import { ApiResponseDto } from 'src/common/dto/response.dto';
-import { User } from './user.schema';
-import { ResetPasswordDto } from './dto/reset-password.dto';
+import { User } from '../schemas/user.schema';
+import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { PoliciesGuard } from 'src/common/guards/policies.guard';
-import { CheckPolicies } from 'src/modules/casl/policies.decorator';
+import { CheckPolicies } from 'src/modules/casl/decorators/policies.decorator';
 import {
   DeleteUserPolicyHandler,
   ReadUserPolicyHandler,
   UpdateUserPolicyHandler
 } from 'src/modules/casl/policy-handlers/user.policy-handler';
-import { VerificationCodeDto } from './dto/verification-code.dto';
+import { VerificationCodeDto } from '../dto/verification-code.dto';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { SwaggerResponseUtils } from 'src/common/utils/swagger-response-utils';
 

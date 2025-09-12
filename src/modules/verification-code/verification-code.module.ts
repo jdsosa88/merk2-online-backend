@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
-import { VerificationCodeService } from './verification-code.service';
+import { VerificationCodeService } from './services/verification-code.service';
 import { MongooseModule } from '@nestjs/mongoose';
-import { VerificationCode, VerificationCodeSchema } from './verification-code.schema';
+import { VerificationCode, VerificationCodeSchema } from './schemas/verification-code.schema';
 
 @Module({
   imports: [

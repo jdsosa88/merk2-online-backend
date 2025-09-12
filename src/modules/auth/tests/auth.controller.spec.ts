@@ -1,14 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
-import { ApiKeyGuard } from '../../common/guards/api-key.guard';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { UserLoginDto } from './dto/user-login.dto';
-import { VerifyDefaultCodeUserDto } from './dto/verify-default-code-user.dto';
-import { ForgotPasswordDto } from './dto/forgot-password.dto';
-import { VerifyResetCodeDto } from './dto/verify-reset-code.dto';
-import { ApiResponseDto } from '../../common/dto/response.dto';
-import { LoginResponseDto } from './dto/login-response.dto';
+import { AuthController } from '../controllers/auth.controller';
+import { AuthService } from '../services/auth.service';
+import { ApiKeyGuard } from '../../../common/guards/api-key.guard';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+import { UserLoginDto } from '../dto/user-login.dto';
+import { VerifyDefaultCodeUserDto } from '../dto/verify-default-code-user.dto';
+import { ForgotPasswordDto } from '../dto/forgot-password.dto';
+import { VerifyResetCodeDto } from '../dto/verify-reset-code.dto';
+import { ApiResponseDto } from '../../../common/dto/response.dto';
+import { LoginResponseDto } from '../dto/login-response.dto';
 import { UnauthorizedException } from '@nestjs/common';
 
 describe('AuthController', () => {

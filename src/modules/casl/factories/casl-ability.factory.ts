@@ -1,9 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { AbilityBuilder, MongoAbility, createMongoAbility, MongoQuery, InferSubjects, ExtractSubjectType } from '@casl/ability';
-import { Role, User, UserRole } from '../users/user.schema';
-import { RefreshToken } from 'src/modules/auth/refresh-token/refresh-token.schema';
-import { ObjectId, Types } from 'mongoose';
-import { UpdateUserDto } from '../users/dto/update-user.dto';
+import { AbilityBuilder, MongoAbility, createMongoAbility, InferSubjects, ExtractSubjectType } from '@casl/ability';
+import { Role, User } from '../../users/schemas/user.schema';
 
 /**
  * Defines the possible actions that can be performed on resources

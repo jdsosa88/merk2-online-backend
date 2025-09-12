@@ -1,17 +1,17 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException, } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Role, User } from './user.schema';
+import { Role, User } from '../schemas/user.schema';
 import { Model, Types } from 'mongoose';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateUserDto } from '../dto/create-user.dto';
+import { UpdateUserDto } from '../dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
-import { SetPasswordDto } from './dto/set-password.dto';
+import { SetPasswordDto } from '../dto/set-password.dto';
 import { ApiResponseDto } from 'src/common/dto/response.dto';
 import { MailerService } from '@nestjs-modules/mailer';
-import { VerificationCodeService } from '../verification-code/verification-code.service';
-import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerificationCodeService } from '../../verification-code/services/verification-code.service';
+import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { ObjectValidationsUtils } from 'src/common/utils/object-validations';
-import { ListUsersQueryDto } from './dto/list-users-query.dto';
+import { ListUsersQueryDto } from '../dto/list-users-query.dto';
 
 @Injectable()
 export class UsersService {

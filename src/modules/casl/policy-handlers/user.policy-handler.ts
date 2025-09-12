@@ -1,10 +1,7 @@
-import { User, UserRole } from "src/modules/users/user.schema";
-import { Action, AppAbility } from "../casl-ability.factory";
-import { IPolicyHandler } from "../policy-handler.interface";
-import { UpdateUserDto } from "src/modules/users/dto/update-user.dto";
-import { use } from "passport";
+import { User } from "src/modules/users/schemas/user.schema";
+import { Action, AppAbility } from "../factories/casl-ability.factory";
+import { IPolicyHandler } from "../interfaces/policy-handler.interface";
 import { ObjectValidationsUtils } from "src/common/utils/object-validations";
-import { Type } from "@nestjs/common";
 
 export class CreateAdminUserPolicyHandler implements IPolicyHandler {
   handle(ability: AppAbility, req?: any): boolean {   

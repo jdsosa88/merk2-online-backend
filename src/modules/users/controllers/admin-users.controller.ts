@@ -1,15 +1,15 @@
 import { Body, Controller, Delete, Get, Patch, Post, Query, UseGuards, ValidationPipe } from "@nestjs/common";
 import { JwtAuthGuard } from "src/common/guards/jwt-auth.guard";
 import { PoliciesGuard } from "src/common/guards/policies.guard";
-import { UsersService } from "./users.service";
-import { CreateUserDto } from "./dto/create-user.dto";
+import { UsersService } from "../services/users.service";
+import { CreateUserDto } from "../dto/create-user.dto";
 import { ApiResponseDto } from "src/common/dto/response.dto";
-import { CheckPolicies } from "../casl/policies.decorator";
-import { Role, User } from "./user.schema";
-import { UpdateUserDto } from "./dto/update-user.dto";
-import { CreateAdminUserPolicyHandler, DeleteOtherUserPolicyHandler, ListUsersPolicyHandler, ReadOtherUserPolicyHandler, UpdateOtherUserPolicyHandler, } from "../casl/policy-handlers/user.policy-handler";
+import { CheckPolicies } from "../../casl/decorators/policies.decorator";
+import { Role, User } from "../schemas/user.schema";
+import { UpdateUserDto } from "../dto/update-user.dto";
+import { CreateAdminUserPolicyHandler, DeleteOtherUserPolicyHandler, ListUsersPolicyHandler, ReadOtherUserPolicyHandler, UpdateOtherUserPolicyHandler, } from "../../casl/policy-handlers/user.policy-handler";
 import { IdDto } from "src/common/dto/id.dto";
-import { ListUsersQueryDto } from "./dto/list-users-query.dto";
+import { ListUsersQueryDto } from "../dto/list-users-query.dto";
 import { ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { SwaggerResponseUtils } from "src/common/utils/swagger-response-utils";
 

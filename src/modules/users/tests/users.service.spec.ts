@@ -9,15 +9,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { UsersService } from './users.service';
-import { Role, User, UserRole } from './user.schema';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { SetPasswordDto } from './dto/set-password.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
-import { ApiResponseDto } from '../../common/dto/response.dto';
-import { VerificationCodeService } from '../verification-code/verification-code.service';
-import { ListUsersQueryDto } from './dto/list-users-query.dto';
+import { UsersService } from '../services/users.service';
+import { Role, User, UserRole } from '../schemas/user.schema';
+import { CreateUserDto } from '../dto/create-user.dto';
+import { UpdateUserDto } from '../dto/update-user.dto';
+import { SetPasswordDto } from '../dto/set-password.dto';
+import { ResetPasswordDto } from '../dto/reset-password.dto';
+import { ApiResponseDto } from '../../../common/dto/response.dto';
+import { VerificationCodeService } from '../../verification-code/services/verification-code.service';
+import { ListUsersQueryDto } from '../dto/list-users-query.dto';
 
 // Mock bcrypt
 jest.mock('bcrypt');

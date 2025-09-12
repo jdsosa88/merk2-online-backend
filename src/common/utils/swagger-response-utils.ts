@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { ApiResponseDto } from "../dto/response.dto";
-import { Role } from "src/modules/users/user.schema";
+import { Role } from "src/modules/users/schemas/user.schema";
 
 @Injectable()
 export class SwaggerResponseUtils {

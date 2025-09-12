@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { VerificationCode } from './verification-code.schema';
+import { VerificationCode } from '../schemas/verification-code.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 

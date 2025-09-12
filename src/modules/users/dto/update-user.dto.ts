@@ -1,7 +1,7 @@
 import { PartialType } from "@nestjs/mapped-types";
 import { CreateUserDto } from "./create-user.dto";
 import { IsEmail, IsIn, IsOptional, IsPhoneNumber, IsString, Length } from "class-validator";
-import { Role, UserRole } from "../user.schema";
+import { Role, UserRole } from "../schemas/user.schema";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class UpdateUserDto {

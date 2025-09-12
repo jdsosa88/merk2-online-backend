@@ -1,5 +1,5 @@
 import { IsEmail, IsIn, IsMobilePhone, IsNotEmpty, IsOptional, IsPhoneNumber, IsString, Length } from "class-validator";
-import { Role, UserRole } from "../user.schema";
+import { Role, UserRole } from "../schemas/user.schema";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class CreateUserDto {
