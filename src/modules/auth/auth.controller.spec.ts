@@ -156,7 +156,7 @@ describe('AuthController', () => {
     });
   });
 
-  describe('activateUser', () => {
+  describe('confirmAccountActivationCode', () => {
     it('should activate user account successfully', async () => {
       const verifyDefaultCodeDto: VerifyDefaultCodeUserDto = {
         id: 'user123',
@@ -172,7 +172,7 @@ describe('AuthController', () => {
         connection: { remoteAddress: '127.0.0.1' },
       };
 
-      const result = await controller.activateUser(mockRequest, verifyDefaultCodeDto);
+      const result = await controller.confirmAccountActivationCode(mockRequest, verifyDefaultCodeDto);
 
       expect(authService.activateUser).toHaveBeenCalledWith(
         verifyDefaultCodeDto,
@@ -215,7 +215,7 @@ describe('AuthController', () => {
         connection: { remoteAddress: '127.0.0.1' },
       };
 
-      const result = await controller.resetPassword(mockRequest, verifyResetCodeDto);
+      const result = await controller.confirmForgottenPasswordCode(mockRequest, verifyResetCodeDto);
 
       expect(authService.verifyResetCode).toHaveBeenCalledWith(
         verifyResetCodeDto,
