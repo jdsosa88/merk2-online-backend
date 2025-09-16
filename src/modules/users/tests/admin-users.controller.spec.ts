@@ -12,6 +12,7 @@ import { User, Role, UserRole } from '../schemas/user.schema';
 import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { CaslAbilityFactory } from '../../casl/factories/casl-ability.factory';
 import { Reflector } from '@nestjs/core';
+import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
 
 describe('AdminUsersController', () => {
   let controller: AdminUsersController;
@@ -104,13 +105,14 @@ describe('AdminUsersController', () => {
         role: Role.ADMIN,
       };
 
-      const expectedResponse = new ApiResponseDto('Admin user created successfully', mockUser);
-      mockUsersService.create.mockResolvedValue(expectedResponse);
+      mockUsersService.create.mockResolvedValue(mockUser);
 
       const result = await controller.createAdmin(createUserDto);
 
       expect(usersService.create).toHaveBeenCalledWith(createUserDto, Role.ADMIN);
-      expect(result).toEqual(expectedResponse);
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toEqual('Admin user created successfully');
+      expect(result.data).toEqual(mockUser);
     });
 
     it('should handle validation errors when creating admin user', async () => {
@@ -152,31 +154,30 @@ describe('AdminUsersController', () => {
     it('should find a user successfully', async () => {
       const idDto: IdDto = { id: 'customer123' };
       const expectedResponse = new ApiResponseDto('User found', mockCustomerUser);
-      
+
       mockUsersService.findOne.mockResolvedValue(mockCustomerUser);
 
       const result = await controller.findOtherUser(idDto);
 
       expect(usersService.findOne).toHaveBeenCalledWith('customer123');
       expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toBeUndefined();
       expect(result.data).toEqual(mockCustomerUser);
     });
 
     it('should handle user not found', async () => {
       const idDto: IdDto = { id: 'nonexistent123' };
-      
+
       mockUsersService.findOne.mockRejectedValue(
         new NotFoundException('User not found')
       );
 
-      await expect(controller.findOtherUser(idDto)).rejects.toThrow(
-        NotFoundException
-      );
+      await expect(controller.findOtherUser(idDto)).rejects.toThrow(NotFoundException);
     });
 
     it('should handle invalid ID format', async () => {
       const idDto: IdDto = { id: 'invalid-id' };
-      
+
       mockUsersService.findOne.mockRejectedValue(
         new Error('Invalid ID format')
       );
@@ -193,20 +194,22 @@ describe('AdminUsersController', () => {
       };
 
       const mockUsersList = [mockUser, mockCustomerUser];
-      const expectedResponse = new ApiResponseDto('Users list retrieved', {
-        data: mockUsersList,
+      const mockPaginatedList: PaginatedListDto<User> = {
+        items: mockUsersList,
         total: 2,
         page: 1,
         perPage: 10,
         totalPages: 1,
-      });
+      }
 
-      mockUsersService.findAllPaginated.mockResolvedValue(expectedResponse);
+      mockUsersService.findAllPaginated.mockResolvedValue(mockPaginatedList);
 
       const result = await controller.findAll(query);
 
       expect(usersService.findAllPaginated).toHaveBeenCalledWith(query);
-      expect(result).toEqual(expectedResponse);
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toBeUndefined();
+      expect(result.data).toEqual(mockPaginatedList);
     });
 
     it('should return paginated users list with role filter', async () => {
@@ -217,20 +220,22 @@ describe('AdminUsersController', () => {
       };
 
       const mockFilteredUsersList = [mockCustomerUser];
-      const expectedResponse = new ApiResponseDto('Users list retrieved', {
-        data: mockFilteredUsersList,
+      const mockPaginatedList: PaginatedListDto<User> = {
+        items: mockFilteredUsersList,
         total: 1,
         page: 1,
         perPage: 10,
         totalPages: 1,
-      });
+      };
 
-      mockUsersService.findAllPaginated.mockResolvedValue(expectedResponse);
+      mockUsersService.findAllPaginated.mockResolvedValue(mockPaginatedList);
 
       const result = await controller.findAll(query);
 
       expect(usersService.findAllPaginated).toHaveBeenCalledWith(query);
-      expect(result).toEqual(expectedResponse);
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toBeUndefined();
+      expect(result.data).toEqual(mockPaginatedList);
     });
 
     it('should return empty list when no users found', async () => {
@@ -238,21 +243,22 @@ describe('AdminUsersController', () => {
         page: 1,
         perPage: 10,
       };
-
-      const expectedResponse = new ApiResponseDto('Users list retrieved', {
-        data: [],
+      const mockPaginatedList: PaginatedListDto<User> = {
+        items: [],
         total: 0,
         page: 1,
         perPage: 10,
         totalPages: 0,
-      });
+      };
 
-      mockUsersService.findAllPaginated.mockResolvedValue(expectedResponse);
+      mockUsersService.findAllPaginated.mockResolvedValue(mockPaginatedList);
 
       const result = await controller.findAll(query);
 
       expect(usersService.findAllPaginated).toHaveBeenCalledWith(query);
-      expect(result).toEqual(expectedResponse);
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toBeUndefined();
+      expect(result.data).toEqual(mockPaginatedList);
     });
 
     it('should handle service errors when finding all users', async () => {
@@ -282,13 +288,15 @@ describe('AdminUsersController', () => {
       };
 
       const updatedUser = { ...mockCustomerUser, ...updateUserDto };
-      const expectedResponse = new ApiResponseDto('User updated', updatedUser);
-      mockUsersService.updateOtherUser.mockResolvedValue(expectedResponse);
+      mockUsersService.updateOtherUser.mockResolvedValue(updatedUser);
 
       const result = await controller.updateOtherUser(idDto, updateUserDto);
 
       expect(usersService.updateOtherUser).toHaveBeenCalledWith('customer123', updateUserDto);
-      expect(result).toEqual(expectedResponse);
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toEqual('User updated');
+      expect(result.data).toEqual(updatedUser);
+
     });
 
     it('should update user password when included in DTO', async () => {
@@ -298,13 +306,14 @@ describe('AdminUsersController', () => {
         password: 'newPassword123',
       };
 
-      const expectedResponse = new ApiResponseDto('User updated', mockCustomerUser);
-      mockUsersService.updateOtherUser.mockResolvedValue(expectedResponse);
+      mockUsersService.updateOtherUser.mockResolvedValue(mockCustomerUser);
 
       const result = await controller.updateOtherUser(idDto, updateUserDto);
 
       expect(usersService.updateOtherUser).toHaveBeenCalledWith('customer123', updateUserDto);
-      expect(result).toEqual(expectedResponse);
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toEqual('User updated');
+      expect(result.data).toEqual(mockCustomerUser);
     });
 
     it('should handle user not found when updating', async () => {
@@ -339,13 +348,14 @@ describe('AdminUsersController', () => {
   describe('removeOtherUser', () => {
     it('should remove another user successfully', async () => {
       const idDto: IdDto = { id: 'customer123' };
-      const expectedResponse = new ApiResponseDto('User deleted', mockCustomerUser);
-      mockUsersService.removeOtherUser.mockResolvedValue(expectedResponse);
+      mockUsersService.removeOtherUser.mockResolvedValue(mockCustomerUser);
 
       const result = await controller.removeOtherUser(idDto);
 
       expect(usersService.removeOtherUser).toHaveBeenCalledWith('customer123');
-      expect(result).toEqual(expectedResponse);
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toEqual('User deleted');
+      expect(result.data).toEqual(mockCustomerUser);
     });
 
     it('should handle user not found when deleting', async () => {

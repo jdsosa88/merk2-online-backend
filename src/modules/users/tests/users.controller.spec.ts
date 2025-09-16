@@ -82,14 +82,15 @@ describe('UsersController', () => {
         phone: '+1234567890',
         role: 'CUSTOMER' as UserRole,
       };
-
-      const expectedResponse = new ApiResponseDto('User created successfully', mockUser);
-      mockUsersService.create.mockResolvedValue(expectedResponse);
+      
+      mockUsersService.create.mockResolvedValue(mockUser);
 
       const result = await controller.create(createUserDto);
 
       expect(usersService.create).toHaveBeenCalledWith(createUserDto);
-      expect(result).toEqual(expectedResponse);
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toEqual('User created, please check your email for the activation code');
+      expect(result.data).toEqual(mockUser);
     });
 
     it('should handle validation errors when creating user', async () => {
@@ -116,6 +117,7 @@ describe('UsersController', () => {
       const result = await controller.findOne(mockRequest);
 
       expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toBeUndefined();
       expect(result.data).toEqual(mockUser);
     });
   });
@@ -129,16 +131,16 @@ describe('UsersController', () => {
         phone: '+0987654321',
       };
 
-      const updatedUser = { ...mockUser, ...updateUserDto };
-      const expectedResponse = new ApiResponseDto('User updated successfully', updatedUser);
-      mockUsersService.update.mockResolvedValue(expectedResponse);
+      const updatedUser = { ...mockUser, ...updateUserDto };      
+      mockUsersService.update.mockResolvedValue(updatedUser);
 
       const mockRequest = { user: mockUser };
 
       const result = await controller.update(mockRequest, updateUserDto);
 
       expect(usersService.update).toHaveBeenCalledWith(mockUser.id, updateUserDto);
-      expect(result).toEqual(expectedResponse);
+      expect(result.message).toEqual('User updated');
+      expect(result.data).toEqual(updatedUser);
     });
 
     it('should handle user not found when updating', async () => {
@@ -163,15 +165,17 @@ describe('UsersController', () => {
 
   describe('requestDeleteVerificationCode', () => {
     it('should request delete verification code successfully', async () => {
-      const expectedResponse = new ApiResponseDto('A delete code has been sent to your email');
-      mockUsersService.createDeleteVerificationCode.mockResolvedValue(expectedResponse);
+      const message: string = 'A delete code has been sent to your email';    
+      mockUsersService.createDeleteVerificationCode.mockResolvedValue(message);
 
       const mockRequest = { user: mockUser };
 
       const result = await controller.requestDeleteVerificationCode(mockRequest);
 
       expect(usersService.createDeleteVerificationCode).toHaveBeenCalledWith(mockUser.id, mockUser.email);
-      expect(result).toEqual(expectedResponse);
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toEqual(message);
+      expect(result.data).toBeUndefined();
     });
 
     it('should handle errors when requesting delete verification code', async () => {
@@ -190,8 +194,8 @@ describe('UsersController', () => {
 
   describe('remove', () => {
     it('should remove user successfully', async () => {
-      const expectedResponse = new ApiResponseDto('User deleted successfully');
-      mockUsersService.remove.mockResolvedValue(expectedResponse);
+      const expectedResponse = new ApiResponseDto('User deleted', mockUser);
+      mockUsersService.remove.mockResolvedValue(mockUser);
 
       const mockRequest = { user: mockUser };
       const verificationCodeDto: VerificationCodeDto = { code: '123456' };
@@ -199,7 +203,9 @@ describe('UsersController', () => {
       const result = await controller.remove(mockRequest, verificationCodeDto);
 
       expect(usersService.remove).toHaveBeenCalledWith(mockUser.id, "123456");
-      expect(result).toEqual(expectedResponse);
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toEqual('User deleted');
+      expect(result.data).toEqual(mockUser);
     });
 
     it('should handle user not found when removing', async () => {
@@ -223,15 +229,17 @@ describe('UsersController', () => {
         newPassword: 'newpassword123',
       };
 
-      const expectedResponse = new ApiResponseDto('Password updated successfully');
-      mockUsersService.updatePassword.mockResolvedValue(expectedResponse);
+      const message: string = 'Password changed successfully';
+      mockUsersService.updatePassword.mockResolvedValue(message);
 
       const mockRequest = { user: mockUser };
 
       const result = await controller.setPassword(mockRequest, setPasswordDto);
 
       expect(usersService.updatePassword).toHaveBeenCalledWith(mockUser.id, setPasswordDto);
-      expect(result).toEqual(expectedResponse);
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toEqual(message);
+      expect(result.data).toBeUndefined();
     });
 
     it('should handle invalid current password', async () => {
@@ -259,15 +267,17 @@ describe('UsersController', () => {
         newPassword: 'newpassword123',
       };
 
-      const expectedResponse = new ApiResponseDto('Password reset successfully');
-      mockUsersService.resetPassword.mockResolvedValue(expectedResponse);
+      const message: string = 'Password changed successfully';
+      mockUsersService.resetPassword.mockResolvedValue(message);
 
       const mockRequest = { user: mockUser };
 
       const result = await controller.changeForgottenPassword(mockRequest, resetPasswordDto);
 
       expect(usersService.resetPassword).toHaveBeenCalledWith(mockUser.id, resetPasswordDto);
-      expect(result).toEqual(expectedResponse);
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toEqual(message);
+      expect(result.data).toBeUndefined();
     });
 
     it('should handle invalid reset code', async () => {

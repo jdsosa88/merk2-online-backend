@@ -18,6 +18,7 @@ import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { ApiResponseDto } from '../../../common/dto/response.dto';
 import { VerificationCodeService } from '../../verification-code/services/verification-code.service';
 import { ListUsersQueryDto } from '../dto/list-users-query.dto';
+import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
 
 // Mock bcrypt
 jest.mock('bcrypt');
@@ -148,9 +149,7 @@ describe('UsersService', () => {
         text: `Your activation code is: ${mockActivationCode.code}`,
         html: `<p>Your activation code is: <b>${mockActivationCode.code}</b></p>`,
       });
-      expect(result).toBeInstanceOf(ApiResponseDto);
-      expect(result.message).toBe('User created, please check your email for the activation code');
-      expect(result.data).toEqual(mockUser);
+      expect(result).toEqual(mockUser);
     });
 
     it('should create ADMIN user successfully without sending activation code', async () => {
@@ -185,9 +184,7 @@ describe('UsersService', () => {
       // Should not send activation code for admin
       expect(mockVerificationCodeService.createCode).not.toHaveBeenCalled();
       expect(mockMailerService.sendMail).not.toHaveBeenCalled();
-      expect(result).toBeInstanceOf(ApiResponseDto);
-      expect(result.message).toBe('Admin user created successfully');
-      expect(result.data).toEqual(mockAdminUser);
+      expect(result).toEqual(mockAdminUser);
     });
 
     it('should throw ConflictException when email already exists', async () => {
@@ -239,8 +236,7 @@ describe('UsersService', () => {
       expect(mockQuery.skip).toHaveBeenCalledWith(0);
       expect(mockQuery.limit).toHaveBeenCalledWith(25);
       expect(mockUserModel.countDocuments).toHaveBeenCalledWith({});
-      expect(result).toBeInstanceOf(ApiResponseDto);
-      expect(result.data).toEqual({
+      expect(result).toEqual({
         items: mockUsers,
         total: mockTotal,
         page: 1,
@@ -273,8 +269,7 @@ describe('UsersService', () => {
       const result = await service.findAllPaginated(query);
 
       expect(mockUserModel.find).toHaveBeenCalledWith({ role: { $in: [Role.CUSTOMER] } });
-      expect(result).toBeInstanceOf(ApiResponseDto);
-      expect(result.data).toEqual({
+      expect(result).toEqual({
         items: mockUsers,
         total: mockTotal,
         page: 1,
@@ -357,9 +352,7 @@ describe('UsersService', () => {
         },
         { new: true },
       );
-      expect(result).toBeInstanceOf(ApiResponseDto);
-      expect(result.message).toBe('User updated');
-      expect(result.data).toEqual(updatedUser);
+      expect(result).toEqual(updatedUser);
     });
 
     it('should throw NotFoundException when user not found during update', async () => {
@@ -401,8 +394,7 @@ describe('UsersService', () => {
         text: 'Your delete code is: 123456',
         html: '<p>Your delete code is: <b>123456</b></p>',
       });
-      expect(result).toBeInstanceOf(ApiResponseDto);
-      expect(result.message).toBe('A delete code has been sent to your email');
+      expect(result).toBe('A delete code has been sent to your email');
     });
   });
 
@@ -443,9 +435,7 @@ describe('UsersService', () => {
         'delete',
       );
       expect(mockUserModel.findByIdAndDelete).toHaveBeenCalledWith(userId);
-      expect(result).toBeInstanceOf(ApiResponseDto);
-      expect(result.message).toBe('User deleted');
-      expect(result.data).toEqual(mockUser);
+      expect(result).toEqual(mockUser);
     });
   });
 
@@ -477,8 +467,7 @@ describe('UsersService', () => {
       );
       expect(mockedBcrypt.hash).toHaveBeenCalledWith(setPasswordDto.newPassword, 10);
       expect(userWithPassword.save).toHaveBeenCalled();
-      expect(result).toBeInstanceOf(ApiResponseDto);
-      expect(result.message).toBe('Password changed successfully');
+      expect(result).toBe('Password changed successfully');
     });
 
     it('should throw BadRequestException when old and new passwords are the same', async () => {
@@ -564,8 +553,7 @@ describe('UsersService', () => {
       );
       expect(mockedBcrypt.hash).toHaveBeenCalledWith(resetPasswordDto.newPassword, 10);
       expect(mockUser.save).toHaveBeenCalled();
-      expect(result).toBeInstanceOf(ApiResponseDto);
-      expect(result.message).toBe('Password changed successfully');
+      expect(result).toBe('Password changed successfully');
     });
 
     it('should throw NotFoundException when user not found during password reset', async () => {
@@ -634,9 +622,7 @@ describe('UsersService', () => {
         },
         { new: true },
       );
-      expect(result).toBeInstanceOf(ApiResponseDto);
-      expect(result.message).toBe('User updated');
-      expect(result.data).toEqual(updatedUser);
+      expect(result).toEqual(updatedUser);
     });
 
     it('should update other user without password if not provided', async () => {
@@ -661,9 +647,7 @@ describe('UsersService', () => {
         updateUserDto,
         { new: true },
       );
-      expect(result).toBeInstanceOf(ApiResponseDto);
-      expect(result.message).toBe('User updated');
-      expect(result.data).toEqual(updatedUser);
+      expect(result).toEqual(updatedUser);
     });
   });
 
@@ -677,9 +661,7 @@ describe('UsersService', () => {
       const result = await service.removeOtherUser(userId);
 
       expect(mockUserModel.findByIdAndDelete).toHaveBeenCalledWith(new Types.ObjectId(userId));
-      expect(result).toBeInstanceOf(ApiResponseDto);
-      expect(result.message).toBe('User deleted');
-      expect(result.data).toEqual(mockUser);
+      expect(result).toEqual(mockUser);
     });
 
     it('should throw NotFoundException when user not found during removal', async () => {
