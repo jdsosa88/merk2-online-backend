@@ -30,24 +30,23 @@ export class AuthService {
     private readonly mailerService: MailerService,
   ) { }
 
-  async login(userLoginDto: UserLoginDto, ip: string, userAgent: string): Promise<ApiResponseDto<LoginResponseDto>> {
+  async login(userLoginDto: UserLoginDto, ip: string, userAgent: string): Promise<LoginResponseDto> {
     try {
-      const user = await this.validateUser(userLoginDto);
-      const loginResponse: LoginResponseDto = await this.makeLogin(user, ip, userAgent);
-      return new ApiResponseDto("Login completed successfully", loginResponse);
+      const user: User = await this.validateUser(userLoginDto);
+      return await this.makeLogin(user, ip, userAgent);
     } catch (error) {
       throw error;
     }
   }
 
-  async refreshToken(refreshToken: string): Promise<ApiResponseDto<AuthTokensDto>> {
+  async refreshToken(refreshToken: string): Promise<AuthTokensDto> {
     try {
       const payload = await this.verifyJwtRefreshToken(refreshToken);
 
-      const storedToken = await this.refreshTokenService.findByToken(refreshToken);
+      const storedToken: RefreshToken | null = await this.refreshTokenService.findByToken(refreshToken);
       if (!storedToken) throw new UnauthorizedException('Refresh token not found');
 
-      const user = await this.usersService.findOne(payload.sub);
+      const user: User = await this.usersService.findOne(payload.sub);
       if (!user || !user.isActive) throw new UnauthorizedException('User not found or inactive');
 
       const authTokens: AuthTokensDto = await this.generateAuthTokens(user._id as Types.ObjectId);
@@ -60,28 +59,28 @@ export class AuthService {
       );
       if (!savedRefreshToken) throw new BadRequestException("Refresh token could not be saved");
 
-      return new ApiResponseDto('Token refreshed', authTokens);
+      return authTokens;
     } catch (error) {
       throw error;
     }
   }
 
-  async logout(refreshToken: string): Promise<ApiResponseDto> {
+  async logout(refreshToken: string): Promise<string> {
     try {
       await this.refreshTokenService.delete(refreshToken);
-      return new ApiResponseDto('Logout successful');
+      return 'Logout successful';
     } catch (error) {
       throw error;
     }
   }
 
-  async activateUser(verifyDefaultCodeDto: VerifyDefaultCodeUserDto, ip: string, userAgent: string): Promise<ApiResponseDto<LoginResponseDto>> {
+  async activateUser(verifyDefaultCodeDto: VerifyDefaultCodeUserDto, ip: string, userAgent: string): Promise<LoginResponseDto> {
     try {
-      const user = await this.usersService.findOne(verifyDefaultCodeDto.id);
+      const user: User = await this.usersService.findOne(verifyDefaultCodeDto.id);
       if (!user) throw new NotFoundException('User not found');
       if (user.isActive) throw new BadRequestException('The user is already active');
 
-      const isVerifiedCode = await this.verificationCodeService.verifyCode(
+      const isVerifiedCode: boolean = await this.verificationCodeService.verifyCode(
         user._id as Types.ObjectId,
         verifyDefaultCodeDto.code,
         'activation'
@@ -91,35 +90,34 @@ export class AuthService {
       user.isActive = true;
       user.save();
 
-      const loginResponse: LoginResponseDto = await this.makeLogin(user, ip, userAgent);
-      return new ApiResponseDto("User activation successful", loginResponse);
+      return await this.makeLogin(user, ip, userAgent);
     } catch (error) {
       throw error;
     }
   }
 
-  async sendResetPasswordCode(forgotPasswordDto: ForgotPasswordDto): Promise<ApiResponseDto> {
+  async sendResetPasswordCode(forgotPasswordDto: ForgotPasswordDto): Promise<string> {
     try {
-      const user = await this.usersService.findByEmail(forgotPasswordDto.email, false);
+      const user: User | null = await this.usersService.findByEmail(forgotPasswordDto.email, false);
       if (!user) throw new NotFoundException(`User not found`);
       if (!user.isActive) throw new UnauthorizedException(`User is not active`);
-      if (user) {
-        const code = await this.verificationCodeService.createCode(
-          user._id as Types.ObjectId,
-          'reset_password',
-          3
-        );
-        await this.sendResetPasswordEmail(user.email, code.code);
-      }
-      return new ApiResponseDto("A reset code has been sent to your email");
+
+      const code = await this.verificationCodeService.createCode(
+        user._id as Types.ObjectId,
+        'reset_password',
+        3
+      );
+      await this.sendResetPasswordEmail(user.email, code.code);
+
+      return "A reset password code has been sent to your email";
     } catch (error) {
       throw error;
     }
   }
 
-  async verifyResetCode(verifyResetCodeDto: VerifyResetCodeDto, ip: string, userAgent: string): Promise<ApiResponseDto<LoginResponseDto>> {
+  async verifyResetCode(verifyResetCodeDto: VerifyResetCodeDto, ip: string, userAgent: string): Promise<LoginResponseDto> {
     try {
-      const user = await this.usersService.findByEmail(verifyResetCodeDto.email, false);
+      const user: User | null = await this.usersService.findByEmail(verifyResetCodeDto.email, false);
       if (!user) throw new NotFoundException(`User with email not found`);
       if (!user.isActive) throw new UnauthorizedException(`User with email is not active`);
 
@@ -130,9 +128,8 @@ export class AuthService {
       );
       if (!isResetCode) throw new BadRequestException('Invalid or expired reset password code');
 
-      const loginResponse: LoginResponseDto = await this.makeLogin(user, ip, userAgent);
+      return await this.makeLogin(user, ip, userAgent);
 
-      return new ApiResponseDto('Password reset code is valid', loginResponse);
     } catch (error) {
       throw error;
     }
@@ -141,7 +138,7 @@ export class AuthService {
   private async makeLogin(user: User, ip: string, userAgent: string): Promise<LoginResponseDto> {
     if (!user.isActive) throw new UnauthorizedException('User is not active');
     const userId: Types.ObjectId = user._id as Types.ObjectId;
-    const authTokens = await this.generateAuthTokens(userId);
+    const authTokens: AuthTokensDto = await this.generateAuthTokens(userId);
 
     const savedRefreshToken = await this.saveRefreshToken(
       authTokens.refresh_token,
@@ -150,7 +147,7 @@ export class AuthService {
       userAgent
     );
     if (!savedRefreshToken) throw new BadRequestException("Refresh token could not be saved");
-    return new LoginResponseDto(user, authTokens);
+    return { user, tokens: authTokens };
   }
 
   private async validateUser(userLoginDto: UserLoginDto): Promise<User> {
@@ -179,7 +176,7 @@ export class AuthService {
     const newPayload = { sub: userId };
     const newAccessToken: string = this.jwtService.sign(newPayload);
     const newRefreshToken: string = await this.generateRefreshToken(newPayload);
-    return new AuthTokensDto(newAccessToken, newRefreshToken);
+    return { access_token: newAccessToken, refresh_token: newRefreshToken };
 
   }
 
