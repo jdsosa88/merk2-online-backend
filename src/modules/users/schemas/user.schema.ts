@@ -18,12 +18,15 @@ export class User extends Document {
 
   @Prop({ required: true, unique: true })
   email: string;
-
+  
   @Prop({ required: true, select: false })
   password: string;
-
+  
   @Prop({ required: false, unique: true, sparse: true })
   phone?: string;
+  
+  @Prop({default: false})
+  isPhoneVerified: boolean
 
   @Prop({ default: false })
   isActive: boolean;

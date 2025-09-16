@@ -7,9 +7,4 @@ export class LoginResponseDto{
   readonly user: User;
   @ApiProperty()
   readonly tokens: AuthTokensDto;
-
-  constructor(user: User, tokens: AuthTokensDto){
-    this.user = user;
-    this.tokens = tokens;
-  }
 }
