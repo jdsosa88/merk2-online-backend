@@ -12,6 +12,7 @@ import { IdDto } from "src/common/dto/id.dto";
 import { ListUsersQueryDto } from "../dto/list-users-query.dto";
 import { ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { SwaggerResponseUtils } from "src/common/utils/swagger-response-utils";
+import { PaginatedListDto } from "src/common/dto/paginated-list.dto";
 
 @UseGuards(JwtAuthGuard, PoliciesGuard)
 @Controller('admin/users')
@@ -30,7 +31,8 @@ export class AdminUsersController {
   })
   @CheckPolicies(new CreateAdminUserPolicyHandler())
   async createAdmin(@Body() createUserDto: CreateUserDto): Promise<ApiResponseDto> {
-    return await this.usersService.create(createUserDto, Role.ADMIN);
+    const user: User = await this.usersService.create(createUserDto, Role.ADMIN);
+    return new ApiResponseDto("Admin user created successfully", user);
   }
   @Get()
   @ApiOperation({ summary: 'Get other user (only an authenticated admin user can access the endpoint)' })
@@ -42,7 +44,8 @@ export class AdminUsersController {
   })
   @CheckPolicies(new ReadOtherUserPolicyHandler())
   async findOtherUser(@Query() idDto: IdDto): Promise<ApiResponseDto<User>> {
-    return new ApiResponseDto(await this.usersService.findOne(idDto.id));
+    const user: User = await this.usersService.findOne(idDto.id);
+    return new ApiResponseDto(user);
   }
 
   @Get('/list')
@@ -54,8 +57,9 @@ export class AdminUsersController {
     example: new SwaggerResponseUtils().getResponseWithUsersList(),
   })
   @CheckPolicies(new ListUsersPolicyHandler())
-  async findAll(@Query(new ValidationPipe({ transform: true })) query: ListUsersQueryDto,): Promise<ApiResponseDto> {
-    return await this.usersService.findAllPaginated(query);
+  async findAll(@Query(new ValidationPipe({ transform: true })) query: ListUsersQueryDto,): Promise<ApiResponseDto<PaginatedListDto<User>>> {
+    const paginatedList: PaginatedListDto<User> = await this.usersService.findAllPaginated(query);
+    return new ApiResponseDto(paginatedList);
   }
   @Patch()
   @ApiOperation({ summary: 'Update any property of other user, including password, role and isActive fields (only an authenticated admin user can access the endpoint)' })
@@ -66,8 +70,9 @@ export class AdminUsersController {
     example: new SwaggerResponseUtils().getExampleResponseWithUser('User updated'),
   })
   @CheckPolicies(new UpdateOtherUserPolicyHandler())
-  async updateOtherUser(@Query() idDto: IdDto, @Body() updateUserDto: UpdateUserDto): Promise<ApiResponseDto> {
-    return await this.usersService.updateOtherUser(idDto.id, updateUserDto);
+  async updateOtherUser(@Query() idDto: IdDto, @Body() updateUserDto: UpdateUserDto): Promise<ApiResponseDto<User>> {
+    const user: User = await this.usersService.updateOtherUser(idDto.id, updateUserDto);
+    return new ApiResponseDto("User updated", user);
   }
 
   @Delete()
@@ -80,6 +85,7 @@ export class AdminUsersController {
   })
   @CheckPolicies(new DeleteOtherUserPolicyHandler())
   async removeOtherUser(@Query() idDto: IdDto): Promise<ApiResponseDto> {
-    return await this.usersService.removeOtherUser(idDto.id);
+    const user: User =  await this.usersService.removeOtherUser(idDto.id);
+    return new ApiResponseDto('User deleted', user);
   }
 }

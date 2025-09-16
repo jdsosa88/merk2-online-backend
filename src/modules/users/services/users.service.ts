@@ -12,6 +12,7 @@ import { VerificationCodeService } from '../../verification-code/services/verifi
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { ObjectValidationsUtils } from 'src/common/utils/object-validations';
 import { ListUsersQueryDto } from '../dto/list-users-query.dto';
+import { PaginatedListDto } from '../../../common/dto/paginated-list.dto';
 
 @Injectable()
 export class UsersService {
@@ -21,31 +22,31 @@ export class UsersService {
     private readonly verificationCodeService: VerificationCodeService,
   ) { }
 
-  async create(createUserDto: CreateUserDto, role = Role.CUSTOMER): Promise<ApiResponseDto<User>> {
+  async create(createUserDto: CreateUserDto, role = Role.CUSTOMER): Promise<User> {
     try {
       createUserDto.role = role;
       const user: User = await this.saveNewUser(createUserDto);
-      if (role === Role.ADMIN) {
-        return new ApiResponseDto("Admin user created successfully", user);
+      if (role === Role.CUSTOMER) {
+        const userId: Types.ObjectId = user._id as Types.ObjectId;
+        const activationCode = await this.verificationCodeService.createCode(userId, 'activation', 3);
+        await this.sendCodeEmail(user.email, 'activation', activationCode.code);
       }
-      const userId: Types.ObjectId = user._id as Types.ObjectId;
-      const activationCode = await this.verificationCodeService.createCode(userId, 'activation', 3);
-      await this.sendCodeEmail(user.email, 'activation', activationCode.code);
-      return new ApiResponseDto("User created, please check your email for the activation code", user);
+      return user;
     } catch (error) {
       throw error;
     }
   }
 
-  async findAllPaginated(query: ListUsersQueryDto): Promise<ApiResponseDto<{ items: User[]; total: number; page: number; perPage: number; totalPages: number }>> {
+  async findAllPaginated(query: ListUsersQueryDto): Promise<PaginatedListDto<User>> {
     try {
       const page: number = Number(query.page) || 1;
       const perPage: number = Number(query.perPage) || 25;
 
-
       const filter: any = {};
       if (query.role && query.role.trim().length > 0) {
-        const roles = query.role.split(',').map(r => r.trim()).filter(Boolean);
+        const roles = query.role.split(',').map(r => r.trim()).filter((rol) => {
+          return rol === Role.ADMIN || rol === Role.CUSTOMER || rol === Role.MESSENGER || rol === Role.PROVIDER;
+        });
         if (roles.length > 0) {
           filter.role = { $in: roles };
         }
@@ -57,17 +58,17 @@ export class UsersService {
         .limit(perPage)
         .exec();
       const total: number = await this.userModel.countDocuments(filter).exec();
-
-
       const totalPages: number = Math.ceil(total / perPage) || 1;
-
-      return new ApiResponseDto({
+      const paginatedList: PaginatedListDto<User> = {
         items,
         total,
         page,
         perPage,
         totalPages,
-      });
+      };
+
+      return paginatedList;     
+
     } catch (error) {
       throw error;
     }
@@ -83,7 +84,7 @@ export class UsersService {
     }
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<ApiResponseDto<User>> {
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     try {
       return await this.saveUpdatedUser(id, updateUserDto);
     } catch (error) {
@@ -91,17 +92,17 @@ export class UsersService {
     }
   }
 
-  async createDeleteVerificationCode(userId: Types.ObjectId, email: string): Promise<ApiResponseDto> {
+  async createDeleteVerificationCode(userId: Types.ObjectId, email: string): Promise<string> {
     try {
       const deleteCode = await this.verificationCodeService.createCode(userId, 'delete');
-      await this.sendCodeEmail(email, 'delete', deleteCode.code);
-      return new ApiResponseDto("A delete code has been sent to your email");
+      await this.sendCodeEmail(email, 'delete', deleteCode.code);  
+      return "A delete code has been sent to your email";    
     } catch (error) {
       throw error;
     }
   }
 
-  async remove(id: Types.ObjectId, code: string): Promise<ApiResponseDto<User>> {
+  async remove(id: Types.ObjectId, code: string): Promise<User> {
     try {
       const isVerifiedCode = await this.verificationCodeService.verifyCode(id, code, 'delete');
       if (!isVerifiedCode) throw new BadRequestException('Invalid or expired activation code');
@@ -111,7 +112,7 @@ export class UsersService {
     }
   }
 
-  async updatePassword(id: string, setPasswordDto: SetPasswordDto): Promise<ApiResponseDto> {
+  async updatePassword(id: string, setPasswordDto: SetPasswordDto): Promise<string> {
     try {
       const { oldPassword, newPassword } = setPasswordDto;
       if (oldPassword === newPassword) throw new BadRequestException('The old and new passwords must be different');
@@ -124,13 +125,13 @@ export class UsersService {
 
       user.password = await bcrypt.hash(newPassword, 10);
       await user.save();
-      return new ApiResponseDto("Password changed successfully");
+      return "Password changed successfully";
     } catch (error) {
       throw error;
     }
   }
 
-  async resetPassword(id: string, resetPasswordDto: ResetPasswordDto): Promise<ApiResponseDto> {
+  async resetPassword(id: string, resetPasswordDto: ResetPasswordDto): Promise<string> {
     try {
       const user = await this.userModel.findById(id).exec();
       if (!user) throw new NotFoundException('User not found');
@@ -144,13 +145,13 @@ export class UsersService {
 
       user.password = await bcrypt.hash(resetPasswordDto.newPassword, 10);
       await user.save();
-      return new ApiResponseDto("Password changed successfully");
+      return "Password changed successfully";
     } catch (error) {
       throw error;
     }
   }
 
-  async updateOtherUser(id: string, updateUserDto: UpdateUserDto): Promise<ApiResponseDto<User>> {
+  async updateOtherUser(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     try {
       if (new ObjectValidationsUtils().isDefinedObject(updateUserDto.password)) {
         const newPassword: string = updateUserDto.password as string;
@@ -162,7 +163,7 @@ export class UsersService {
     }
   }
 
-  async removeOtherUser(id: string): Promise<ApiResponseDto<User>> {
+  async removeOtherUser(id: string): Promise<User> {
     try {
       return this.deleteSavedUser(new Types.ObjectId(id));
     } catch (error) {
@@ -191,17 +192,18 @@ export class UsersService {
     return user;
   }
 
-  private async saveUpdatedUser(userId: string, updateUserDto: UpdateUserDto): Promise<ApiResponseDto<User>> {
-    const user = await this.userModel.findByIdAndUpdate(userId, updateUserDto, { new: true }).exec();
+  private async saveUpdatedUser(userId: string, updateUserDto: UpdateUserDto): Promise<User> {
+    const user: User | null = await this.userModel.findByIdAndUpdate(userId, updateUserDto, { new: true }).exec();
     if (!user) throw new NotFoundException('User not found');
-    return new ApiResponseDto("User updated", user);
+    return user;
   }
 
-  private async deleteSavedUser(userId: Types.ObjectId): Promise<ApiResponseDto<User>> {
-    const user = await this.userModel.findByIdAndDelete(userId).exec();
+  private async deleteSavedUser(userId: Types.ObjectId): Promise<User> {
+    const user: User | null = await this.userModel.findByIdAndDelete(userId).exec();
     if (!user) throw new NotFoundException('User not found');
-    return new ApiResponseDto("User deleted", user);
+    return user;
   }
+  
   private async sendCodeEmail(email: string, codeType: string, code: string): Promise<void> {
     await this.mailerService.sendMail({
       to: email,

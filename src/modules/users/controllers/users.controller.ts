@@ -39,7 +39,8 @@ export class UsersController {
     ),
   })
   async create(@Body() createUserDto: CreateUserDto): Promise<ApiResponseDto> {
-    return await this.usersService.create(createUserDto);
+    const user: User = await this.usersService.create(createUserDto);
+    return new ApiResponseDto("User created, please check your email for the activation code", user);
   }
 
   @Get()
@@ -66,8 +67,9 @@ export class UsersController {
     example: new SwaggerResponseUtils().getExampleResponseWithUser('User updated'),
   })
   @CheckPolicies(new UpdateUserPolicyHandler())
-  async update(@Request() req: any, @Body() updateUserDto: UpdateUserDto): Promise<ApiResponseDto> {
-    return await this.usersService.update(req.user.id, updateUserDto);
+  async update(@Request() req: any, @Body() updateUserDto: UpdateUserDto): Promise<ApiResponseDto<User>> {
+    const user: User =  await this.usersService.update(req.user.id, updateUserDto);
+    return new ApiResponseDto("User updated", user);
   }
 
   @Post('/request-delete-code')
@@ -81,7 +83,8 @@ export class UsersController {
     example: new ApiResponseDto("A delete code has been sent to your email"),
   })
   async requestDeleteVerificationCode(@Request() req: any): Promise<ApiResponseDto> {
-    return await this.usersService.createDeleteVerificationCode(req.user.id, req.user.email);
+    const message: string = await this.usersService.createDeleteVerificationCode(req.user.id, req.user.email);
+    return new ApiResponseDto(message);
   }
 
   @Delete()
@@ -96,7 +99,8 @@ export class UsersController {
   })
   @CheckPolicies(new DeleteUserPolicyHandler())
   async remove(@Request() req: any, @Query() verificationCodeDto: VerificationCodeDto): Promise<ApiResponseDto> {
-    return await this.usersService.remove(req.user.id, verificationCodeDto.code);
+    const user: User = await this.usersService.remove(req.user.id, verificationCodeDto.code);
+    return new ApiResponseDto('User deleted', user);
   }
 
   @Patch('/set-password')
@@ -111,7 +115,8 @@ export class UsersController {
   })
   @CheckPolicies(new UpdateUserPolicyHandler())
   async setPassword(@Request() req: any, @Body() setPasswordDto: SetPasswordDto): Promise<ApiResponseDto> {
-    return await this.usersService.updatePassword(req.user.id, setPasswordDto);
+    const message: string = await this.usersService.updatePassword(req.user.id, setPasswordDto);
+    return new ApiResponseDto(message);
   }
 
   @Patch('/change-forgotten-password')
@@ -126,7 +131,8 @@ export class UsersController {
   })
   @CheckPolicies(new UpdateUserPolicyHandler())
   async changeForgottenPassword(@Request() req: any, @Body() resetPasswordDto: ResetPasswordDto): Promise<ApiResponseDto> {
-    return await this.usersService.resetPassword(req.user.id, resetPasswordDto);
+    const message: string = await this.usersService.resetPassword(req.user.id, resetPasswordDto);
+    return new ApiResponseDto(message);
   }
 
 }
