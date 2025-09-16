@@ -20,6 +20,7 @@ import { VerifyResetCodeDto } from '../dto/verify-reset-code.dto';
 import { ApiResponseDto } from '../../../common/dto/response.dto';
 import { AuthTokensDto } from '../dto/atuh-tokens.dto';
 import { UserRole } from '../../users/schemas/user.schema';
+import { LoginResponseDto } from '../dto/login-response.dto';
 
 // Mock bcrypt
 jest.mock('bcrypt');
@@ -160,22 +161,24 @@ describe('AuthService', () => {
     const userAgent = 'test-agent';
 
     it('should login successfully with valid credentials', async () => {
-      const mockTokens = new AuthTokensDto('access-token', 'refresh-token');
+      const mockTokens: AuthTokensDto = {
+        access_token: 'new-access-token',
+        refresh_token: 'new-refresh-token',
+      };
       const mockRefreshToken = { _id: 'refresh-id', token: 'refresh-token' };
 
       mockUsersService.findByEmail.mockResolvedValue(mockUser);
       mockBcryptCompare.mockResolvedValue(true);
-      mockJwtService.sign.mockReturnValueOnce('access-token');
-      mockJwtService.sign.mockReturnValueOnce('refresh-token');
+      mockJwtService.sign.mockReturnValueOnce(mockTokens.access_token);
+      mockJwtService.sign.mockReturnValueOnce(mockTokens.refresh_token);
       mockRefreshTokenService.deletePreviousToken.mockResolvedValue(undefined);
       mockRefreshTokenService.create.mockResolvedValue(mockRefreshToken);
 
       const result = await service.login(userLoginDto, ip, userAgent);
 
-      expect(result).toBeInstanceOf(ApiResponseDto);
-      expect(result.message).toBe('Login completed successfully');
-      expect(result.data).toHaveProperty('user');
-      expect(result.data).toHaveProperty('tokens');
+      expect(result.user._id).toStrictEqual(mockUser._id);
+      expect(result.tokens.access_token).toBe(mockTokens.access_token);
+      expect(result.tokens.refresh_token).toBe(mockTokens.refresh_token);
       expect(usersService.findByEmail).toHaveBeenCalledWith('test@example.com');
       expect(mockBcryptCompare).toHaveBeenCalledWith('password123', 'hashedpassword');
     });
@@ -232,7 +235,10 @@ describe('AuthService', () => {
     };
 
     it('should refresh token successfully', async () => {
-      const newTokens = new AuthTokensDto('new-access-token', 'new-refresh-token');
+      const newTokens: AuthTokensDto = {
+        access_token: 'new-access-token',
+        refresh_token: 'new-refresh-token',
+      };
       const mockNewRefreshToken = { _id: 'new-refresh-id', token: 'new-refresh-token' };
 
       mockJwtService.verify.mockReturnValue(mockPayload);
@@ -245,9 +251,8 @@ describe('AuthService', () => {
 
       const result = await service.refreshToken(refreshToken);
 
-      expect(result).toBeInstanceOf(ApiResponseDto);
-      expect(result.message).toBe('Token refreshed');
-      expect(result.data).toBeInstanceOf(AuthTokensDto);
+      expect(result.access_token).toBe(newTokens.access_token);
+      expect(result.refresh_token).toBe(newTokens.refresh_token);
       expect(mockJwtService.verify).toHaveBeenCalledWith(refreshToken, {
         secret: 'refresh-secret',
       });
@@ -299,8 +304,7 @@ describe('AuthService', () => {
 
       const result = await service.logout(token);
 
-      expect(result).toBeInstanceOf(ApiResponseDto);
-      expect(result.message).toBe('Logout successful');
+      expect(result).toBe('Logout successful');
       expect(mockRefreshTokenService.delete).toHaveBeenCalledWith(token);
     });
 
@@ -324,7 +328,10 @@ describe('AuthService', () => {
 
     it('should activate user successfully', async () => {
       const inactiveUser = { ...mockUser, isActive: false };
-      const mockTokens = new AuthTokensDto('access-token', 'refresh-token');
+      const mockTokens: AuthTokensDto = {
+        access_token: 'access-token',
+        refresh_token: 'refresh-token',
+      };
       const mockRefreshToken = { _id: 'refresh-id', token: 'refresh-token' };
 
       mockUsersService.findOne.mockResolvedValue(inactiveUser);
@@ -336,12 +343,11 @@ describe('AuthService', () => {
 
       const result = await service.activateUser(verifyDefaultCodeDto, ip, userAgent);
 
-      expect(result).toBeInstanceOf(ApiResponseDto);
-      expect(result.message).toBe('User activation successful');
-      expect(result.data).toHaveProperty('user');
-      expect(result.data).toHaveProperty('tokens');
+      expect(result.user).toBe(inactiveUser);
+      expect(result.user.isActive).toBe(true);
+      expect(result.tokens.access_token).toBe(mockTokens.access_token);
+      expect(result.tokens.refresh_token).toBe(mockTokens.refresh_token);
       expect(inactiveUser.save).toHaveBeenCalled();
-      expect(inactiveUser.isActive).toBe(true);
     });
 
     it('should throw NotFoundException when user not found', async () => {
@@ -383,8 +389,7 @@ describe('AuthService', () => {
 
       const result = await service.sendResetPasswordCode(forgotPasswordDto);
 
-      expect(result).toBeInstanceOf(ApiResponseDto);
-      expect(result.message).toBe('A reset code has been sent to your email');
+      expect(result).toBe('A reset password code has been sent to your email');
       expect(mockVerificationCodeService.createCode).toHaveBeenCalledWith(
         mockObjectId,
         'reset_password',
@@ -424,7 +429,10 @@ describe('AuthService', () => {
     const userAgent = 'test-agent';
 
     it('should verify reset code successfully', async () => {
-      const mockTokens = new AuthTokensDto('access-token', 'refresh-token');
+      const mockTokens: AuthTokensDto = {
+        access_token: 'access-token',
+        refresh_token: 'refresh-token',
+      };
       const mockRefreshToken = { _id: 'refresh-id', token: 'refresh-token' };
 
       mockUsersService.findByEmail.mockResolvedValue(mockUser);
@@ -436,10 +444,9 @@ describe('AuthService', () => {
 
       const result = await service.verifyResetCode(verifyResetCodeDto, ip, userAgent);
 
-      expect(result).toBeInstanceOf(ApiResponseDto);
-      expect(result.message).toBe('Password reset code is valid');
-      expect(result.data).toHaveProperty('user');
-      expect(result.data).toHaveProperty('tokens');
+      expect(result.user).toBe(mockUser);
+      expect(result.tokens.access_token).toBe(mockTokens.access_token);
+      expect(result.tokens.refresh_token).toBe(mockTokens.refresh_token);
       expect(mockVerificationCodeService.verifyCode).toHaveBeenCalledWith(
         mockObjectId,
         '123456',

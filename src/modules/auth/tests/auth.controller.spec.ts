@@ -10,10 +10,27 @@ import { VerifyResetCodeDto } from '../dto/verify-reset-code.dto';
 import { ApiResponseDto } from '../../../common/dto/response.dto';
 import { LoginResponseDto } from '../dto/login-response.dto';
 import { UnauthorizedException } from '@nestjs/common';
+import { AuthTokensDto } from '../dto/atuh-tokens.dto';
+import { Types } from 'mongoose';
+import { UserRole } from 'src/modules/users/schemas/user.schema';
 
 describe('AuthController', () => {
   let controller: AuthController;
   let authService: AuthService;
+
+  const mockObjectId = new Types.ObjectId();
+
+  const mockUser = {
+    id: mockObjectId,
+    firstName: 'John',
+    lastName: 'Doe',
+    email: 'john.doe@example.com',
+    phone: '+1234567890',
+    role: 'CUSTOMER' as UserRole,
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  } as any;
 
   const mockAuthService = {
     login: jest.fn(),
@@ -60,19 +77,14 @@ describe('AuthController', () => {
       };
 
       const mockLoginResponse: LoginResponseDto = {
-        user: {
-          id: 'user123',
-          email: 'test@example.com',
-          name: 'Test User',
-        } as any,
+        user: mockUser,
         tokens: {
           access_token: 'mock_access_token',
           refresh_token: 'mock_refresh_token',
         },
       };
 
-      const expectedResponse = new ApiResponseDto('Login completed successfully', mockLoginResponse);
-      mockAuthService.login.mockResolvedValue(expectedResponse);
+      mockAuthService.login.mockResolvedValue(mockLoginResponse);
 
       const mockRequest = {
         ip: '127.0.0.1',
@@ -87,7 +99,8 @@ describe('AuthController', () => {
         '127.0.0.1',
         'test-agent'
       );
-      expect(result).toEqual(expectedResponse);
+      expect(result.message).toEqual('Login completed successfully');
+      expect(result.data).toEqual(mockLoginResponse);
     });
 
     it('should throw UnauthorizedException with invalid credentials', async () => {
@@ -116,21 +129,22 @@ describe('AuthController', () => {
     it('should refresh token successfully', async () => {
       const token: string = 'valid_refresh_token';
 
-      const expectedResponse = new ApiResponseDto('Token refreshed successfully', {
+      const mockAuthTokens: AuthTokensDto = {
         access_token: 'new_access_token',
         refresh_token: 'new_refresh_token',
-      });
+      };
 
-      mockAuthService.refreshToken.mockResolvedValue(expectedResponse);
+      mockAuthService.refreshToken.mockResolvedValue(mockAuthTokens);
 
       const result = await controller.refresh(token);
 
       expect(authService.refreshToken).toHaveBeenCalledWith('valid_refresh_token');
-      expect(result).toEqual(expectedResponse);
+      expect(result.message).toEqual('Token refreshed successfully');
+      expect(result.data).toEqual(mockAuthTokens);
     });
 
     it('should throw UnauthorizedException with invalid refresh token', async () => {
-      const token: string = 'invalid_refresh_token';      
+      const token: string = 'invalid_refresh_token';
 
       mockAuthService.refreshToken.mockRejectedValue(
         new UnauthorizedException('Invalid refresh token')
@@ -145,14 +159,14 @@ describe('AuthController', () => {
   describe('logout', () => {
     it('should logout successfully', async () => {
       const token: string = 'valid_refresh_token';
-
-      const expectedResponse = new ApiResponseDto('Logout successful');
-      mockAuthService.logout.mockResolvedValue(expectedResponse);
+      
+      mockAuthService.logout.mockResolvedValue('Logout successful');
 
       const result = await controller.logout(token);
 
       expect(authService.logout).toHaveBeenCalledWith(token);
-      expect(result).toEqual(expectedResponse);
+      expect(result.message).toEqual('Logout successful');
+      expect(result.data).toBeUndefined();
     });
   });
 
@@ -163,8 +177,15 @@ describe('AuthController', () => {
         code: '123456',
       };
 
-      const expectedResponse = new ApiResponseDto('Account activated successfully');
-      mockAuthService.activateUser.mockResolvedValue(expectedResponse);
+      const mockLoginResponse: LoginResponseDto = {
+        user: mockUser,
+        tokens: {
+          access_token: 'mock_access_token',
+          refresh_token: 'mock_refresh_token',
+        },
+      };
+
+      mockAuthService.activateUser.mockResolvedValue(mockLoginResponse);
 
       const mockRequest = {
         ip: '127.0.0.1',
@@ -179,7 +200,8 @@ describe('AuthController', () => {
         '127.0.0.1',
         'test-agent'
       );
-      expect(result).toEqual(expectedResponse);
+      expect(result.message).toEqual('Account activated successfully');
+      expect(result.data).toBe(mockLoginResponse);
     });
   });
 
@@ -189,25 +211,32 @@ describe('AuthController', () => {
         email: 'test@example.com',
       };
 
-      const expectedResponse = new ApiResponseDto('Reset code sent successfully');
-      mockAuthService.sendResetPasswordCode.mockResolvedValue(expectedResponse);
+      mockAuthService.sendResetPasswordCode.mockResolvedValue('A reset password code has been sent to your email');
 
       const result = await controller.forgotPassword(forgotPasswordDto);
 
       expect(authService.sendResetPasswordCode).toHaveBeenCalledWith(forgotPasswordDto);
-      expect(result).toEqual(expectedResponse);
+      expect(result.message).toEqual('A reset password code has been sent to your email');
+      expect(result.data).toBeUndefined();
     });
   });
 
-  describe('verifyresetCode', () => {
+  describe('confirm-forgotten-password-code', () => {
     it('should verify reset code successfully', async () => {
       const verifyResetCodeDto: VerifyResetCodeDto = {
         email: 'test@example.com',
         code: '123456',
       };
 
-      const expectedResponse = new ApiResponseDto('Password reset successfully');
-      mockAuthService.verifyResetCode.mockResolvedValue(expectedResponse);
+      const mockLoginResponse: LoginResponseDto = {
+        user: mockUser,
+        tokens: {
+          access_token: 'test-access-token',
+          refresh_token: 'test-refresh-token',
+        }
+      }
+
+      mockAuthService.verifyResetCode.mockResolvedValue(mockLoginResponse);
 
       const mockRequest = {
         ip: '127.0.0.1',
@@ -222,7 +251,8 @@ describe('AuthController', () => {
         '127.0.0.1',
         'test-agent'
       );
-      expect(result).toEqual(expectedResponse);
+      expect(result.message).toEqual('Password reset code is valid');
+      expect(result.data).toBe(mockLoginResponse);
     });
   });
 });

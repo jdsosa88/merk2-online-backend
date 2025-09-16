@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { ApiResponseDto } from "../dto/response.dto";
-import { Role } from "src/modules/users/schemas/user.schema";
+import { Role, User } from "src/modules/users/schemas/user.schema";
+import { PaginatedListDto } from "../dto/paginated-list.dto";
 
 @Injectable()
 export class SwaggerResponseUtils {
@@ -25,7 +26,7 @@ export class SwaggerResponseUtils {
   }
 
   getResponseWithUsersList() {
-    const listData: Object = {
+    const listData: PaginatedListDto<Object> = {
       items: [       
         {
           _id: "68b97b7bf6c2528ac3e9063e",
