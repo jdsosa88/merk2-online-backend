@@ -15,10 +15,8 @@ import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { SetPasswordDto } from '../dto/set-password.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
-import { ApiResponseDto } from '../../../common/dto/response.dto';
 import { VerificationCodeService } from '../../verification-code/services/verification-code.service';
 import { ListUsersQueryDto } from '../dto/list-users-query.dto';
-import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
 
 // Mock bcrypt
 jest.mock('bcrypt');
@@ -137,6 +135,7 @@ describe('UsersService', () => {
         role: 'CUSTOMER',
         password: 'hashedPassword123',
         isActive: false,
+        isPhoneVerified: false,
       });
       expect(mockVerificationCodeService.createCode).toHaveBeenCalledWith(
         mockObjectId,
@@ -180,6 +179,7 @@ describe('UsersService', () => {
         role: Role.ADMIN,
         password: 'hashedPassword123',
         isActive: true, // Should be true for admin
+        isPhoneVerified: true, // Should be true for admin
       });
       // Should not send activation code for admin
       expect(mockVerificationCodeService.createCode).not.toHaveBeenCalled();
