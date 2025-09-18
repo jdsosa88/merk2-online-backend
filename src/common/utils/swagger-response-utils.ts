@@ -16,7 +16,7 @@ export class SwaggerResponseUtils {
       _id: "68bec9fdb83564195e6aa63d",
       createdAt: "2025-09-08T12:20:13.346Z",
       updatedAt: "2025-09-08T12:20:13.346Z",
-      __v: 0
+      isPhoneVerified: false
     };
     if (message) {
       return new ApiResponseDto(message, exampleUser);
@@ -38,7 +38,7 @@ export class SwaggerResponseUtils {
           role: "PROVIDER",
           createdAt: "2025-09-04T11:43:55.294Z",
           updatedAt: "2025-09-04T11:43:55.294Z",
-          __v: 0
+          isPhoneVerified: false
         },
         {
           _id: "68b97b7bf6c2528ac3e90641",
@@ -50,7 +50,7 @@ export class SwaggerResponseUtils {
           role: "MESSENGER",
           createdAt: "2025-09-04T11:43:55.545Z",
           updatedAt: "2025-09-04T11:43:55.545Z",
-          __v: 0
+          isPhoneVerified: false
         },
       ],
       total: 12,
@@ -75,7 +75,7 @@ export class SwaggerResponseUtils {
         _id: "68bec9fdb83564195e6aa63d",
         createdAt: "2025-09-08T12:20:13.346Z",
         updatedAt: "2025-09-08T12:20:13.346Z",
-        __v: 0
+        isPhoneVerified: false
       };
     }
     loginResponse.tokens = {
