@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, Post, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, HttpStatus, Post, Request, UseGuards } from '@nestjs/common';
 import { AuthService } from '../services/auth.service';
 import { UserLoginDto } from '../dto/user-login.dto';
 import { ApiKeyGuard } from 'src/common/guards/api-key.guard';
@@ -7,8 +7,6 @@ import { ApiResponseDto } from 'src/common/dto/response.dto';
 import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { VerifyResetCodeDto } from '../dto/verify-reset-code.dto';
 import { VerifyDefaultCodeUserDto } from '../dto/verify-default-code-user.dto';
-import { ApiHeader, ApiOperation, ApiProperty, ApiPropertyOptional, ApiResponse } from '@nestjs/swagger';
-import { SwaggerResponseUtils } from 'src/common/utils/swagger-response-utils';
 import { LoginResponseDto } from '../dto/login-response.dto';
 import { AuthTokensDto } from '../dto/atuh-tokens.dto';
 import { ApiConfirmAccountActivationCode, ApiConfirmForgottenPasswordCode, ApiForgotPassword, ApiLogin, ApiLogout, ApiRefreshToken } from '../decorators/swagger-auth.decorator';
@@ -20,6 +18,7 @@ export class AuthController {
   @Post('login')
   @UseGuards(ApiKeyGuard)
   @ApiLogin()
+  @HttpCode(HttpStatus.OK)
   async login(@Request() req: any, @Body() userLoginDto: UserLoginDto): Promise<ApiResponseDto<LoginResponseDto>> {
     const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
     const userAgent = req.headers['user-agent'];
@@ -30,6 +29,7 @@ export class AuthController {
   @Post('refresh-token')
   @UseGuards(ApiKeyGuard)
   @ApiRefreshToken()
+  @HttpCode(HttpStatus.OK)
   async refreshToken(@Headers('x-token') token: string): Promise<ApiResponseDto<AuthTokensDto>> {
     const authTokens: AuthTokensDto = await this.authService.refreshToken(token);
     return new ApiResponseDto('Token refreshed successfully', authTokens);
@@ -38,6 +38,7 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @ApiLogout()
+  @HttpCode(HttpStatus.OK)
   async logout(@Headers('x-token') token: string): Promise<ApiResponseDto> {
     const message: string = await this.authService.logout(token);
     return new ApiResponseDto(message);
@@ -46,6 +47,7 @@ export class AuthController {
   @Post('/confirm-account-activation-code')
   @UseGuards(ApiKeyGuard)
   @ApiConfirmAccountActivationCode()
+  @HttpCode(HttpStatus.OK)
   async confirmAccountActivationCode(@Request() req: any, @Body() activateUserDto: VerifyDefaultCodeUserDto): Promise<ApiResponseDto> {
     const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
     const userAgent = req.headers['user-agent'];
@@ -56,6 +58,7 @@ export class AuthController {
   @Post('/forgot-password')
   @UseGuards(ApiKeyGuard)
   @ApiForgotPassword()
+  @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto): Promise<ApiResponseDto> {
     const message: string = await this.authService.sendResetPasswordCode(forgotPasswordDto);
     return new ApiResponseDto(message);
@@ -64,6 +67,7 @@ export class AuthController {
   @Post('/confirm-forgotten-password-code')
   @UseGuards(ApiKeyGuard)
   @ApiConfirmForgottenPasswordCode()
+  @HttpCode(HttpStatus.OK)
   async confirmForgottenPasswordCode(@Request() req: any, @Body() verifyResetCodeDto: VerifyResetCodeDto): Promise<ApiResponseDto<LoginResponseDto>> {
     const ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
     const userAgent = req.headers['user-agent'];

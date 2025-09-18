@@ -21,7 +21,15 @@ async function bootstrap() {
     .setTitle('Merk2 Online API')
     .setDescription('API Documentation')
     .setVersion('0.0.1')
-    //.addBearerAuth() // para JWT
+    .addBearerAuth(
+    {
+      type: 'http',
+      scheme: 'bearer',
+      bearerFormat: 'JWT',
+      description: 'Enter the JWT token with "Bearer " prefix',
+    },
+    'JWT',
+  )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

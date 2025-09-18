@@ -7,7 +7,6 @@ import { UserLoginDto } from '../dto/user-login.dto';
 import { VerifyDefaultCodeUserDto } from '../dto/verify-default-code-user.dto';
 import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { VerifyResetCodeDto } from '../dto/verify-reset-code.dto';
-import { ApiResponseDto } from '../../../common/dto/response.dto';
 import { LoginResponseDto } from '../dto/login-response.dto';
 import { UnauthorizedException } from '@nestjs/common';
 import { AuthTokensDto } from '../dto/atuh-tokens.dto';
@@ -136,7 +135,7 @@ describe('AuthController', () => {
 
       mockAuthService.refreshToken.mockResolvedValue(mockAuthTokens);
 
-      const result = await controller.refresh(token);
+      const result = await controller.refreshToken(token);
 
       expect(authService.refreshToken).toHaveBeenCalledWith('valid_refresh_token');
       expect(result.message).toEqual('Token refreshed successfully');
@@ -150,7 +149,7 @@ describe('AuthController', () => {
         new UnauthorizedException('Invalid refresh token')
       );
 
-      await expect(controller.refresh(token)).rejects.toThrow(
+      await expect(controller.refreshToken(token)).rejects.toThrow(
         UnauthorizedException
       );
     });

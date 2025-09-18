@@ -1,5 +1,5 @@
 import { applyDecorators } from "@nestjs/common";
-import { ApiOperation, ApiResponse } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { ApiResponseDto } from "src/common/dto/response.dto";
 import { Role, User, UserDocument } from "../schemas/user.schema";
 import { SwaggerResponseUtils } from "src/common/utils/swagger-response-utils";
@@ -7,6 +7,11 @@ import { SwaggerResponseUtils } from "src/common/utils/swagger-response-utils";
 export function ApiCreate() {
   return applyDecorators(
     ApiOperation({ summary: 'Create a new user with CUSTOMER role' }),
+    ApiHeader({
+          name: 'x-api-key',
+          description: 'API Key for authentication',
+          required: true,
+        }),
     ApiResponse({
       status: 201,
       description: 'User created',
@@ -21,6 +26,7 @@ export function ApiCreate() {
 export function ApiFindOne() {
   return applyDecorators(
     ApiOperation({ summary: 'Get the authenticated user' }),
+    ApiBearerAuth('JWT'),
     ApiResponse({
       status: 200,
       description: 'User obtained',
@@ -35,6 +41,7 @@ export function ApiUpdate() {
     ApiOperation({
       summary: 'Updates the authenticated user except for the isActive, password and role fields'
     }),
+    ApiBearerAuth('JWT'),
     ApiResponse({
       status: 200,
       description: 'User updated',
@@ -49,6 +56,7 @@ export function ApiRequestDeleteVerificationCode() {
     ApiOperation({
       summary: 'Send a requested delete code to the authenticated user email'
     }),
+    ApiBearerAuth('JWT'),
     ApiResponse({
       status: 200,
       description: 'Code sended to user email',
@@ -63,6 +71,7 @@ export function ApiRemove() {
     ApiOperation({
       summary: 'Delete the authenticated user sending the requested delete code by query'
     }),
+    ApiBearerAuth('JWT'),
     ApiResponse({
       status: 200,
       description: 'User deleted',
@@ -77,9 +86,10 @@ export function ApiSetPassword() {
     ApiOperation({
       summary: 'Set the authenticated user password sending the old and new password by body'
     }),
+    ApiBearerAuth('JWT'),
     ApiResponse({
       status: 200,
-      description: 'Code sended to user email',
+      description: 'Password changed',
       type: ApiResponseDto<User>,
       example: new ApiResponseDto("Password changed successfully"),
     }),
@@ -91,9 +101,10 @@ export function ApiChangeForgottenPassword() {
     ApiOperation({
       summary: 'Reset the forgotten password to the authenticated user sending the requested reset password code and the new password by body'
     }),
+    ApiBearerAuth('JWT'),
     ApiResponse({
       status: 200,
-      description: 'Code sended to user email',
+      description: 'Password changed',
       type: ApiResponseDto<User>,
       example: new ApiResponseDto("Password changed successfully"),
     }),
@@ -105,6 +116,7 @@ export function ApiCreateAdmin() {
     ApiOperation({
       summary: 'Create a new admin user (only an authenticated admin user can access the endpoint)'
     }),
+    ApiBearerAuth('JWT'),
     ApiResponse({
       status: 201,
       description: 'User created',
@@ -121,9 +133,10 @@ export function ApiFindOtherUser() {
     ApiOperation({
       summary: 'Get other user (only an authenticated admin user can access the endpoint)'
     }),
+    ApiBearerAuth('JWT'),
     ApiResponse({
       status: 200,
-      description: 'User created',
+      description: 'User obtained',
       type: ApiResponseDto<UserDocument>,
       example: new SwaggerResponseUtils().getExampleResponseWithUser(),
     }),
@@ -135,6 +148,7 @@ export function ApiFindAll() {
     ApiOperation({
       summary: 'List users with optional role filter, if role query param is undefined it return all users to any role founds (only an authenticated admin user can access the endpoint)'
     }),
+    ApiBearerAuth('JWT'),
     ApiResponse({
       status: 200,
       description: 'Users List',
@@ -149,6 +163,7 @@ export function ApiUpdateOtherUser() {
     ApiOperation({
       summary: 'Update any property of other user, including password, role and isActive fields (only an authenticated admin user can access the endpoint)'
     }),
+    ApiBearerAuth('JWT'),
     ApiResponse({
       status: 200,
       description: 'User updated',
@@ -163,6 +178,7 @@ export function ApiRemoveOtherUser() {
     ApiOperation({
       summary: 'Delete other user (only an authenticated admin user can access the endpoint)'
     }),
+    ApiBearerAuth('JWT'),
     ApiResponse({
       status: 200,
       description: 'User deleted',

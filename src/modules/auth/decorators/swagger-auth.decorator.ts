@@ -1,11 +1,16 @@
 import { applyDecorators } from "@nestjs/common";
-import { ApiOperation, ApiResponse } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { ApiResponseDto } from "src/common/dto/response.dto";
 import { SwaggerResponseUtils } from "src/common/utils/swagger-response-utils";
 
 export function ApiLogin() {
   return applyDecorators(
     ApiOperation({ summary: 'Login into the API as an authenticated user' }),
+    ApiHeader({
+      name: 'x-api-key',
+      description: 'API Key for authentication',
+      required: true,
+    }),
     ApiResponse({
       status: 200,
       description: 'User login response',
@@ -19,6 +24,11 @@ export function ApiRefreshToken() {
   return applyDecorators(
     ApiOperation({
       summary: 'Refresh the expired jwt bearer token when it is expired by passing the refresh jwt token as x-token by header'
+    }),
+    ApiHeader({
+      name: 'x-api-key',
+      description: 'API Key for authentication',
+      required: true,
     }),
     ApiResponse({
       status: 200,
@@ -34,6 +44,7 @@ export function ApiLogout() {
     ApiOperation({
       summary: 'Logout of the api by deleting the refresh token saved on database'
     }),
+    ApiBearerAuth('JWT'),
     ApiResponse({
       status: 200,
       description: 'User logout',
@@ -46,6 +57,11 @@ export function ApiConfirmAccountActivationCode() {
   return applyDecorators(
     ApiOperation({
       summary: 'Activate the user and make the API login by passing the id and the activation code by body.'
+    }),
+    ApiHeader({
+      name: 'x-api-key',
+      description: 'API Key for authentication',
+      required: true,
     }),
     ApiResponse({
       status: 200,
@@ -60,6 +76,11 @@ export function ApiForgotPassword() {
     ApiOperation({
       summary: 'Get a verification code for forgotten password by passing the registered user email'
     }),
+    ApiHeader({
+      name: 'x-api-key',
+      description: 'API Key for authentication',
+      required: true,
+    }),
     ApiResponse({
       status: 200,
       description: 'User verification code sended',
@@ -72,6 +93,11 @@ export function ApiConfirmForgottenPasswordCode() {
   return applyDecorators(
     ApiOperation({
       summary: 'Confirm the forgotten password code and make the API login by passing the email and the verification code by body. The operation is completed on /users/change-forgotten-password by changing the forgotten authenticated user password.'
+    }),
+    ApiHeader({
+      name: 'x-api-key',
+      description: 'API Key for authentication',
+      required: true,
     }),
     ApiResponse({
       status: 200,

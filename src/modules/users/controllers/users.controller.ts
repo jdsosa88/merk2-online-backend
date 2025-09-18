@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Patch, Post, Query, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Patch, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { UsersService } from '../services/users.service';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
@@ -17,8 +17,6 @@ import {
   UpdateUserPolicyHandler
 } from 'src/modules/casl/policy-handlers/user.policy-handler';
 import { VerificationCodeDto } from '../dto/verification-code.dto';
-import { ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { SwaggerResponseUtils } from 'src/common/utils/swagger-response-utils';
 import { ApiChangeForgottenPassword, ApiCreate, ApiFindOne, ApiRemove, ApiRequestDeleteVerificationCode, ApiSetPassword, ApiUpdate } from '../decorators/swagger-users.decorator';
 
 
@@ -53,6 +51,7 @@ export class UsersController {
 
   @Post('/request-delete-code')
   @ApiRequestDeleteVerificationCode()
+  @HttpCode(HttpStatus.OK)
   async requestDeleteVerificationCode(@Request() req: any): Promise<ApiResponseDto> {
     const message: string = await this.usersService.createDeleteVerificationCode(req.user.id, req.user.email);
     return new ApiResponseDto(message);
