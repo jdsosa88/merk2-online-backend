@@ -1,8 +1,6 @@
-import { PartialType } from "@nestjs/mapped-types";
-import { CreateUserDto } from "./create-user.dto";
 import { IsEmail, IsIn, IsOptional, IsPhoneNumber, IsString, Length } from "class-validator";
 import { Role, UserRole } from "../schemas/user.schema";
-import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { ApiPropertyOptional } from "@nestjs/swagger";
 
 export class UpdateUserDto {
   @ApiPropertyOptional({ minLength: 2, maxLength: 50, example: 'User' })
@@ -37,5 +35,8 @@ export class UpdateUserDto {
 
   @ApiPropertyOptional({ example: true})
   isActive?: boolean;
+
+  @ApiPropertyOptional({ example: true})
+  isPhoneVerified?: boolean;
 
 }

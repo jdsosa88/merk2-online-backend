@@ -1,6 +1,6 @@
-import { IsObjectIdPipe, Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { IsDate, IsMongoId, IsNotEmpty, IsString } from 'class-validator';
-import { Document, HydratedDocument, Types } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { IsDate, IsNotEmpty, IsString } from 'class-validator';
+import { HydratedDocument, Types } from 'mongoose';
 
 export type RefreshTokenDocument = HydratedDocument<RefreshToken>;
 

@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { ApiResponseDto } from "../dto/response.dto";
-import { Role, User } from "src/modules/users/schemas/user.schema";
+import { Role } from "src/modules/users/schemas/user.schema";
 import { PaginatedListDto } from "../dto/paginated-list.dto";
 
 @Injectable()

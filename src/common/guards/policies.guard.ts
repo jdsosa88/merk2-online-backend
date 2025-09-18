@@ -8,7 +8,7 @@ import { Reflector } from '@nestjs/core';
 import { CaslAbilityFactory } from '../../modules/casl/factories/casl-ability.factory';
 import { PolicyHandler } from '../../modules/casl/interfaces/policy-handler.interface';
 import { CHECK_POLICIES_KEY } from '../../modules/casl/decorators/policies.decorator';
-import { User, UserDocument } from '../../modules/users/schemas/user.schema';
+import { UserDocument } from '../../modules/users/schemas/user.schema';
 
 @Injectable()
 export class PoliciesGuard implements CanActivate {

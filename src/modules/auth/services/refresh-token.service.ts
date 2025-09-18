@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { RefreshToken, RefreshTokenDocument } from "../schemas/refresh-token.schema";
-import { DeleteResult, Model, Types } from "mongoose";
+import { DeleteResult, Model } from "mongoose";
 import { ICreateRefreshToken, IRefreshToken } from "../interfaces/refresh-token.interface";
 
 @Injectable()

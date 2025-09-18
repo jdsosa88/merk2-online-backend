@@ -8,7 +8,7 @@ import { UpdateUserDto } from '../dto/update-user.dto';
 import { SetPasswordDto } from '../dto/set-password.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { ApiResponseDto } from '../../../common/dto/response.dto';
-import { User, UserRole } from '../schemas/user.schema';
+import { UserRole } from '../schemas/user.schema';
 import { UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { VerificationCodeDto } from '../dto/verification-code.dto';
 import { CaslAbilityFactory } from '../../casl/factories/casl-ability.factory';

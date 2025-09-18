@@ -8,7 +8,7 @@ import { UpdateUserDto } from '../dto/update-user.dto';
 import { IdDto } from '../../../common/dto/id.dto';
 import { ListUsersQueryDto } from '../dto/list-users-query.dto';
 import { ApiResponseDto } from '../../../common/dto/response.dto';
-import { User, Role, UserRole } from '../schemas/user.schema';
+import { User, Role } from '../schemas/user.schema';
 import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { CaslAbilityFactory } from '../../casl/factories/casl-ability.factory';
 import { Reflector } from '@nestjs/core';

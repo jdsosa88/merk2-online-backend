@@ -10,8 +10,6 @@ import { UpdateUserDto } from "../dto/update-user.dto";
 import { CreateAdminUserPolicyHandler, DeleteOtherUserPolicyHandler, ListUsersPolicyHandler, ReadOtherUserPolicyHandler, UpdateOtherUserPolicyHandler, } from "../../casl/policy-handlers/user.policy-handler";
 import { IdDto } from "src/common/dto/id.dto";
 import { ListUsersQueryDto } from "../dto/list-users-query.dto";
-import { ApiOperation, ApiResponse } from "@nestjs/swagger";
-import { SwaggerResponseUtils } from "src/common/utils/swagger-response-utils";
 import { PaginatedListDto } from "src/common/dto/paginated-list.dto";
 import { ApiCreateAdmin, ApiFindAll, ApiFindOtherUser, ApiRemoveOtherUser, ApiUpdateOtherUser } from "../decorators/swagger-users.decorator";
 

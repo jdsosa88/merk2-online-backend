@@ -17,10 +17,8 @@ import { UserLoginDto } from '../dto/user-login.dto';
 import { VerifyDefaultCodeUserDto } from '../dto/verify-default-code-user.dto';
 import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { VerifyResetCodeDto } from '../dto/verify-reset-code.dto';
-import { ApiResponseDto } from '../../../common/dto/response.dto';
 import { AuthTokensDto } from '../dto/atuh-tokens.dto';
 import { UserRole } from '../../users/schemas/user.schema';
-import { LoginResponseDto } from '../dto/login-response.dto';
 
 // Mock bcrypt
 jest.mock('bcrypt');

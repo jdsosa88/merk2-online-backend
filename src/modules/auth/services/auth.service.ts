@@ -3,12 +3,11 @@ import { UsersService } from '../../users/services/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UserLoginDto } from '../dto/user-login.dto';
-import { ApiResponseDto } from 'src/common/dto/response.dto';
-import { User, UserDocument } from '../../users/schemas/user.schema';
+import { UserDocument } from '../../users/schemas/user.schema';
 import { AuthTokensDto } from '../dto/atuh-tokens.dto';
 import { RefreshTokenService } from '../services/refresh-token.service';
 import { ConfigService } from '@nestjs/config';
-import { RefreshToken, RefreshTokenDocument } from '../schemas/refresh-token.schema';
+import { RefreshTokenDocument } from '../schemas/refresh-token.schema';
 import ms = require('ms');
 import { LoginResponseDto } from '../dto/login-response.dto';
 import { Types } from 'mongoose';
@@ -56,7 +55,7 @@ export class AuthService {
         token: authTokens.refresh_token,
         ip: storedToken.ip,
         userAgent: storedToken.userAgent
-      }
+      };
       const savedRefreshToken = await this.saveRefreshToken(refreshTokenData);
       if (!savedRefreshToken) throw new BadRequestException("Refresh token could not be saved");
 
