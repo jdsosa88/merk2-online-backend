@@ -1,10 +1,10 @@
-import { User } from "src/modules/users/schemas/user.schema";
+import { User, UserDocument } from "src/modules/users/schemas/user.schema";
 import { AuthTokensDto } from "./atuh-tokens.dto";
 import { ApiProperty } from "@nestjs/swagger";
 
 export class LoginResponseDto{
   @ApiProperty()
-  readonly user: User;
+  readonly user: UserDocument;
   @ApiProperty()
   readonly tokens: AuthTokensDto;
 }

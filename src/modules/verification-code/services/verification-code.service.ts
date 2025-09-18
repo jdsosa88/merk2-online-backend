@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { VerificationCode } from '../schemas/verification-code.schema';
+import { VerificationCode, VerificationCodeDocument } from '../schemas/verification-code.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 
@@ -7,10 +7,10 @@ import { Model, Types } from 'mongoose';
 export class VerificationCodeService {
   constructor(
     @InjectModel(VerificationCode.name)
-    private verificationCodeModel: Model<VerificationCode>,
+    private verificationCodeModel: Model<VerificationCodeDocument>,
   ) { }
 
-  async createCode(userId: Types.ObjectId, type: string, expiresInHours: number = 2): Promise<VerificationCode> {
+  async createCode(userId: Types.ObjectId, type: string, expiresInHours: number = 2): Promise<VerificationCodeDocument> {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000);
     return this.verificationCodeModel.create({

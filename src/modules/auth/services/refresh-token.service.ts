@@ -1,51 +1,40 @@
 import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
-import { RefreshToken } from "../schemas/refresh-token.schema";
+import { RefreshToken, RefreshTokenDocument } from "../schemas/refresh-token.schema";
 import { DeleteResult, Model, Types } from "mongoose";
-import { CreateRefreshTokenDTO } from "../dto/refresh-token.dto";
+import { ICreateRefreshToken, IRefreshToken } from "../interfaces/refresh-token.interface";
 
 @Injectable()
 export class RefreshTokenService {
   constructor(
-    @InjectModel(RefreshToken.name)
-    private refreshTokenModel: Model<RefreshToken>,
+    @InjectModel(RefreshToken.name) private refreshTokenModel: Model<RefreshTokenDocument>,
   ) { }
 
-  async create(refreshTokenDto: CreateRefreshTokenDTO): Promise<RefreshToken> {
-    return await this.refreshTokenModel.create(refreshTokenDto);
+  async create(createRefreshToken: ICreateRefreshToken): Promise<RefreshTokenDocument> {
+    return await this.refreshTokenModel.create(createRefreshToken);
   }
 
-  async findByToken(token: string): Promise<RefreshToken | null> {
+  async findByToken(token: string): Promise<RefreshTokenDocument | null> {
     return await this.refreshTokenModel.findOne({ token }).exec();
   }
 
-  async findByUser(userId: Types.ObjectId): Promise<RefreshToken | null> {
-    return await this.refreshTokenModel.findOne({ user: userId }).exec();
-  }
-
-  async deletePreviousToken(
-    refreshToken: string,
-    userId: Types.ObjectId,
-    ip?: string,
-    userAgent?: string
-  ): Promise<RefreshToken | null> {
+  async deletePreviousToken(refreshTokenData: IRefreshToken): Promise<RefreshTokenDocument | null> {
     return await this.refreshTokenModel.findOneAndDelete({
       $or: [
-        { refreshToken },
-        { $and: [{ userId }, { ip }, { userAgent }] }
+        { refreshToken: refreshTokenData.token },
+        {
+          $and: [
+            { userId: refreshTokenData.userId },
+            { ip: refreshTokenData.ip },
+            { userAgent: refreshTokenData.userAgent }
+          ]
+        }
       ]
     }).exec();
   }
-
-  async delete(token: string) {
+  
+  async delete(token: string): Promise<DeleteResult> {
     return await this.refreshTokenModel.deleteOne({ token }).exec();
   }
 
-  async deleteById(id: Types.ObjectId): Promise<DeleteResult> {
-    return await this.refreshTokenModel.deleteOne({ _id: id }).exec();
-  }
-
-  async deleteAllForUser(userId: Types.ObjectId): Promise<DeleteResult> {
-    return await this.refreshTokenModel.deleteMany({ user: userId }).exec();
-  }
 }

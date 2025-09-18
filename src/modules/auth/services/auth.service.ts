@@ -4,11 +4,11 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UserLoginDto } from '../dto/user-login.dto';
 import { ApiResponseDto } from 'src/common/dto/response.dto';
-import { User } from '../../users/schemas/user.schema';
+import { User, UserDocument } from '../../users/schemas/user.schema';
 import { AuthTokensDto } from '../dto/atuh-tokens.dto';
 import { RefreshTokenService } from '../services/refresh-token.service';
 import { ConfigService } from '@nestjs/config';
-import { RefreshToken } from '../schemas/refresh-token.schema';
+import { RefreshToken, RefreshTokenDocument } from '../schemas/refresh-token.schema';
 import ms = require('ms');
 import { LoginResponseDto } from '../dto/login-response.dto';
 import { Types } from 'mongoose';
@@ -17,6 +17,7 @@ import { VerificationCodeService } from '../../verification-code/services/verifi
 import { MailerService } from '@nestjs-modules/mailer';
 import { VerifyResetCodeDto } from '../dto/verify-reset-code.dto';
 import { VerifyDefaultCodeUserDto } from '../dto/verify-default-code-user.dto';
+import { ICreateRefreshToken, IRefreshToken } from '../interfaces/refresh-token.interface';
 
 
 @Injectable()
@@ -32,7 +33,7 @@ export class AuthService {
 
   async login(userLoginDto: UserLoginDto, ip: string, userAgent: string): Promise<LoginResponseDto> {
     try {
-      const user: User = await this.validateUser(userLoginDto);
+      const user: UserDocument = await this.validateUser(userLoginDto);
       return await this.makeLogin(user, ip, userAgent);
     } catch (error) {
       throw error;
@@ -43,20 +44,20 @@ export class AuthService {
     try {
       const payload = await this.verifyJwtRefreshToken(refreshToken);
 
-      const storedToken: RefreshToken | null = await this.refreshTokenService.findByToken(refreshToken);
+      const storedToken: RefreshTokenDocument | null = await this.refreshTokenService.findByToken(refreshToken);
       if (!storedToken) throw new UnauthorizedException('Refresh token not found');
 
-      const user: User = await this.usersService.findOne(payload.sub);
+      const user: UserDocument = await this.usersService.findOne(payload.sub);
       if (!user || !user.isActive) throw new UnauthorizedException('User not found or inactive');
 
       const authTokens: AuthTokensDto = await this.generateAuthTokens(user._id as Types.ObjectId);
-
-      const savedRefreshToken = await this.saveRefreshToken(
-        authTokens.refresh_token,
-        user._id as Types.ObjectId,
-        storedToken.ip,
-        storedToken.userAgent
-      );
+      const refreshTokenData: IRefreshToken = {
+        userId: user._id as Types.ObjectId,
+        token: authTokens.refresh_token,
+        ip: storedToken.ip,
+        userAgent: storedToken.userAgent
+      }
+      const savedRefreshToken = await this.saveRefreshToken(refreshTokenData);
       if (!savedRefreshToken) throw new BadRequestException("Refresh token could not be saved");
 
       return authTokens;
@@ -76,7 +77,9 @@ export class AuthService {
 
   async activateUser(verifyDefaultCodeDto: VerifyDefaultCodeUserDto, ip: string, userAgent: string): Promise<LoginResponseDto> {
     try {
-      const user: User = await this.usersService.findOne(verifyDefaultCodeDto.id);
+      console.log(verifyDefaultCodeDto.id);
+
+      const user: UserDocument = await this.usersService.findOne(verifyDefaultCodeDto.id);
       if (!user) throw new NotFoundException('User not found');
       if (user.isActive) throw new BadRequestException('The user is already active');
 
@@ -98,7 +101,7 @@ export class AuthService {
 
   async sendResetPasswordCode(forgotPasswordDto: ForgotPasswordDto): Promise<string> {
     try {
-      const user: User | null = await this.usersService.findByEmail(forgotPasswordDto.email, false);
+      const user: UserDocument | null = await this.usersService.findByEmail(forgotPasswordDto.email, false);
       if (!user) throw new NotFoundException(`User not found`);
       if (!user.isActive) throw new UnauthorizedException(`User is not active`);
 
@@ -117,7 +120,7 @@ export class AuthService {
 
   async verifyResetCode(verifyResetCodeDto: VerifyResetCodeDto, ip: string, userAgent: string): Promise<LoginResponseDto> {
     try {
-      const user: User | null = await this.usersService.findByEmail(verifyResetCodeDto.email, false);
+      const user: UserDocument | null = await this.usersService.findByEmail(verifyResetCodeDto.email, false);
       if (!user) throw new NotFoundException(`User with email not found`);
       if (!user.isActive) throw new UnauthorizedException(`User with email is not active`);
 
@@ -135,27 +138,28 @@ export class AuthService {
     }
   }
 
-  private async makeLogin(user: User, ip: string, userAgent: string): Promise<LoginResponseDto> {
+  private async makeLogin(user: UserDocument, ip: string, userAgent: string): Promise<LoginResponseDto> {
     if (!user.isActive) throw new UnauthorizedException('User is not active');
     const userId: Types.ObjectId = user._id as Types.ObjectId;
     const authTokens: AuthTokensDto = await this.generateAuthTokens(userId);
-
-    const savedRefreshToken = await this.saveRefreshToken(
-      authTokens.refresh_token,
+    const refreshTokenData: IRefreshToken = {
+      token: authTokens.refresh_token,
       userId,
       ip,
       userAgent
-    );
+    }
+    const savedRefreshToken = await this.saveRefreshToken(refreshTokenData);
     if (!savedRefreshToken) throw new BadRequestException("Refresh token could not be saved");
     return { user, tokens: authTokens };
   }
 
-  private async validateUser(userLoginDto: UserLoginDto): Promise<User> {
+  private async validateUser(userLoginDto: UserLoginDto): Promise<UserDocument> {
     const { email, password } = userLoginDto;
-    const user = await this.usersService.findByEmail(email);
+    const user: UserDocument | null = await this.usersService.findByEmail(email);
+
     if (user && await bcrypt.compare(password, user.password)) {
       const { password, ...result } = user.toObject();
-      return result;
+      return result as UserDocument;
     }
     throw new UnauthorizedException('Invalid credentials');
   }
@@ -183,19 +187,19 @@ export class AuthService {
   private async generateRefreshToken(payload: any): Promise<string> {
     return this.jwtService.sign(payload, {
       secret: this.configService.get('JWT_REFRESH_SECRET'),
-      expiresIn: this.configService.get('JWT_REFRESH_EXPIRATION') || '7d',
+      expiresIn: this.configService.get('JWT_REFRESH_EXPIRATION'),
     });
   }
 
-  private async saveRefreshToken(refreshToken: string, userId: Types.ObjectId, ip?: string, userAgent?: string): Promise<RefreshToken> {
-    await this.refreshTokenService.deletePreviousToken(refreshToken, userId, ip, userAgent);
-    const expiration = this.configService.get('JWT_REFRESH_EXPIRATION') || '30d';
+  private async saveRefreshToken(refreshTokenData: IRefreshToken): Promise<RefreshTokenDocument> {
+    await this.refreshTokenService.deletePreviousToken(refreshTokenData);
+    const expiration = this.configService.get('JWT_REFRESH_EXPIRATION');
     const expiresAt = new Date(Date.now() + ms(expiration));
-    const refreshTokenDto = {
-      userId: userId,
-      token: refreshToken,
-      ip,
-      userAgent,
+    const refreshTokenDto: ICreateRefreshToken = {
+      userId: refreshTokenData.userId,
+      token: refreshTokenData.token,
+      ip: refreshTokenData.ip,
+      userAgent: refreshTokenData.userAgent,
       expiresAt,
     };
     return this.refreshTokenService.create(refreshTokenDto);

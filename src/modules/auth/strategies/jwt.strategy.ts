@@ -3,7 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import { UsersService } from "../../users/services/users.service";
-import { User } from "src/modules/users/schemas/user.schema";
+import { UserDocument } from "src/modules/users/schemas/user.schema";
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -23,7 +23,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
-    const user: User = (await this.usersService.findOne(payload.sub));
+    const user: UserDocument = await this.usersService.findOne(payload.sub);
     if (!user) throw new UnauthorizedException('User not found');
     if (!user.isActive) throw new UnauthorizedException('Inactive user');     
     return user;

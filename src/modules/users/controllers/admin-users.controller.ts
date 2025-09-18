@@ -5,7 +5,7 @@ import { UsersService } from "../services/users.service";
 import { CreateUserDto } from "../dto/create-user.dto";
 import { ApiResponseDto } from "src/common/dto/response.dto";
 import { CheckPolicies } from "../../casl/decorators/policies.decorator";
-import { Role, User } from "../schemas/user.schema";
+import { Role, User, UserDocument } from "../schemas/user.schema";
 import { UpdateUserDto } from "../dto/update-user.dto";
 import { CreateAdminUserPolicyHandler, DeleteOtherUserPolicyHandler, ListUsersPolicyHandler, ReadOtherUserPolicyHandler, UpdateOtherUserPolicyHandler, } from "../../casl/policy-handlers/user.policy-handler";
 import { IdDto } from "src/common/dto/id.dto";
@@ -24,14 +24,14 @@ export class AdminUsersController {
   @ApiResponse({
     status: 201,
     description: 'User created',
-    type: ApiResponseDto<User>,
+    type: ApiResponseDto<UserDocument>,
     example: new SwaggerResponseUtils().getExampleResponseWithUser(
       'Admin user created successfully', Role.ADMIN, true
     ),
   })
   @CheckPolicies(new CreateAdminUserPolicyHandler())
-  async createAdmin(@Body() createUserDto: CreateUserDto): Promise<ApiResponseDto> {
-    const user: User = await this.usersService.create(createUserDto, Role.ADMIN);
+  async createAdmin(@Body() createUserDto: CreateUserDto): Promise<ApiResponseDto<UserDocument>> {
+    const user: UserDocument = await this.usersService.create(createUserDto, Role.ADMIN);
     return new ApiResponseDto("Admin user created successfully", user);
   }
   @Get()
@@ -39,12 +39,12 @@ export class AdminUsersController {
   @ApiResponse({
     status: 200,
     description: 'User created',
-    type: ApiResponseDto<User>,
+    type: ApiResponseDto<UserDocument>,
     example: new SwaggerResponseUtils().getExampleResponseWithUser(),
   })
   @CheckPolicies(new ReadOtherUserPolicyHandler())
-  async findOtherUser(@Query() idDto: IdDto): Promise<ApiResponseDto<User>> {
-    const user: User = await this.usersService.findOne(idDto.id);
+  async findOtherUser(@Query() idDto: IdDto): Promise<ApiResponseDto<UserDocument>> {
+    const user: UserDocument = await this.usersService.findOne(idDto.id);
     return new ApiResponseDto(user);
   }
 
@@ -53,12 +53,12 @@ export class AdminUsersController {
   @ApiResponse({
     status: 200,
     description: 'Users List',
-    type: ApiResponseDto<User>,
+    type: ApiResponseDto<UserDocument>,
     example: new SwaggerResponseUtils().getResponseWithUsersList(),
   })
   @CheckPolicies(new ListUsersPolicyHandler())
-  async findAll(@Query(new ValidationPipe({ transform: true })) query: ListUsersQueryDto,): Promise<ApiResponseDto<PaginatedListDto<User>>> {
-    const paginatedList: PaginatedListDto<User> = await this.usersService.findAllPaginated(query);
+  async findAll(@Query(new ValidationPipe({ transform: true })) query: ListUsersQueryDto,): Promise<ApiResponseDto<PaginatedListDto<UserDocument>>> {
+    const paginatedList: PaginatedListDto<UserDocument> = await this.usersService.findAllPaginated(query);
     return new ApiResponseDto(paginatedList);
   }
   @Patch()

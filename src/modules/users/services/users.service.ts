@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException, } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Role, User } from '../schemas/user.schema';
+import { Role, User, UserDocument } from '../schemas/user.schema';
 import { Model, Types } from 'mongoose';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
@@ -17,15 +17,15 @@ import { PaginatedListDto } from '../../../common/dto/paginated-list.dto';
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
     private readonly mailerService: MailerService,
     private readonly verificationCodeService: VerificationCodeService,
   ) { }
 
-  async create(createUserDto: CreateUserDto, role = Role.CUSTOMER): Promise<User> {
+  async create(createUserDto: CreateUserDto, role = Role.CUSTOMER): Promise<UserDocument> {
     try {
       createUserDto.role = role;
-      const user: User = await this.saveNewUser(createUserDto);
+      const user: UserDocument = await this.saveNewUser(createUserDto);
       if (role === Role.CUSTOMER) {
         const userId: Types.ObjectId = user._id as Types.ObjectId;
         const activationCode = await this.verificationCodeService.createCode(userId, 'activation', 3);
@@ -37,7 +37,7 @@ export class UsersService {
     }
   }
 
-  async findAllPaginated(query: ListUsersQueryDto): Promise<PaginatedListDto<User>> {
+  async findAllPaginated(query: ListUsersQueryDto): Promise<PaginatedListDto<UserDocument>> {
     try {
       const page: number = Number(query.page) || 1;
       const perPage: number = Number(query.perPage) || 25;
@@ -52,14 +52,14 @@ export class UsersService {
         }
       }
 
-      const items: User[] = await this.userModel
+      const items: UserDocument[] = await this.userModel
         .find(filter)
         .skip((page - 1) * perPage)
         .limit(perPage)
         .exec();
       const total: number = await this.userModel.countDocuments(filter).exec();
       const totalPages: number = Math.ceil(total / perPage) || 1;
-      const paginatedList: PaginatedListDto<User> = {
+      const paginatedList: PaginatedListDto<UserDocument> = {
         items,
         total,
         page,
@@ -74,9 +74,12 @@ export class UsersService {
     }
   }
 
-  async findOne(id: string): Promise<User> {
+  async findOne(id: string): Promise<UserDocument> {
     try {
-      const user = await this.userModel.findById(id).exec();
+      const _id = new Types.ObjectId(id);
+      const user: UserDocument | null = await this.userModel.findById(_id).exec();
+      console.log('User: ', user);
+      
       if (!user) throw new NotFoundException('User not found');
       return user;
     } catch (error) {
@@ -84,7 +87,7 @@ export class UsersService {
     }
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<UserDocument> {
     try {
       return await this.saveUpdatedUser(id, updateUserDto);
     } catch (error) {
@@ -102,7 +105,7 @@ export class UsersService {
     }
   }
 
-  async remove(id: Types.ObjectId, code: string): Promise<User> {
+  async remove(id: Types.ObjectId, code: string): Promise<UserDocument> {
     try {
       const isVerifiedCode = await this.verificationCodeService.verifyCode(id, code, 'delete');
       if (!isVerifiedCode) throw new BadRequestException('Invalid or expired activation code');
@@ -116,8 +119,8 @@ export class UsersService {
     try {
       const { oldPassword, newPassword } = setPasswordDto;
       if (oldPassword === newPassword) throw new BadRequestException('The old and new passwords must be different');
-
-      const user = await this.userModel.findById(id).select('+password').exec();
+      const _id = new Types.ObjectId(id);
+      const user = await this.userModel.findById(_id).select('+password').exec();
       if (!user) throw new NotFoundException('User not found');
 
       const isMatch = await bcrypt.compare(oldPassword, user.password);
@@ -133,7 +136,8 @@ export class UsersService {
 
   async resetPassword(id: string, resetPasswordDto: ResetPasswordDto): Promise<string> {
     try {
-      const user = await this.userModel.findById(id).exec();
+      const _id = new Types.ObjectId(id);
+      const user = await this.userModel.findById(_id).exec();
       if (!user) throw new NotFoundException('User not found');
 
       const isVerifiedCode = await this.verificationCodeService.verifyCode(
@@ -171,14 +175,14 @@ export class UsersService {
     }
   }
 
-  async findByEmail(email: string, findWithPassword: boolean = true): Promise<User | null> {
+  async findByEmail(email: string, findWithPassword: boolean = true): Promise<UserDocument | null> {
     if (findWithPassword === true) {
       return await this.userModel.findOne({ email }).select('+password').exec();
     }
     return await this.userModel.findOne({ email }).exec();
   }
 
-  private async saveNewUser(createUserDto: CreateUserDto): Promise<User> {
+  private async saveNewUser(createUserDto: CreateUserDto): Promise<UserDocument> {
     const { email } = createUserDto;
     const existsUser = await this.userModel.exists({ email });
     if (existsUser) throw new ConflictException('Email already exists');
@@ -188,18 +192,19 @@ export class UsersService {
       password: hashedPassword,
       isActive: createUserDto.role === Role.ADMIN ? true : false
     };
-    const user = await this.userModel.create(userToSave);
+    const user: UserDocument = await this.userModel.create(userToSave);
     return user;
   }
 
-  private async saveUpdatedUser(userId: string, updateUserDto: UpdateUserDto): Promise<User> {
-    const user: User | null = await this.userModel.findByIdAndUpdate(userId, updateUserDto, { new: true }).exec();
+  private async saveUpdatedUser(userId: string, updateUserDto: UpdateUserDto): Promise<UserDocument> {
+    const _id = new Types.ObjectId(userId);
+    const user: UserDocument | null = await this.userModel.findByIdAndUpdate(_id, updateUserDto, { new: true }).exec();
     if (!user) throw new NotFoundException('User not found');
     return user;
   }
 
-  private async deleteSavedUser(userId: Types.ObjectId): Promise<User> {
-    const user: User | null = await this.userModel.findByIdAndDelete(userId).exec();
+  private async deleteSavedUser(userId: Types.ObjectId): Promise<UserDocument> {
+    const user: UserDocument | null = await this.userModel.findByIdAndDelete(userId).exec();
     if (!user) throw new NotFoundException('User not found');
     return user;
   }

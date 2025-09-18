@@ -1,5 +1,7 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document } from "mongoose";
+import { HydratedDocument, Types } from "mongoose";
+
+export type UserDocument = HydratedDocument<User>;
 
 export type UserRole = 'ADMIN' | 'CUSTOMER' | 'PROVIDER' | 'MESSENGER';
 export enum Role {
@@ -8,8 +10,12 @@ export enum Role {
   PROVIDER = 'PROVIDER',
   MESSENGER = 'MESSENGER',
 }
+
 @Schema({ timestamps: true })
-export class User extends Document {
+export class User {
+
+  @Prop({type: Types.ObjectId, default: () => new Types.ObjectId })
+  _id: Types.ObjectId;
   @Prop({ required: true })
   firstName: string;
 
@@ -43,6 +49,7 @@ export const UserSchema = SchemaFactory.createForClass(User);
 UserSchema.set('toJSON', {
   transform: (doc, ret) => {
      delete (ret as { password?: string }).password;
+     delete ret.__v;
         return ret;
   },
 });

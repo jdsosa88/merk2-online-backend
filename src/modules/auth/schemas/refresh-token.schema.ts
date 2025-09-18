@@ -1,12 +1,14 @@
 import { IsObjectIdPipe, Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { IsDate, IsMongoId, IsNotEmpty, IsString } from 'class-validator';
-import { Document, Types } from 'mongoose';
+import { Document, HydratedDocument, Types } from 'mongoose';
+
+export type RefreshTokenDocument = HydratedDocument<RefreshToken>;
 
 @Schema({ 
   collection: "refresh_tokens",
   timestamps: true,
 })
-export class RefreshToken extends Document {
+export class RefreshToken {
   
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   userId: Types.ObjectId;

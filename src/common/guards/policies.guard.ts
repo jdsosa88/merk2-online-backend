@@ -8,7 +8,7 @@ import { Reflector } from '@nestjs/core';
 import { CaslAbilityFactory } from '../../modules/casl/factories/casl-ability.factory';
 import { PolicyHandler } from '../../modules/casl/interfaces/policy-handler.interface';
 import { CHECK_POLICIES_KEY } from '../../modules/casl/decorators/policies.decorator';
-import { User } from '../../modules/users/schemas/user.schema';
+import { User, UserDocument } from '../../modules/users/schemas/user.schema';
 
 @Injectable()
 export class PoliciesGuard implements CanActivate {
@@ -26,7 +26,7 @@ export class PoliciesGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest();
-    const user: User = request.user;    ;
+    const user: UserDocument = request.user;    ;
 
     const ability = this.caslAbilityFactory.createForUser(user);
 

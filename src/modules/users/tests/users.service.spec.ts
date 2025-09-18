@@ -306,7 +306,7 @@ describe('UsersService', () => {
 
       const result = await service.findOne(userId);
 
-      expect(mockUserModel.findById).toHaveBeenCalledWith(userId);
+      expect(mockUserModel.findById).toHaveBeenCalledWith(new Types.ObjectId(userId));
       expect(result).toEqual(mockUser);
     });
 
@@ -320,7 +320,7 @@ describe('UsersService', () => {
         new NotFoundException('User not found'),
       );
 
-      expect(mockUserModel.findById).toHaveBeenCalledWith(userId);
+      expect(mockUserModel.findById).toHaveBeenCalledWith(new Types.ObjectId(userId));
     });
   });
 
@@ -342,7 +342,7 @@ describe('UsersService', () => {
       const result = await service.update(userId, updateUserDto);
 
       expect(mockUserModel.findByIdAndUpdate).toHaveBeenCalledWith(
-        userId,
+        new Types.ObjectId(userId),
         {
           firstName: updateUserDto.firstName,
           lastName: updateUserDto.lastName,
@@ -460,7 +460,7 @@ describe('UsersService', () => {
 
       const result = await service.updatePassword(userId, setPasswordDto);
 
-      expect(mockUserModel.findById).toHaveBeenCalledWith(userId);
+      expect(mockUserModel.findById).toHaveBeenCalledWith(new Types.ObjectId(userId));
       expect(mockedBcrypt.compare).toHaveBeenCalledWith(
         setPasswordDto.oldPassword,
         'hashedOldPassword',
@@ -545,7 +545,7 @@ describe('UsersService', () => {
 
       const result = await service.resetPassword(userId, resetPasswordDto);
 
-      expect(mockUserModel.findById).toHaveBeenCalledWith(userId);
+      expect(mockUserModel.findById).toHaveBeenCalledWith(new Types.ObjectId(userId));
       expect(mockVerificationCodeService.verifyCode).toHaveBeenCalledWith(
         mockUser._id,
         resetPasswordDto.code,
@@ -615,7 +615,7 @@ describe('UsersService', () => {
 
       expect(mockedBcrypt.hash).toHaveBeenCalledWith(notHashedPassword, 10);
       expect(mockUserModel.findByIdAndUpdate).toHaveBeenCalledWith(
-        userId,
+        new Types.ObjectId(userId),
         {
           ...updateUserDto,
           password: 'hashedNewPassword123',
@@ -643,7 +643,7 @@ describe('UsersService', () => {
 
       expect(mockedBcrypt.hash).not.toHaveBeenCalled();
       expect(mockUserModel.findByIdAndUpdate).toHaveBeenCalledWith(
-        userId,
+        new Types.ObjectId(userId),
         updateUserDto,
         { new: true },
       );

@@ -1,12 +1,13 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document, Types } from "mongoose";
+import { HydratedDocument, Types } from "mongoose";
 
-export type verificationType = 'activation' | 'delete' | 'reset_password' ;
+export type VerificationCodeDocument = HydratedDocument<VerificationCode>;
+export type VerificationType = 'activation' | 'delete' | 'reset_password' ;
 @Schema({ 
   collection: "verification_codes",
   timestamps: true,
 })
-export class VerificationCode extends Document {
+export class VerificationCode {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   user: Types.ObjectId;
 
@@ -18,7 +19,7 @@ export class VerificationCode extends Document {
     enum: ['activation', 'delete', 'reset_password' ],
     default: 'activation'
   })
-  type: verificationType;
+  type: VerificationType;
 
   @Prop({ required: true })
   expiresAt: Date;

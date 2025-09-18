@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AbilityBuilder, MongoAbility, createMongoAbility, InferSubjects, ExtractSubjectType } from '@casl/ability';
-import { Role, User } from '../../users/schemas/user.schema';
+import { Role, User, UserDocument } from '../../users/schemas/user.schema';
 
 /**
  * Defines the possible actions that can be performed on resources
@@ -17,9 +17,7 @@ export enum Action {
   LIST = 'list'
 }
 
-export type Subjects = InferSubjects<
-  typeof User
-> | 'all';
+export type Subjects = InferSubjects< typeof User > | 'all';
 export type AppAbility = MongoAbility<[Action, Subjects]>;
 
 /**
@@ -34,7 +32,7 @@ export class CaslAbilityFactory {
    * @param user The user for whom to create the ability
    * @returns An AppAbility instance with the appropriate permissions
    */
-  createForUser(user: User): AppAbility {
+  createForUser(user: UserDocument): AppAbility {
 
     const { can, cannot, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
     //users module
