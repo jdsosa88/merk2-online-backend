@@ -1,6 +1,6 @@
 import { applyDecorators } from "@nestjs/common";
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse } from "@nestjs/swagger";
-import { ApiResponseDto } from "src/common/dto/response.dto";
+import { ApiResponseDto } from "src/common/dto/api-response.dto";
 import { SwaggerResponseUtils } from "src/common/utils/swagger-response-utils";
 
 export function ApiLogin() {

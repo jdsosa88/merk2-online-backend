@@ -1,15 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuthController } from '../controllers/auth.controller';
-import { AuthService } from '../services/auth.service';
-import { ApiKeyGuard } from '../../../common/guards/api-key.guard';
-import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { UserLoginDto } from '../dto/user-login.dto';
-import { VerifyDefaultCodeUserDto } from '../dto/verify-default-code-user.dto';
-import { ForgotPasswordDto } from '../dto/forgot-password.dto';
-import { VerifyResetCodeDto } from '../dto/verify-reset-code.dto';
-import { LoginResponseDto } from '../dto/login-response.dto';
+import { AuthController } from './auth.controller';
+import { AuthService } from './auth.service';
+import { ApiKeyGuard } from '../../common/guards/api-key.guard';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { UserLoginDto } from './dto/user-login.dto';
+import { VerifyDefaultCodeUserDto } from './dto/verify-default-code-user.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { VerifyResetCodeDto } from './dto/verify-reset-code.dto';
+import { LoginResponseDto } from './dto/login-response.dto';
 import { UnauthorizedException } from '@nestjs/common';
-import { AuthTokensDto } from '../dto/atuh-tokens.dto';
+import { AuthTokensDto } from './dto/atuh-tokens.dto';
 import { Types } from 'mongoose';
 import { UserRole } from 'src/modules/users/schemas/user.schema';
 
@@ -84,20 +84,13 @@ describe('AuthController', () => {
       };
 
       mockAuthService.login.mockResolvedValue(mockLoginResponse);
+      const result = await controller.login('127.0.0.1', 'test-agent', userLoginDto);
 
-      const mockRequest = {
-        ip: '127.0.0.1',
-        headers: { 'user-agent': 'test-agent' },
-        connection: { remoteAddress: '127.0.0.1' },
-      };
-
-      const result = await controller.login(mockRequest, userLoginDto);
-
-      expect(authService.login).toHaveBeenCalledWith(
-        userLoginDto,
-        '127.0.0.1',
-        'test-agent'
-      );
+      expect(authService.login).toHaveBeenCalledWith({
+        dto: userLoginDto,
+        ip: "127.0.0.1",
+        userAgent: "test-agent",
+      });
       expect(result.message).toEqual('Login completed successfully');
       expect(result.data).toEqual(mockLoginResponse);
     });
@@ -112,13 +105,7 @@ describe('AuthController', () => {
         new UnauthorizedException('Invalid credentials')
       );
 
-      const mockRequest = {
-        ip: '127.0.0.1',
-        headers: { 'user-agent': 'test-agent' },
-        connection: { remoteAddress: '127.0.0.1' },
-      };
-
-      await expect(controller.login(mockRequest, userLoginDto)).rejects.toThrow(
+      await expect(controller.login('127.0.0.1', 'test-agent', userLoginDto)).rejects.toThrow(
         UnauthorizedException
       );
     });
@@ -186,19 +173,17 @@ describe('AuthController', () => {
 
       mockAuthService.activateUser.mockResolvedValue(mockLoginResponse);
 
-      const mockRequest = {
-        ip: '127.0.0.1',
-        headers: { 'user-agent': 'test-agent' },
-        connection: { remoteAddress: '127.0.0.1' },
-      };
-
-      const result = await controller.confirmAccountActivationCode(mockRequest, verifyDefaultCodeDto);
-
-      expect(authService.activateUser).toHaveBeenCalledWith(
-        verifyDefaultCodeDto,
+      const result = await controller.confirmAccountActivationCode(
         '127.0.0.1',
-        'test-agent'
+        'test-agent',
+        verifyDefaultCodeDto
       );
+
+      expect(authService.activateUser).toHaveBeenCalledWith({
+        dto: verifyDefaultCodeDto,
+        ip: "127.0.0.1",
+        userAgent: "test-agent",
+      });
       expect(result.message).toEqual('Account activated successfully');
       expect(result.data).toBe(mockLoginResponse);
     });
@@ -236,20 +221,18 @@ describe('AuthController', () => {
       }
 
       mockAuthService.verifyResetCode.mockResolvedValue(mockLoginResponse);
-
-      const mockRequest = {
-        ip: '127.0.0.1',
-        headers: { 'user-agent': 'test-agent' },
-        connection: { remoteAddress: '127.0.0.1' },
-      };
-
-      const result = await controller.confirmForgottenPasswordCode(mockRequest, verifyResetCodeDto);
-
-      expect(authService.verifyResetCode).toHaveBeenCalledWith(
-        verifyResetCodeDto,
-        '127.0.0.1',
-        'test-agent'
+      
+      const result = await controller.confirmForgottenPasswordCode(
+        '127.0.0.1', 
+        'test-agent', 
+        verifyResetCodeDto
       );
+
+      expect(authService.verifyResetCode).toHaveBeenCalledWith({
+        dto: verifyResetCodeDto,
+        ip: "127.0.0.1",
+        userAgent: "test-agent",
+      });
       expect(result.message).toEqual('Password reset code is valid');
       expect(result.data).toBe(mockLoginResponse);
     });

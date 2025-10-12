@@ -1,16 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AdminUsersController } from '../controllers/admin-users.controller';
-import { UsersService } from '../services/users.service';
-import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { PoliciesGuard } from '../../../common/guards/policies.guard';
-import { CreateUserDto } from '../dto/create-user.dto';
-import { UpdateUserDto } from '../dto/update-user.dto';
-import { IdDto } from '../../../common/dto/id.dto';
-import { ListUsersQueryDto } from '../dto/list-users-query.dto';
-import { ApiResponseDto } from '../../../common/dto/response.dto';
-import { User, Role } from '../schemas/user.schema';
+import { AdminUsersController } from './admin-users.controller';
+import { UsersService } from './users.service';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { PoliciesGuard } from '../../common/guards/policies.guard';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { IdDto } from '../../common/dto/id.dto';
+import { ListUsersQueryDto } from './dto/list-users-query.dto';
+import { ApiResponseDto } from '../../common/dto/api-response.dto';
+import { User, Role } from './schemas/user.schema';
 import { NotFoundException, ForbiddenException } from '@nestjs/common';
-import { CaslAbilityFactory } from '../../casl/factories/casl-ability.factory';
+import { CaslAbilityFactory } from '../casl/casl-ability.factory';
 import { Reflector } from '@nestjs/core';
 import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
 

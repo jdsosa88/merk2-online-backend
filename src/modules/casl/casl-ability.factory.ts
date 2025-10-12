@@ -1,23 +1,23 @@
 import { Injectable } from '@nestjs/common';
 import { AbilityBuilder, MongoAbility, createMongoAbility, InferSubjects, ExtractSubjectType } from '@casl/ability';
-import { Role, User, UserDocument } from '../../users/schemas/user.schema';
+import { Role, User } from '../users/schemas/user.schema';
 
 /**
  * Defines the possible actions that can be performed on resources
  */
 export enum Action {
   MANAGE = 'manage', // Can perform any action (wildcard)
-  CREATE = 'create',  
+  CREATE = 'create',
   READ = 'read',
-  READ_OTHER= 'read_other',
-  UPDATE = 'update',  
-  UPDATE_OTHER = 'update_other',
+  UPDATE = 'update',
   DELETE = 'delete',
+  LIST = 'list',
+  READ_OTHER = 'read_other',
+  UPDATE_OTHER = 'update_other',
   DELETE_OTHER = 'delete_other',
-  LIST = 'list'
 }
 
-export type Subjects = InferSubjects< typeof User > | 'all';
+export type Subjects = InferSubjects<typeof User> | 'all';
 export type AppAbility = MongoAbility<[Action, Subjects]>;
 
 /**
@@ -32,17 +32,17 @@ export class CaslAbilityFactory {
    * @param user The user for whom to create the ability
    * @returns An AppAbility instance with the appropriate permissions
    */
-  createForUser(user: UserDocument): AppAbility {
+  createForUser(user: User): AppAbility {
 
     const { can, cannot, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
     //users module
     cannot(Action.CREATE, User);
-    cannot(Action.READ_OTHER, User);
     can(Action.UPDATE, User, { _id: user._id });
-    cannot(Action.UPDATE_OTHER, User);    
     can(Action.DELETE, User, { _id: user._id });
-    cannot(Action.DELETE_OTHER, User);
     cannot(Action.LIST, User);
+    cannot(Action.READ_OTHER, User);
+    cannot(Action.UPDATE_OTHER, User);
+    cannot(Action.DELETE_OTHER, User);
 
     switch (user.role) {
       case Role.ADMIN:
@@ -50,7 +50,7 @@ export class CaslAbilityFactory {
         break;
 
       case Role.PROVIDER:
-        can(Action.READ, User);        
+        can(Action.READ, User);
         break;
 
       case Role.MESSENGER:

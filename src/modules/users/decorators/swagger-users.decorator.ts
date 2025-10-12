@@ -1,7 +1,7 @@
 import { applyDecorators } from "@nestjs/common";
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse } from "@nestjs/swagger";
-import { ApiResponseDto } from "src/common/dto/response.dto";
-import { Role, User, UserDocument } from "../schemas/user.schema";
+import { ApiResponseDto } from "src/common/dto/api-response.dto";
+import { Role, User } from "../schemas/user.schema";
 import { SwaggerResponseUtils } from "src/common/utils/swagger-response-utils";
 
 export function ApiCreate() {
@@ -15,7 +15,7 @@ export function ApiCreate() {
     ApiResponse({
       status: 201,
       description: 'User created',
-      type: ApiResponseDto<UserDocument>,
+      type: ApiResponseDto<User>,
       example: new SwaggerResponseUtils().getExampleResponseWithUser(
         'User created, please check your email for the activation code'
       ),
@@ -120,7 +120,7 @@ export function ApiCreateAdmin() {
     ApiResponse({
       status: 201,
       description: 'User created',
-      type: ApiResponseDto<UserDocument>,
+      type: ApiResponseDto<User>,
       example: new SwaggerResponseUtils().getExampleResponseWithUser(
         'Admin user created successfully', Role.ADMIN, true
       )
@@ -137,7 +137,7 @@ export function ApiFindOtherUser() {
     ApiResponse({
       status: 200,
       description: 'User obtained',
-      type: ApiResponseDto<UserDocument>,
+      type: ApiResponseDto<User>,
       example: new SwaggerResponseUtils().getExampleResponseWithUser(),
     }),
   );
@@ -152,7 +152,7 @@ export function ApiFindAll() {
     ApiResponse({
       status: 200,
       description: 'Users List',
-      type: ApiResponseDto<UserDocument>,
+      type: ApiResponseDto<User>,
       example: new SwaggerResponseUtils().getResponseWithUsersList(),
     }),
   );

@@ -3,19 +3,21 @@ import { HydratedDocument, Types } from "mongoose";
 
 export type UserDocument = HydratedDocument<User>;
 
-export type UserRole = 'ADMIN' | 'CUSTOMER' | 'PROVIDER' | 'MESSENGER';
 export enum Role {
   ADMIN = 'ADMIN',
   CUSTOMER = 'CUSTOMER',
   PROVIDER = 'PROVIDER',
   MESSENGER = 'MESSENGER',
 }
+export type UserRole = keyof typeof Role;
+
 
 @Schema({ timestamps: true })
 export class User {
 
-  @Prop({type: Types.ObjectId, default: () => new Types.ObjectId })
+  @Prop({ type: Types.ObjectId, default: () => new Types.ObjectId })
   _id: Types.ObjectId;
+
   @Prop({ required: true })
   firstName: string;
 
@@ -24,14 +26,14 @@ export class User {
 
   @Prop({ required: true, unique: true })
   email: string;
-  
+
   @Prop({ required: true, select: false })
   password: string;
-  
+
   @Prop({ required: false, unique: true, sparse: true })
   phone?: string;
-  
-  @Prop({default: false})
+
+  @Prop({ default: false })
   isPhoneVerified: boolean
 
   @Prop({ default: false })
@@ -48,8 +50,8 @@ export class User {
 export const UserSchema = SchemaFactory.createForClass(User);
 UserSchema.set('toJSON', {
   transform: (doc, ret) => {
-     delete (ret as { password?: string }).password;
-     delete ret.__v;
-        return ret;
+    delete (ret as { password?: string }).password;
+    delete ret.__v;
+    return ret;
   },
 });

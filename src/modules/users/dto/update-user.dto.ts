@@ -1,4 +1,4 @@
-import { IsEmail, IsIn, IsOptional, IsPhoneNumber, IsString, Length } from "class-validator";
+import { IsBoolean, IsEmail, IsIn, IsOptional, IsPhoneNumber, IsString, Length } from "class-validator";
 import { Role, UserRole } from "../schemas/user.schema";
 import { ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -31,12 +31,19 @@ export class UpdateUserDto {
   role?: UserRole;
 
   @ApiPropertyOptional({ minLength: 8, maxLength: 50, example: 'pass1234' })
+  @IsOptional()
+  @IsString()
+  @Length(8, 50)
   password?: string;
 
-  @ApiPropertyOptional({ example: true})
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ example: true})
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
   isPhoneVerified?: boolean;
 
 }

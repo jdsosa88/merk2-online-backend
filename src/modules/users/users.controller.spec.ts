@@ -1,17 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UsersController } from '../controllers/users.controller';
-import { UsersService } from '../services/users.service';
-import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { ApiKeyGuard } from '../../../common/guards/api-key.guard';
-import { CreateUserDto } from '../dto/create-user.dto';
-import { UpdateUserDto } from '../dto/update-user.dto';
-import { SetPasswordDto } from '../dto/set-password.dto';
-import { ResetPasswordDto } from '../dto/reset-password.dto';
-import { ApiResponseDto } from '../../../common/dto/response.dto';
-import { UserRole } from '../schemas/user.schema';
+import { UsersController } from './users.controller';
+import { UsersService } from './users.service';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { ApiKeyGuard } from '../../common/guards/api-key.guard';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { SetPasswordDto } from './dto/set-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ApiResponseDto } from '../../common/dto/api-response.dto';
+import { UserRole } from './schemas/user.schema';
 import { UnauthorizedException, NotFoundException } from '@nestjs/common';
-import { VerificationCodeDto } from '../dto/verification-code.dto';
-import { CaslAbilityFactory } from '../../casl/factories/casl-ability.factory';
+import { VerificationCodeDto } from './dto/verification-code.dto';
+import { CaslAbilityFactory } from '../casl/casl-ability.factory';
 
 describe('UsersController', () => {
   let controller: UsersController;
@@ -111,10 +111,9 @@ describe('UsersController', () => {
   });
 
   describe('findOne', () => {
-    it('should return current user profile', async () => {
-      const mockRequest = { user: mockUser };
+    it('should return current user profile', async () => {      
 
-      const result = await controller.findOne(mockRequest);
+      const result = await controller.findOne(mockUser);
 
       expect(result).toBeInstanceOf(ApiResponseDto);
       expect(result.message).toBeUndefined();
@@ -134,9 +133,7 @@ describe('UsersController', () => {
       const updatedUser = { ...mockUser, ...updateUserDto };      
       mockUsersService.update.mockResolvedValue(updatedUser);
 
-      const mockRequest = { user: mockUser };
-
-      const result = await controller.update(mockRequest, updateUserDto);
+      const result = await controller.update(mockUser.id, updateUserDto);
 
       expect(usersService.update).toHaveBeenCalledWith(mockUser.id, updateUserDto);
       expect(result.message).toEqual('User updated');
@@ -155,9 +152,7 @@ describe('UsersController', () => {
         new NotFoundException('User not found')
       );
 
-      const mockRequest = { user: mockUser };
-
-      await expect(controller.update(mockRequest, updateUserDto)).rejects.toThrow(
+      await expect(controller.update(mockUser.id, updateUserDto)).rejects.toThrow(
         NotFoundException
       );
     });
@@ -168,9 +163,7 @@ describe('UsersController', () => {
       const message: string = 'A delete code has been sent to your email';    
       mockUsersService.createDeleteVerificationCode.mockResolvedValue(message);
 
-      const mockRequest = { user: mockUser };
-
-      const result = await controller.requestDeleteVerificationCode(mockRequest);
+      const result = await controller.requestDeleteVerificationCode({...mockUser, _id: mockUser.id});
 
       expect(usersService.createDeleteVerificationCode).toHaveBeenCalledWith(mockUser.id, mockUser.email);
       expect(result).toBeInstanceOf(ApiResponseDto);
@@ -183,10 +176,8 @@ describe('UsersController', () => {
         new NotFoundException('User not found')
       );
 
-      const mockRequest = { user: mockUser };
-
       await expect(
-        controller.requestDeleteVerificationCode(mockRequest)
+        controller.requestDeleteVerificationCode(mockUser)
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -197,10 +188,9 @@ describe('UsersController', () => {
       const expectedResponse = new ApiResponseDto('User deleted', mockUser);
       mockUsersService.remove.mockResolvedValue(mockUser);
 
-      const mockRequest = { user: mockUser };
       const verificationCodeDto: VerificationCodeDto = { code: '123456' };
 
-      const result = await controller.remove(mockRequest, verificationCodeDto);
+      const result = await controller.remove(mockUser.id, verificationCodeDto);
 
       expect(usersService.remove).toHaveBeenCalledWith(mockUser.id, "123456");
       expect(result).toBeInstanceOf(ApiResponseDto);
@@ -213,10 +203,9 @@ describe('UsersController', () => {
         new NotFoundException('User not found')
       );
 
-      const mockRequest = { user: mockUser };
       const verificationCodeDto: VerificationCodeDto = { code: '123456' };
 
-      await expect(controller.remove(mockRequest, verificationCodeDto)).rejects.toThrow(
+      await expect(controller.remove(mockUser.id, verificationCodeDto)).rejects.toThrow(
         NotFoundException
       );
     });
@@ -232,9 +221,7 @@ describe('UsersController', () => {
       const message: string = 'Password changed successfully';
       mockUsersService.updatePassword.mockResolvedValue(message);
 
-      const mockRequest = { user: mockUser };
-
-      const result = await controller.setPassword(mockRequest, setPasswordDto);
+      const result = await controller.setPassword(mockUser.id, setPasswordDto);
 
       expect(usersService.updatePassword).toHaveBeenCalledWith(mockUser.id, setPasswordDto);
       expect(result).toBeInstanceOf(ApiResponseDto);
@@ -252,10 +239,8 @@ describe('UsersController', () => {
         new UnauthorizedException('Invalid current password')
       );
 
-      const mockRequest = { user: mockUser };
-
       await expect(
-        controller.setPassword(mockRequest, setPasswordDto)
+        controller.setPassword(mockUser.id, setPasswordDto)
       ).rejects.toThrow(UnauthorizedException);
     });
   });
@@ -270,9 +255,7 @@ describe('UsersController', () => {
       const message: string = 'Password changed successfully';
       mockUsersService.resetPassword.mockResolvedValue(message);
 
-      const mockRequest = { user: mockUser };
-
-      const result = await controller.changeForgottenPassword(mockRequest, resetPasswordDto);
+      const result = await controller.changeForgottenPassword(mockUser.id, resetPasswordDto);
 
       expect(usersService.resetPassword).toHaveBeenCalledWith(mockUser.id, resetPasswordDto);
       expect(result).toBeInstanceOf(ApiResponseDto);
@@ -290,10 +273,8 @@ describe('UsersController', () => {
         new Error('Invalid reset code')
       );
 
-      const mockRequest = { user: mockUser };
-
       await expect(
-        controller.changeForgottenPassword(mockRequest, resetPasswordDto)
+        controller.changeForgottenPassword(mockUser.id, resetPasswordDto)
       ).rejects.toThrow();
     });
   });

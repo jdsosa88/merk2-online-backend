@@ -1,16 +1,16 @@
 import { User } from "src/modules/users/schemas/user.schema";
-import { Action, AppAbility } from "../factories/casl-ability.factory";
-import { IPolicyHandler } from "../interfaces/policy-handler.interface";
+import { Action, AppAbility } from "../../casl/casl-ability.factory";
+import { IPolicyHandler } from "../../casl/interfaces/policy-handler.interface";
 import { ObjectValidationsUtils } from "src/common/utils/object-validations";
 
 export class CreateAdminUserPolicyHandler implements IPolicyHandler {
-  handle(ability: AppAbility, req?: any): boolean {   
+  handle(ability: AppAbility, request?: any): boolean {   
     return ability.can(Action.CREATE, User);
   }
 }
 
 export class ReadUserPolicyHandler implements IPolicyHandler {
-  handle(ability: AppAbility, req?: any): boolean {
+  handle(ability: AppAbility, request?: any): boolean {
     // const rule = ability.relevantRuleFor(Action.READ, User);
     // console.log(rule);    
     return ability.can(Action.READ, User);
@@ -18,21 +18,22 @@ export class ReadUserPolicyHandler implements IPolicyHandler {
 }
 
 export class ReadOtherUserPolicyHandler implements IPolicyHandler {
-  handle(ability: AppAbility, req?: any): boolean {    
+  handle(ability: AppAbility, request?: any): boolean {
     return ability.can(Action.READ_OTHER, User);
   }
 }
 
 export class ManageUserPolicyHandler implements IPolicyHandler {
-  handle(ability: AppAbility, req?: any): boolean {
+  handle(ability: AppAbility, request?: any): boolean {
     return ability.can(Action.MANAGE, User);
   }
 }
+
 export class UpdateUserPolicyHandler implements IPolicyHandler {
-  handle(ability: AppAbility, req?: any): boolean {
+  handle(ability: AppAbility, request?: any): boolean {
     const objectUtils = new ObjectValidationsUtils();
-    const { _id, __v } = req?.body;    
-    const updateUserDto: any = req?.body ? req.body : null;
+    const { _id, __v } = request?.body;    
+    const updateUserDto: any = request?.body ? request.body : null;
 
     const hasForbiddenFields: boolean = objectUtils.hasDatabaseForbiddenObject(_id, __v);    
     const hasRestrictedFields: boolean = objectUtils.isDefinedObject(updateUserDto) && (
@@ -49,9 +50,9 @@ export class UpdateUserPolicyHandler implements IPolicyHandler {
 }
 
 export class UpdateOtherUserPolicyHandler implements IPolicyHandler {
-  handle(ability: AppAbility, req?: any): boolean {
+  handle(ability: AppAbility, request?: any): boolean {
     const objectUtils = new ObjectValidationsUtils();
-    const { _id, __v } = req?.body;   
+    const { _id, __v } = request?.body;   
 
     const hasForbiddenFields: boolean = objectUtils.hasDatabaseForbiddenObject(_id, __v); 
 

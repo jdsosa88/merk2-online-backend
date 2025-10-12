@@ -1,22 +1,22 @@
 import { Injectable } from "@nestjs/common";
-import { ApiResponseDto } from "../dto/response.dto";
+import { ApiResponseDto } from "../dto/api-response.dto";
 import { Role } from "src/modules/users/schemas/user.schema";
 import { PaginatedListDto } from "../dto/paginated-list.dto";
 
 @Injectable()
 export class SwaggerResponseUtils {
-  getExampleResponseWithUser(message?: string, role: string = Role.CUSTOMER, isActive: boolean = false) {
+  getExampleResponseWithUser(message?: string, role: string = Role.CUSTOMER, isAdmin: boolean = false) {
     const exampleUser: Object = {
       firstName: "User",
       lastName: "Example",
       email: "user.example@email.com",
       phone: "+5351657628",
-      isActive,
+      isActive: isAdmin,
       role: role,
       _id: "68bec9fdb83564195e6aa63d",
       createdAt: "2025-09-08T12:20:13.346Z",
       updatedAt: "2025-09-08T12:20:13.346Z",
-      isPhoneVerified: false
+      isPhoneVerified: isAdmin,
     };
     if (message) {
       return new ApiResponseDto(message, exampleUser);

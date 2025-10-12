@@ -9,8 +9,6 @@ export class ApiResponseDto<T = any> {
 
   @ApiPropertyOptional()
   readonly data?: T;
-
-
   
   constructor(messageOrData?: string | T, data?: T) {
     this.timestamp = new Date().toISOString();

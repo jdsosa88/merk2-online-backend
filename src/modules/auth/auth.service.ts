@@ -1,22 +1,23 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { UsersService } from '../../users/services/users.service';
+import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { UserLoginDto } from '../dto/user-login.dto';
-import { UserDocument } from '../../users/schemas/user.schema';
-import { AuthTokensDto } from '../dto/atuh-tokens.dto';
-import { RefreshTokenService } from '../services/refresh-token.service';
+import { UserLoginDto } from './dto/user-login.dto';
+import { User } from '../users/schemas/user.schema';
+import { AuthTokensDto } from './dto/atuh-tokens.dto';
+import { RefreshTokenService } from './refresh-token.service';
 import { ConfigService } from '@nestjs/config';
-import { RefreshTokenDocument } from '../schemas/refresh-token.schema';
+import { RefreshToken } from './schemas/refresh-token.schema';
 import ms = require('ms');
-import { LoginResponseDto } from '../dto/login-response.dto';
+import { LoginResponseDto } from './dto/login-response.dto';
 import { Types } from 'mongoose';
-import { ForgotPasswordDto } from '../dto/forgot-password.dto';
-import { VerificationCodeService } from '../../verification-code/services/verification-code.service';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { VerificationCodeService } from '../verification-code/verification-code.service';
 import { MailerService } from '@nestjs-modules/mailer';
-import { VerifyResetCodeDto } from '../dto/verify-reset-code.dto';
-import { VerifyDefaultCodeUserDto } from '../dto/verify-default-code-user.dto';
-import { ICreateRefreshToken, IRefreshToken } from '../interfaces/refresh-token.interface';
+import { VerifyResetCodeDto } from './dto/verify-reset-code.dto';
+import { VerifyDefaultCodeUserDto } from './dto/verify-default-code-user.dto';
+import { ICreateRefreshToken, IRefreshToken } from './interfaces/refresh-token.interface';
+import { AtuthParams, LoginParams } from './interfaces/auth.interface';
 
 
 @Injectable()
@@ -30,10 +31,11 @@ export class AuthService {
     private readonly mailerService: MailerService,
   ) { }
 
-  async login(userLoginDto: UserLoginDto, ip: string, userAgent: string): Promise<LoginResponseDto> {
+  async login(authParams: AtuthParams<UserLoginDto>): Promise<LoginResponseDto> {
     try {
-      const user: UserDocument = await this.validateUser(userLoginDto);
-      return await this.makeLogin(user, ip, userAgent);
+      const { dto: userLoginDto, ip, userAgent } = authParams;
+      const user = await this.validateUser(userLoginDto);
+      return await this.makeLogin({ user, ip, userAgent });
     } catch (error) {
       throw error;
     }
@@ -43,15 +45,15 @@ export class AuthService {
     try {
       const payload = await this.verifyJwtRefreshToken(refreshToken);
 
-      const storedToken: RefreshTokenDocument | null = await this.refreshTokenService.findByToken(refreshToken);
+      const storedToken: RefreshToken | null = await this.refreshTokenService.findByToken(refreshToken);
       if (!storedToken) throw new UnauthorizedException('Refresh token not found');
 
-      const user: UserDocument = await this.usersService.findOne(payload.sub);
+      const user = await this.usersService.findOne(payload.sub);
       if (!user || !user.isActive) throw new UnauthorizedException('User not found or inactive');
 
-      const authTokens: AuthTokensDto = await this.generateAuthTokens(user._id as Types.ObjectId);
+      const authTokens: AuthTokensDto = await this.generateAuthTokens(user._id);
       const refreshTokenData: IRefreshToken = {
-        userId: user._id as Types.ObjectId,
+        userId: user._id,
         token: authTokens.refresh_token,
         ip: storedToken.ip,
         userAgent: storedToken.userAgent
@@ -74,25 +76,24 @@ export class AuthService {
     }
   }
 
-  async activateUser(verifyDefaultCodeDto: VerifyDefaultCodeUserDto, ip: string, userAgent: string): Promise<LoginResponseDto> {
+  async activateUser(authParams: AtuthParams<VerifyDefaultCodeUserDto>): Promise<LoginResponseDto> {
     try {
-      console.log(verifyDefaultCodeDto.id);
-
-      const user: UserDocument = await this.usersService.findOne(verifyDefaultCodeDto.id);
+      const { dto: verifyResetCodeDto, ip, userAgent } = authParams;
+      let user = await this.usersService.findOne(verifyResetCodeDto.id);
       if (!user) throw new NotFoundException('User not found');
       if (user.isActive) throw new BadRequestException('The user is already active');
 
       const isVerifiedCode: boolean = await this.verificationCodeService.verifyCode(
-        user._id as Types.ObjectId,
-        verifyDefaultCodeDto.code,
+        user._id,
+        verifyResetCodeDto.code,
         'activation'
       );
       if (!isVerifiedCode) throw new BadRequestException('Invalid or expired activation code');
 
       user.isActive = true;
-      user.save();
+      user = await this.usersService.update(verifyResetCodeDto.id, user);
 
-      return await this.makeLogin(user, ip, userAgent);
+      return await this.makeLogin({ user, ip, userAgent });
     } catch (error) {
       throw error;
     }
@@ -100,12 +101,12 @@ export class AuthService {
 
   async sendResetPasswordCode(forgotPasswordDto: ForgotPasswordDto): Promise<string> {
     try {
-      const user: UserDocument | null = await this.usersService.findByEmail(forgotPasswordDto.email, false);
+      const user = await this.usersService.findByEmail(forgotPasswordDto.email, false);
       if (!user) throw new NotFoundException(`User not found`);
       if (!user.isActive) throw new UnauthorizedException(`User is not active`);
 
       const code = await this.verificationCodeService.createCode(
-        user._id as Types.ObjectId,
+        user._id,
         'reset_password',
         3
       );
@@ -117,29 +118,40 @@ export class AuthService {
     }
   }
 
-  async verifyResetCode(verifyResetCodeDto: VerifyResetCodeDto, ip: string, userAgent: string): Promise<LoginResponseDto> {
+  async verifyResetCode(authParams: AtuthParams<VerifyResetCodeDto>): Promise<LoginResponseDto> {
     try {
-      const user: UserDocument | null = await this.usersService.findByEmail(verifyResetCodeDto.email, false);
+      const { dto: verifyResetCodeDto, ip, userAgent } = authParams;
+      const user = await this.usersService.findByEmail(authParams.dto.email, false);
       if (!user) throw new NotFoundException(`User with email not found`);
       if (!user.isActive) throw new UnauthorizedException(`User with email is not active`);
 
       const isResetCode = await this.verificationCodeService.verifyCode(
-        user._id as Types.ObjectId,
+        user._id,
         verifyResetCodeDto.code,
         'verify_reset_password'
       );
       if (!isResetCode) throw new BadRequestException('Invalid or expired reset password code');
 
-      return await this.makeLogin(user, ip, userAgent);
-
+      return await this.makeLogin({ user, ip, userAgent });
     } catch (error) {
       throw error;
     }
   }
 
-  private async makeLogin(user: UserDocument, ip: string, userAgent: string): Promise<LoginResponseDto> {
+  private async validateUser(userLoginDto: UserLoginDto): Promise<User> {
+    const { email, password } = userLoginDto;
+    const user = await this.usersService.findByEmail(email);
+
+    if (user && await bcrypt.compare(password, user.password)) {
+      return user;
+    }
+    throw new UnauthorizedException('Invalid credentials');
+  }
+
+  private async makeLogin(loginParams: LoginParams): Promise<LoginResponseDto> {
+    const { user, ip, userAgent } = loginParams;
     if (!user.isActive) throw new UnauthorizedException('User is not active');
-    const userId: Types.ObjectId = user._id as Types.ObjectId;
+    const userId: Types.ObjectId = user._id;
     const authTokens: AuthTokensDto = await this.generateAuthTokens(userId);
     const refreshTokenData: IRefreshToken = {
       token: authTokens.refresh_token,
@@ -150,17 +162,6 @@ export class AuthService {
     const savedRefreshToken = await this.saveRefreshToken(refreshTokenData);
     if (!savedRefreshToken) throw new BadRequestException("Refresh token could not be saved");
     return { user, tokens: authTokens };
-  }
-
-  private async validateUser(userLoginDto: UserLoginDto): Promise<UserDocument> {
-    const { email, password } = userLoginDto;
-    const user: UserDocument | null = await this.usersService.findByEmail(email);
-
-    if (user && await bcrypt.compare(password, user.password)) {
-      const { password, ...result } = user.toObject();
-      return result as UserDocument;
-    }
-    throw new UnauthorizedException('Invalid credentials');
   }
 
   private async verifyJwtRefreshToken(refreshToken: string): Promise<any> {
@@ -190,7 +191,7 @@ export class AuthService {
     });
   }
 
-  private async saveRefreshToken(refreshTokenData: IRefreshToken): Promise<RefreshTokenDocument> {
+  private async saveRefreshToken(refreshTokenData: IRefreshToken): Promise<RefreshToken> {
     await this.refreshTokenService.deletePreviousToken(refreshTokenData);
     const expiration = this.configService.get('JWT_REFRESH_EXPIRATION');
     const expiresAt = new Date(Date.now() + ms(expiration));

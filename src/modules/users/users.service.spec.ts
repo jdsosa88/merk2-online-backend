@@ -9,14 +9,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { UsersService } from '../services/users.service';
-import { Role, User, UserRole } from '../schemas/user.schema';
-import { CreateUserDto } from '../dto/create-user.dto';
-import { UpdateUserDto } from '../dto/update-user.dto';
-import { SetPasswordDto } from '../dto/set-password.dto';
-import { ResetPasswordDto } from '../dto/reset-password.dto';
-import { VerificationCodeService } from '../../verification-code/services/verification-code.service';
-import { ListUsersQueryDto } from '../dto/list-users-query.dto';
+import { UsersService } from './users.service';
+import { Role, User, UserRole } from './schemas/user.schema';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { SetPasswordDto } from './dto/set-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerificationCodeService } from '../verification-code/verification-code.service';
+import { ListUsersQueryDto } from './dto/list-users-query.dto';
 
 // Mock bcrypt
 jest.mock('bcrypt');
@@ -128,7 +128,12 @@ describe('UsersService', () => {
 
       const result = await service.create(createUserDto);
 
-      expect(mockUserModel.exists).toHaveBeenCalledWith({ email: createUserDto.email });
+      expect(mockUserModel.exists).toHaveBeenCalledWith({
+        $or: [
+          { email: createUserDto.email },
+          { phone: createUserDto.phone }
+        ]
+      });
       expect(mockedBcrypt.hash).toHaveBeenCalledWith(createUserDto.password, 10);
       expect(mockUserModel.create).toHaveBeenCalledWith({
         ...createUserDto,
@@ -172,7 +177,12 @@ describe('UsersService', () => {
 
       const result = await service.create(createUserDto, Role.ADMIN);
 
-      expect(mockUserModel.exists).toHaveBeenCalledWith({ email: createUserDto.email });
+      expect(mockUserModel.exists).toHaveBeenCalledWith({
+        $or: [
+          { email: createUserDto.email },
+          { phone: createUserDto.phone }
+        ]
+      });
       expect(mockedBcrypt.hash).toHaveBeenCalledWith(createUserDto.password, 10);
       expect(mockUserModel.create).toHaveBeenCalledWith({
         ...createUserDto,
@@ -199,10 +209,15 @@ describe('UsersService', () => {
       mockUserModel.exists.mockResolvedValue({ _id: mockObjectId });
 
       await expect(service.create(createUserDto)).rejects.toThrow(
-        new ConflictException('Email already exists'),
+        new ConflictException('Fields email or phone already exists'),
       );
 
-      expect(mockUserModel.exists).toHaveBeenCalledWith({ email: createUserDto.email });
+      expect(mockUserModel.exists).toHaveBeenCalledWith({
+        $or: [
+          { email: createUserDto.email },
+          { phone: createUserDto.phone }
+        ]
+      });
       expect(mockUserModel.create).not.toHaveBeenCalled();
     });
   });

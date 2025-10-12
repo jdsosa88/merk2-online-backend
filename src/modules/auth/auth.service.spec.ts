@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuthService } from '../services/auth.service';
-import { UsersService } from '../../users/services/users.service';
+import { AuthService } from './auth.service';
+import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
-import { RefreshTokenService } from '../services/refresh-token.service';
+import { RefreshTokenService } from './refresh-token.service';
 import { ConfigService } from '@nestjs/config';
-import { VerificationCodeService } from '../../verification-code/services/verification-code.service';
+import { VerificationCodeService } from '../verification-code/verification-code.service';
 import { MailerService } from '@nestjs-modules/mailer';
 import {
   BadRequestException,
@@ -13,12 +13,12 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { Types } from 'mongoose';
-import { UserLoginDto } from '../dto/user-login.dto';
-import { VerifyDefaultCodeUserDto } from '../dto/verify-default-code-user.dto';
-import { ForgotPasswordDto } from '../dto/forgot-password.dto';
-import { VerifyResetCodeDto } from '../dto/verify-reset-code.dto';
-import { AuthTokensDto } from '../dto/atuh-tokens.dto';
-import { UserRole } from '../../users/schemas/user.schema';
+import { UserLoginDto } from './dto/user-login.dto';
+import { VerifyDefaultCodeUserDto } from './dto/verify-default-code-user.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { VerifyResetCodeDto } from './dto/verify-reset-code.dto';
+import { AuthTokensDto } from './dto/atuh-tokens.dto';
+import { UserRole } from '../users/schemas/user.schema';
 
 // Mock bcrypt
 jest.mock('bcrypt');
@@ -64,6 +64,7 @@ describe('AuthService', () => {
   const mockUsersService = {
     findByEmail: jest.fn(),
     findOne: jest.fn(),
+    update: jest.fn(),
   };
 
   const mockJwtService = {
@@ -172,7 +173,7 @@ describe('AuthService', () => {
       mockRefreshTokenService.deletePreviousToken.mockResolvedValue(undefined);
       mockRefreshTokenService.create.mockResolvedValue(mockRefreshToken);
 
-      const result = await service.login(userLoginDto, ip, userAgent);
+      const result = await service.login({ dto: userLoginDto, ip, userAgent });
 
       expect(result.user._id).toStrictEqual(mockUser._id);
       expect(result.tokens.access_token).toBe(mockTokens.access_token);
@@ -184,7 +185,7 @@ describe('AuthService', () => {
     it('should throw UnauthorizedException with invalid email', async () => {
       mockUsersService.findByEmail.mockResolvedValue(null);
 
-      await expect(service.login(userLoginDto, ip, userAgent))
+      await expect(service.login({ dto: userLoginDto, ip, userAgent }))
         .rejects.toThrow(UnauthorizedException);
     });
 
@@ -192,7 +193,7 @@ describe('AuthService', () => {
       mockUsersService.findByEmail.mockResolvedValue(mockUser);
       mockBcryptCompare.mockResolvedValue(false);
 
-      await expect(service.login(userLoginDto, ip, userAgent))
+      await expect(service.login({ dto: userLoginDto, ip, userAgent }))
         .rejects.toThrow(UnauthorizedException);
     });
 
@@ -216,7 +217,7 @@ describe('AuthService', () => {
       mockUsersService.findByEmail.mockResolvedValue(inactiveUser);
       mockBcryptCompare.mockResolvedValue(true);
 
-      await expect(service.login(userLoginDto, ip, userAgent))
+      await expect(service.login({ dto: userLoginDto, ip, userAgent }))
         .rejects.toThrow(UnauthorizedException);
     });
   });
@@ -333,32 +334,33 @@ describe('AuthService', () => {
       const mockRefreshToken = { _id: 'refresh-id', token: 'refresh-token' };
 
       mockUsersService.findOne.mockResolvedValue(inactiveUser);
+      mockUsersService.update.mockResolvedValue({ ...inactiveUser, isActive: true });
       mockVerificationCodeService.verifyCode.mockResolvedValue(true);
       mockJwtService.sign.mockReturnValueOnce('access-token');
       mockJwtService.sign.mockReturnValueOnce('refresh-token');
       mockRefreshTokenService.deletePreviousToken.mockResolvedValue(undefined);
       mockRefreshTokenService.create.mockResolvedValue(mockRefreshToken);
 
-      const result = await service.activateUser(verifyDefaultCodeDto, ip, userAgent);
+      const result = await service.activateUser({ dto: verifyDefaultCodeDto, ip, userAgent });
 
-      expect(result.user).toBe(inactiveUser);
+      expect(result.user).toStrictEqual({ ...inactiveUser, isActive: true });
       expect(result.user.isActive).toBe(true);
       expect(result.tokens.access_token).toBe(mockTokens.access_token);
       expect(result.tokens.refresh_token).toBe(mockTokens.refresh_token);
-      expect(inactiveUser.save).toHaveBeenCalled();
+      expect(mockUsersService.update).toHaveBeenCalled();
     });
 
     it('should throw NotFoundException when user not found', async () => {
       mockUsersService.findOne.mockResolvedValue(null);
 
-      await expect(service.activateUser(verifyDefaultCodeDto, ip, userAgent))
+      await expect(service.activateUser({ dto: verifyDefaultCodeDto, ip, userAgent }))
         .rejects.toThrow(NotFoundException);
     });
 
     it('should throw BadRequestException when user is already active', async () => {
       mockUsersService.findOne.mockResolvedValue(mockUser); // mockUser.isActive = true
 
-      await expect(service.activateUser(verifyDefaultCodeDto, ip, userAgent))
+      await expect(service.activateUser({ dto: verifyDefaultCodeDto, ip, userAgent }))
         .rejects.toThrow(BadRequestException);
     });
 
@@ -368,7 +370,7 @@ describe('AuthService', () => {
       mockUsersService.findOne.mockResolvedValue(inactiveUser);
       mockVerificationCodeService.verifyCode.mockResolvedValue(false);
 
-      await expect(service.activateUser(verifyDefaultCodeDto, ip, userAgent))
+      await expect(service.activateUser({ dto: verifyDefaultCodeDto, ip, userAgent }))
         .rejects.toThrow(BadRequestException);
     });
   });
@@ -440,7 +442,7 @@ describe('AuthService', () => {
       mockRefreshTokenService.deletePreviousToken.mockResolvedValue(undefined);
       mockRefreshTokenService.create.mockResolvedValue(mockRefreshToken);
 
-      const result = await service.verifyResetCode(verifyResetCodeDto, ip, userAgent);
+      const result = await service.verifyResetCode({ dto: verifyResetCodeDto, ip, userAgent });
 
       expect(result.user).toBe(mockUser);
       expect(result.tokens.access_token).toBe(mockTokens.access_token);
@@ -455,7 +457,7 @@ describe('AuthService', () => {
     it('should throw NotFoundException when user not found', async () => {
       mockUsersService.findByEmail.mockResolvedValue(null);
 
-      await expect(service.verifyResetCode(verifyResetCodeDto, ip, userAgent))
+      await expect(service.verifyResetCode({ dto: verifyResetCodeDto, ip, userAgent }))
         .rejects.toThrow(NotFoundException);
     });
 
@@ -464,7 +466,7 @@ describe('AuthService', () => {
 
       mockUsersService.findByEmail.mockResolvedValue(inactiveUser);
 
-      await expect(service.verifyResetCode(verifyResetCodeDto, ip, userAgent))
+      await expect(service.verifyResetCode({ dto: verifyResetCodeDto, ip, userAgent }))
         .rejects.toThrow(UnauthorizedException);
     });
 
@@ -472,7 +474,7 @@ describe('AuthService', () => {
       mockUsersService.findByEmail.mockResolvedValue(mockUser);
       mockVerificationCodeService.verifyCode.mockResolvedValue(false);
 
-      await expect(service.verifyResetCode(verifyResetCodeDto, ip, userAgent))
+      await expect(service.verifyResetCode({ dto: verifyResetCodeDto, ip, userAgent }))
         .rejects.toThrow(BadRequestException);
     });
   });
@@ -490,7 +492,7 @@ describe('AuthService', () => {
       mockRefreshTokenService.deletePreviousToken.mockResolvedValue(undefined);
       mockRefreshTokenService.create.mockResolvedValue(null);
 
-      await expect(service.login(userLoginDto, '127.0.0.1', 'test-agent'))
+      await expect(service.login({ dto: userLoginDto, ip: '127.0.0.1', userAgent: 'test-agent' }))
         .rejects.toThrow(BadRequestException);
     });
 
@@ -508,7 +510,7 @@ describe('AuthService', () => {
       mockRefreshTokenService.deletePreviousToken.mockResolvedValue(undefined);
       mockRefreshTokenService.create.mockResolvedValue(mockRefreshToken);
 
-      const result = await service.login(userLoginDto, '127.0.0.1', 'test-agent');
+      const result = await service.login({ dto: userLoginDto, ip: '127.0.0.1', userAgent: 'test-agent' });
 
       expect(mockJwtService.sign).toHaveBeenCalledTimes(2);
       expect(mockJwtService.sign).toHaveBeenNthCalledWith(1, { sub: mockObjectId });

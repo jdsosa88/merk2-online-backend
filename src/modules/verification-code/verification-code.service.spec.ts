@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { VerificationCodeService } from '../services/verification-code.service';
+import { VerificationCodeService } from './verification-code.service';
 import { getModelToken } from '@nestjs/mongoose';
-import { VerificationCode } from '../schemas/verification-code.schema';
+import { VerificationCode } from './schemas/verification-code.schema';
 import { Model, Types } from 'mongoose';
 
 describe('VerificationCodeService', () => {

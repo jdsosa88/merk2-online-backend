@@ -2,7 +2,9 @@ import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument, Types } from "mongoose";
 
 export type VerificationCodeDocument = HydratedDocument<VerificationCode>;
+
 export type VerificationType = 'activation' | 'delete' | 'reset_password' ;
+
 @Schema({ 
   collection: "verification_codes",
   timestamps: true,
