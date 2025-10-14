@@ -131,7 +131,7 @@ export function ApiCreateAdmin() {
 export function ApiFindOtherUser() {
   return applyDecorators(
     ApiOperation({
-      summary: 'Get other user (only an authenticated admin user can access the endpoint)'
+      summary: 'Get other user (only an authenticated user can access the endpoint, resticted for CUSTOMER user role)'
     }),
     ApiBearerAuth('JWT'),
     ApiResponse({

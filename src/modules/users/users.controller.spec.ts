@@ -8,10 +8,13 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ApiResponseDto } from '../../common/dto/api-response.dto';
-import { UserRole } from './schemas/user.schema';
+import { Role, User, UserRole } from './schemas/user.schema';
 import { UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { VerificationCodeDto } from './dto/verification-code.dto';
 import { CaslAbilityFactory } from '../casl/casl-ability.factory';
+import { IdDto } from 'src/common/dto/id.dto';
+import { ListUsersQueryDto } from './dto/list-users-query.dto';
+import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
 
 describe('UsersController', () => {
   let controller: UsersController;
@@ -20,6 +23,8 @@ describe('UsersController', () => {
   const mockUsersService = {
     create: jest.fn(),
     findAll: jest.fn(),
+    findAllPaginated: jest.fn(),
+    findOne: jest.fn(),
     update: jest.fn(),
     remove: jest.fn(),
     updatePassword: jest.fn(),
@@ -33,7 +38,19 @@ describe('UsersController', () => {
     lastName: 'Doe',
     email: 'john.doe@example.com',
     phone: '+1234567890',
-    role: 'CUSTOMER' as UserRole,
+    role: Role.CUSTOMER,
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  } as any;
+
+  const mockOtherUser = {
+    id: 'customer123',
+    firstName: 'Jane',
+    lastName: 'Smith',
+    email: 'jane.smith@example.com',
+    phone: '+0987654321',
+    role: Role.CUSTOMER,
     isActive: true,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -82,7 +99,7 @@ describe('UsersController', () => {
         phone: '+1234567890',
         role: 'CUSTOMER' as UserRole,
       };
-      
+
       mockUsersService.create.mockResolvedValue(mockUser);
 
       const result = await controller.create(createUserDto);
@@ -111,13 +128,50 @@ describe('UsersController', () => {
   });
 
   describe('findOne', () => {
-    it('should return current user profile', async () => {      
+    it('should return current user profile', async () => {
 
       const result = await controller.findOne(mockUser);
 
       expect(result).toBeInstanceOf(ApiResponseDto);
       expect(result.message).toBeUndefined();
       expect(result.data).toEqual(mockUser);
+    });
+  });
+
+  describe('findOtherUser', () => {
+    it('should find a user successfully', async () => {
+      const idDto: IdDto = { id: 'customer123' };
+
+      const expectedResponse = new ApiResponseDto(mockOtherUser);
+
+      mockUsersService.findOne.mockResolvedValue(mockOtherUser);
+
+      const result = await controller.findOtherUser(idDto);
+
+      expect(usersService.findOne).toHaveBeenCalledWith('customer123');
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toBeUndefined();
+      expect(result).toEqual(expectedResponse);
+    });
+
+    it('should handle user not found', async () => {
+      const idDto: IdDto = { id: 'nonexistent123' };
+
+      mockUsersService.findOne.mockRejectedValue(
+        new NotFoundException('User not found')
+      );
+
+      await expect(controller.findOtherUser(idDto)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should handle invalid ID format', async () => {
+      const idDto: IdDto = { id: 'invalid-id' };
+
+      mockUsersService.findOne.mockRejectedValue(
+        new Error('Invalid ID format')
+      );
+
+      await expect(controller.findOtherUser(idDto)).rejects.toThrow();
     });
   });
 
@@ -130,7 +184,7 @@ describe('UsersController', () => {
         phone: '+0987654321',
       };
 
-      const updatedUser = { ...mockUser, ...updateUserDto };      
+      const updatedUser = { ...mockUser, ...updateUserDto };
       mockUsersService.update.mockResolvedValue(updatedUser);
 
       const result = await controller.update(mockUser.id, updateUserDto);
@@ -160,10 +214,10 @@ describe('UsersController', () => {
 
   describe('requestDeleteVerificationCode', () => {
     it('should request delete verification code successfully', async () => {
-      const message: string = 'A delete code has been sent to your email';    
+      const message: string = 'A delete code has been sent to your email';
       mockUsersService.createDeleteVerificationCode.mockResolvedValue(message);
 
-      const result = await controller.requestDeleteVerificationCode({...mockUser, _id: mockUser.id});
+      const result = await controller.requestDeleteVerificationCode({ ...mockUser, _id: mockUser.id });
 
       expect(usersService.createDeleteVerificationCode).toHaveBeenCalledWith(mockUser.id, mockUser.email);
       expect(result).toBeInstanceOf(ApiResponseDto);
@@ -181,7 +235,6 @@ describe('UsersController', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
-
 
   describe('remove', () => {
     it('should remove user successfully', async () => {
@@ -208,6 +261,95 @@ describe('UsersController', () => {
       await expect(controller.remove(mockUser.id, verificationCodeDto)).rejects.toThrow(
         NotFoundException
       );
+    });
+  });
+
+  describe('findAll', () => {
+    it('should return paginated users list without role filter', async () => {
+      const query: ListUsersQueryDto = {
+        page: 1,
+        perPage: 10,
+      };
+
+      const mockUsersList = [mockUser, mockOtherUser];
+      const mockPaginatedList: PaginatedListDto<User> = {
+        items: mockUsersList,
+        total: 2,
+        page: 1,
+        perPage: 10,
+        totalPages: 1,
+      }
+
+      mockUsersService.findAllPaginated.mockResolvedValue(mockPaginatedList);
+
+      const result = await controller.findAll(query);
+
+      expect(usersService.findAllPaginated).toHaveBeenCalledWith(query);
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toBeUndefined();
+      expect(result.data).toEqual(mockPaginatedList);
+    });
+
+    it('should return paginated users list with role filter', async () => {
+      const query: ListUsersQueryDto = {
+        page: 1,
+        perPage: 10,
+        role: Role.CUSTOMER,
+      };
+
+      const mockFilteredUsersList = [mockOtherUser];
+      const mockPaginatedList: PaginatedListDto<User> = {
+        items: mockFilteredUsersList,
+        total: 1,
+        page: 1,
+        perPage: 10,
+        totalPages: 1,
+      };
+
+      mockUsersService.findAllPaginated.mockResolvedValue(mockPaginatedList);
+
+      const result = await controller.findAll(query);
+
+      expect(usersService.findAllPaginated).toHaveBeenCalledWith(query);
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toBeUndefined();
+      expect(result.data).toEqual(mockPaginatedList);
+    });
+
+    it('should return empty list when no users found', async () => {
+      const query: ListUsersQueryDto = {
+        page: 1,
+        perPage: 10,
+      };
+      const mockPaginatedList: PaginatedListDto<User> = {
+        items: [],
+        total: 0,
+        page: 1,
+        perPage: 10,
+        totalPages: 0,
+      };
+
+      mockUsersService.findAllPaginated.mockResolvedValue(mockPaginatedList);
+
+      const result = await controller.findAll(query);
+
+      expect(usersService.findAllPaginated).toHaveBeenCalledWith(query);
+      expect(result).toBeInstanceOf(ApiResponseDto);
+      expect(result.message).toBeUndefined();
+      expect(result.data).toEqual(mockPaginatedList);
+    });
+
+    it('should handle service errors when finding all users', async () => {
+      const query: ListUsersQueryDto = {
+        page: 1,
+        perPage: 10,
+      };
+
+      mockUsersService.findAllPaginated.mockRejectedValue(
+        new Error('Database connection error')
+      );
+
+      await expect(controller.findAll(query)).rejects.toThrow();
     });
   });
 

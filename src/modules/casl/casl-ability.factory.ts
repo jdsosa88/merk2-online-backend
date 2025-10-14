@@ -12,9 +12,7 @@ export enum Action {
   UPDATE = 'update',
   DELETE = 'delete',
   LIST = 'list',
-  READ_OTHER = 'read_other',
-  UPDATE_OTHER = 'update_other',
-  DELETE_OTHER = 'delete_other',
+  UPDATE_RESTRICTED_FIELDS = 'update_restricted_fields',
 }
 
 export type Subjects = InferSubjects<typeof User> | 'all';
@@ -37,19 +35,23 @@ export class CaslAbilityFactory {
     const { can, cannot, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
     //users module
     cannot(Action.CREATE, User);
-    can(Action.UPDATE, User, { _id: user._id });
     can(Action.DELETE, User, { _id: user._id });
+    can(Action.UPDATE, User, ['email', 'firstName', 'lastName', 'phone', 'isPhoneVerified'], { _id: user._id });
+    can(Action.UPDATE_RESTRICTED_FIELDS, User, ['password'], { _id: user._id });
     cannot(Action.LIST, User);
-    cannot(Action.READ_OTHER, User);
-    cannot(Action.UPDATE_OTHER, User);
-    cannot(Action.DELETE_OTHER, User);
 
     switch (user.role) {
       case Role.ADMIN:
         can(Action.MANAGE, 'all');
+        cannot(Action.UPDATE, User, ['_id']);
+        cannot(Action.UPDATE, User, ['isActive', 'role'], { _id: user._id });
         break;
 
       case Role.PROVIDER:
+        can(Action.READ, User);
+        break;
+
+      case Role.MANAGER:
         can(Action.READ, User);
         break;
 
@@ -72,4 +74,6 @@ export class CaslAbilityFactory {
         item.constructor as ExtractSubjectType<Subjects>
     });
   }
+
+
 }

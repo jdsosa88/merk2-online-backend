@@ -40,7 +40,7 @@ export class PoliciesGuard implements CanActivate {
 
     return hasPermission;
   }
-  private execPolicyHandler(handler: PolicyHandler, ability: any, request?: any): boolean {
+  private execPolicyHandler(handler: PolicyHandler, ability: any, request: any): boolean {
     if (typeof handler === 'function') {
       return handler(ability, request);
     }

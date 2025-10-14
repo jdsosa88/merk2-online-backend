@@ -22,16 +22,14 @@ import { User } from './schemas/user.schema';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { PoliciesGuard } from 'src/common/guards/policies.guard';
 import { CheckPolicies } from 'src/modules/casl/decorators/policies.decorator';
-import {
-  DeleteUserPolicyHandler,
-  ReadUserPolicyHandler,
-  UpdateUserPolicyHandler
-} from './policies/users.policy';
+import { ReadOtherUserPolicyHandler, ReadUserPolicyHandler } from './policies/read-user.policy';
 import { VerificationCodeDto } from './dto/verification-code.dto';
 import {
   ApiChangeForgottenPassword,
   ApiCreate,
+  ApiFindAll,
   ApiFindOne,
+  ApiFindOtherUser,
   ApiRemove,
   ApiRequestDeleteVerificationCode,
   ApiSetPassword,
@@ -39,6 +37,12 @@ import {
 } from './decorators/swagger-users.decorator';
 import { AuthUser } from 'src/common/decorators/user.decorator';
 import { Types } from 'mongoose';
+import { IdDto } from 'src/common/dto/id.dto';
+import { UpdateUserPasswordPolicyHandler, UpdateUserPolicyHandler } from './policies/update-user.policy';
+import { DeleteUserPolicyHandler } from './policies/delete-user.policy';
+import { ListUsersPolicyHandler } from './policies/list-user.policy';
+import { ListUsersQueryDto } from './dto/list-users-query.dto';
+import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
 
 
 @UseGuards(JwtAuthGuard, PoliciesGuard)
@@ -59,6 +63,14 @@ export class UsersController {
   @CheckPolicies(new ReadUserPolicyHandler())
   @ApiFindOne()
   async findOne(@AuthUser() user: User): Promise<ApiResponseDto<User>> {
+    return new ApiResponseDto(user);
+  }
+
+  @Get('/other')
+  @CheckPolicies(new ReadOtherUserPolicyHandler())
+  @ApiFindOtherUser()
+  async findOtherUser(@Query() idDto: IdDto): Promise<ApiResponseDto<User>> {
+    const user: User = await this.usersService.findOne(idDto.id);
     return new ApiResponseDto(user);
   }
 
@@ -86,8 +98,16 @@ export class UsersController {
     return new ApiResponseDto('User deleted', user);
   }
 
+  @Get('/list')
+  @CheckPolicies(new ListUsersPolicyHandler())
+  @ApiFindAll()
+  async findAll(@Query() query: ListUsersQueryDto): Promise<ApiResponseDto<PaginatedListDto<User>>> {
+    const paginatedList: PaginatedListDto<User> = await this.usersService.findAllPaginated(query);
+    return new ApiResponseDto(paginatedList);
+  }
+
   @Patch('/set-password')
-  @CheckPolicies(new UpdateUserPolicyHandler())
+  @CheckPolicies(new UpdateUserPasswordPolicyHandler())
   @ApiSetPassword()
   async setPassword(@AuthUser('id') id: string, @Body() setPasswordDto: SetPasswordDto): Promise<ApiResponseDto> {
     const message = await this.usersService.updatePassword(id, setPasswordDto);
@@ -95,7 +115,7 @@ export class UsersController {
   }
 
   @Patch('/change-forgotten-password')
-  @CheckPolicies(new UpdateUserPolicyHandler())
+  @CheckPolicies(new UpdateUserPasswordPolicyHandler())
   @ApiChangeForgottenPassword()
   async changeForgottenPassword(@AuthUser('id') id: string, @Body() resetPasswordDto: ResetPasswordDto): Promise<ApiResponseDto> {
     const message = await this.usersService.resetPassword(id, resetPasswordDto);

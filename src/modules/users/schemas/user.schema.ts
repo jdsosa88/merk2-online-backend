@@ -5,9 +5,10 @@ export type UserDocument = HydratedDocument<User>;
 
 export enum Role {
   ADMIN = 'ADMIN',
-  CUSTOMER = 'CUSTOMER',
   PROVIDER = 'PROVIDER',
+  MANAGER = 'MANAGER',
   MESSENGER = 'MESSENGER',
+  CUSTOMER = 'CUSTOMER',
 }
 export type UserRole = keyof typeof Role;
 
@@ -34,14 +35,14 @@ export class User {
   phone?: string;
 
   @Prop({ default: false })
-  isPhoneVerified: boolean
+  isPhoneVerified: boolean;
 
   @Prop({ default: false })
   isActive: boolean;
 
   @Prop({
     required: true,
-    enum: [Role.ADMIN, Role.PROVIDER, Role.MESSENGER, Role.CUSTOMER],
+    enum: [Role.ADMIN, Role.PROVIDER, Role.MANAGER, Role.MESSENGER, Role.CUSTOMER ],
     default: 'CUSTOMER'
   })
   role: UserRole;

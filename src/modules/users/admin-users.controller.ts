@@ -6,24 +6,20 @@ import { CreateUserDto } from "./dto/create-user.dto";
 import { ApiResponseDto } from "src/common/dto/api-response.dto";
 import { CheckPolicies } from "../casl/decorators/policies.decorator";
 import { Role, User } from "./schemas/user.schema";
-import { UpdateUserDto } from "./dto/update-user.dto";
-import { 
-  CreateAdminUserPolicyHandler, 
-  DeleteOtherUserPolicyHandler, 
-  ListUsersPolicyHandler, 
-  ReadOtherUserPolicyHandler, 
-  UpdateOtherUserPolicyHandler, 
-} from "./policies/users.policy";
+import { UpdateUserDto } from "./dto/update-user.dto"
 import { IdDto } from "src/common/dto/id.dto";
 import { ListUsersQueryDto } from "./dto/list-users-query.dto";
 import { PaginatedListDto } from "src/common/dto/paginated-list.dto";
 import { 
   ApiCreateAdmin, 
   ApiFindAll, 
-  ApiFindOtherUser, 
   ApiRemoveOtherUser, 
   ApiUpdateOtherUser 
 } from "./decorators/swagger-users.decorator";
+import { CreateUserPolicyHandler } from "./policies/create-user.policy";
+import { ListUsersPolicyHandler } from "./policies/list-user.policy";
+import { UpdateOtherUserPolicyHandler, UpdateUserPolicyHandler } from "./policies/update-user.policy";
+import { DeleteOtherUserPolicyHandler, DeleteUserPolicyHandler } from "./policies/delete-user.policy";
 
 @UseGuards(JwtAuthGuard, PoliciesGuard)
 @Controller('admin/users')
@@ -31,27 +27,13 @@ export class AdminUsersController {
   constructor(private readonly usersService: UsersService) { }
 
   @Post()
-  @CheckPolicies(new CreateAdminUserPolicyHandler())
+  @CheckPolicies(new CreateUserPolicyHandler())
   @ApiCreateAdmin()
   async createAdmin(@Body() createUserDto: CreateUserDto): Promise<ApiResponseDto<User>> {
     const user: User = await this.usersService.create(createUserDto, Role.ADMIN);
     return new ApiResponseDto("Admin user created successfully", user);
   }
-  @Get()
-  @CheckPolicies(new ReadOtherUserPolicyHandler())
-  @ApiFindOtherUser()
-  async findOtherUser(@Query() idDto: IdDto): Promise<ApiResponseDto<User>> {
-    const user: User = await this.usersService.findOne(idDto.id);
-    return new ApiResponseDto(user);
-  }
-
-  @Get('/list')
-  @CheckPolicies(new ListUsersPolicyHandler())
-  @ApiFindAll()
-  async findAll(@Query() query: ListUsersQueryDto,): Promise<ApiResponseDto<PaginatedListDto<User>>> {
-    const paginatedList: PaginatedListDto<User> = await this.usersService.findAllPaginated(query);
-    return new ApiResponseDto(paginatedList);
-  }
+  
   @Patch()
   @CheckPolicies(new UpdateOtherUserPolicyHandler())
   @ApiUpdateOtherUser()

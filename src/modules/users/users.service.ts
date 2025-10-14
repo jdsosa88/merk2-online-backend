@@ -12,7 +12,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ObjectValidationsUtils } from 'src/common/utils/object-validations';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { PaginatedListDto } from '../../common/dto/paginated-list.dto';
-import { ICreateUser } from './interfaces/users.interface';
+import { ICreateUser } from './types/users.interface';
 
 @Injectable()
 export class UsersService {
