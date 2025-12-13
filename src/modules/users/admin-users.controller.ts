@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "src/common/guards/jwt-auth.guard";
 import { PoliciesGuard } from "src/common/guards/policies.guard";
 import { UsersService } from "./users.service";
@@ -8,18 +8,14 @@ import { CheckPolicies } from "../casl/decorators/policies.decorator";
 import { Role, User } from "./schemas/user.schema";
 import { UpdateUserDto } from "./dto/update-user.dto"
 import { IdDto } from "src/common/dto/id.dto";
-import { ListUsersQueryDto } from "./dto/list-users-query.dto";
-import { PaginatedListDto } from "src/common/dto/paginated-list.dto";
-import { 
-  ApiCreateAdmin, 
-  ApiFindAll, 
-  ApiRemoveOtherUser, 
-  ApiUpdateOtherUser 
+import {
+  ApiCreateAdmin,
+  ApiRemoveOtherUser,
+  ApiUpdateOtherUser
 } from "./decorators/swagger-users.decorator";
 import { CreateUserPolicyHandler } from "./policies/create-user.policy";
-import { ListUsersPolicyHandler } from "./policies/list-user.policy";
-import { UpdateOtherUserPolicyHandler, UpdateUserPolicyHandler } from "./policies/update-user.policy";
-import { DeleteOtherUserPolicyHandler, DeleteUserPolicyHandler } from "./policies/delete-user.policy";
+import { UpdateOtherUserPolicyHandler } from "./policies/update-user.policy";
+import { DeleteOtherUserPolicyHandler } from "./policies/delete-user.policy";
 
 @UseGuards(JwtAuthGuard, PoliciesGuard)
 @Controller('admin/users')
@@ -33,7 +29,7 @@ export class AdminUsersController {
     const user: User = await this.usersService.create(createUserDto, Role.ADMIN);
     return new ApiResponseDto("Admin user created successfully", user);
   }
-  
+
   @Patch()
   @CheckPolicies(new UpdateOtherUserPolicyHandler())
   @ApiUpdateOtherUser()

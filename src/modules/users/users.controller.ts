@@ -11,8 +11,8 @@ import {
   UseGuards
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateManagerDto, CreateMessengerDto, CreateProviderDto, CreateUserDto } from './dto/create-user.dto';
+import { ConvertToProviderDto, UpdateUserDto } from './dto/update-user.dto';
 import { ApiKeyGuard } from 'src/common/guards/api-key.guard';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
@@ -43,6 +43,7 @@ import { DeleteUserPolicyHandler } from './policies/delete-user.policy';
 import { ListUsersPolicyHandler } from './policies/list-user.policy';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
+import { CreateUserFactoryDto } from './user.factory';
 
 
 @UseGuards(JwtAuthGuard, PoliciesGuard)
@@ -122,4 +123,18 @@ export class UsersController {
     return new ApiResponseDto(message);
   }
 
+  //test area
+  @Post('/testing')
+  @Public()
+  @UseGuards(ApiKeyGuard)
+  async testing(@Body() createUserDto: CreateUserDto) {    
+    return await this.usersService.test(createUserDto);
+  }
+
+  @Post('/testing2')
+  @Public()
+  @UseGuards(ApiKeyGuard)
+  async testing2(@Body() convertToProviderDto: ConvertToProviderDto) {    
+    return await this.usersService.convertToProvider("69301ba2e52e0dc556f9bcf6", convertToProviderDto);
+  }
 }

@@ -6,6 +6,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { VerificationCodeModule } from './modules/verification-code/verification-code.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { CaslModule } from './modules/casl/casl.module';
+import { BusinessModule } from './modules/business/business.module';
 
 
 @Module({
@@ -42,6 +43,6 @@ import { CaslModule } from './modules/casl/casl.module';
     AuthModule,
     VerificationCodeModule,
     CaslModule,
-  ],
+    forwardRef(() => BusinessModule),
 })
 export class AppModule { }

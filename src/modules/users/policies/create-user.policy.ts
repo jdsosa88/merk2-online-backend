@@ -6,7 +6,9 @@ export class CreateUserPolicyHandler implements IPolicyHandler {
   handle(ability: AppAbility, request: any): boolean {
     const authUser: User = request.user;       
     const caslUser = new User();
-    caslUser._id = authUser._id;    
+    caslUser._id = authUser._id;
+    // const rule = ability.relevantRuleFor(Action.CREATE, caslUser);
+    // console.log(rule);     
     return ability.can(Action.CREATE, caslUser);    
   }
 }

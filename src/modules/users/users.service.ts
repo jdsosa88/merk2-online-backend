@@ -2,8 +2,8 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException, 
 import { InjectModel } from '@nestjs/mongoose';
 import { Role, User } from './schemas/user.schema';
 import { Model, Types } from 'mongoose';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateProviderDto, CreateUserDto } from './dto/create-user.dto';
+import { ConvertToProviderDto, UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { MailerService } from '@nestjs-modules/mailer';
@@ -13,11 +13,20 @@ import { ObjectValidationsUtils } from 'src/common/utils/object-validations';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { PaginatedListDto } from '../../common/dto/paginated-list.dto';
 import { ICreateUser } from './types/users.interface';
+import { Provider } from './schemas/provider.schema';
+import { CreateUserFactoryDto, UserFactory } from './user.factory';
+import { Manager } from './schemas/manager.schema';
+import { Messenger } from './schemas/messenger.schema';
+
 
 @Injectable()
 export class UsersService {
   constructor(
+    private userFactory: UserFactory,
     @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(Provider.name) private providerModel: Model<Provider>,
+    @InjectModel(Manager.name) private managerModel: Model<Manager>,
+    @InjectModel(Messenger.name) private messengerModel: Model<Messenger>,
     private readonly mailerService: MailerService,
     private readonly verificationCodeService: VerificationCodeService,
   ) { }
@@ -25,7 +34,7 @@ export class UsersService {
   async create(createUserDto: CreateUserDto, role: Role = Role.CUSTOMER): Promise<User> {
     try {
       createUserDto.role = role;
-      const user = await this.saveNewUser(createUserDto);
+      const user = await this.userFactory.createUser(createUserDto);
       if (role === Role.CUSTOMER) {        
         const activationCode = await this.verificationCodeService.createCode(user._id, 'activation', 3);
         await this.sendCodeEmail(user.email, 'activation', activationCode.code);
@@ -179,6 +188,19 @@ export class UsersService {
     return await this.userModel.findOne({ email }).exec();
   }
 
+   async convertToProvider(
+    userId: string,
+    convertToProviderDto: ConvertToProviderDto
+  ): Promise<Provider> {
+    try {
+      const _id = new Types.ObjectId(userId);
+      const provider = await this.userFactory.convertUserToProvider(_id, convertToProviderDto);
+      return provider;
+    } catch (error) {
+      throw error;
+    }
+  }
+  
   async saveUpdatedUser(userId: string, updateUserDto: UpdateUserDto): Promise<User> {
     const _id = new Types.ObjectId(userId);
     const user: User | null = await this.userModel.findByIdAndUpdate(_id, updateUserDto, { new: true }).exec();
@@ -186,19 +208,19 @@ export class UsersService {
     return user;
   }
 
-  private async saveNewUser(createUserDto: CreateUserDto): Promise<User> {
-    const { email, phone } = createUserDto;
-    await this.validateUniqueFields(email, phone);
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-    const userToSave: ICreateUser = {
-      ...createUserDto,
-      password: hashedPassword,
-      isActive: createUserDto.role === Role.ADMIN ? true : false,
-      isPhoneVerified: createUserDto.role === Role.ADMIN ? true : false
-    };
-    const user: User = await this.userModel.create(userToSave);
-    return user;
-  }
+  // private async saveNewUser(createUserDto: CreateUserDto): Promise<User> {
+  //   const { email, phone } = createUserDto;
+  //   await this.validateUniqueFields(email, phone);
+  //   const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+  //   const userToSave: ICreateUser = {
+  //     ...createUserDto,
+  //     password: hashedPassword,
+  //     isActive: createUserDto.role === Role.ADMIN ? true : false,
+  //     isPhoneVerified: createUserDto.role === Role.ADMIN ? true : false
+  //   };
+  //   const user: User = await this.userModel.create(userToSave);
+  //   return user;
+  // }
 
   private async validateUniqueFields(email: string, phone: string | undefined) {
     const orConditions: Object[] = [];
@@ -221,6 +243,11 @@ export class UsersService {
       text: `Your ${codeType} code is: ${code}`,
       html: `<p>Your ${codeType} code is: <b>${code}</b></p>`,
     });
+  }
+
+  //test methods
+  async test(createUserDto: CreateUserFactoryDto) {
+    return this.userFactory.createUser(createUserDto);
   }
 
 }

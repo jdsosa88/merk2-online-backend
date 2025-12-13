@@ -76,9 +76,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     && typeof messageOrData[0] === 'string'
   ){
     message = messageOrData[0];
-    data = messageOrData;
-    console.log('aqui');
-    
+    data = messageOrData; 
    } else {
     message = 'An error occurred';
     data = messageOrData;

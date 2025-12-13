@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument, Types } from "mongoose";
+import { Geolocation } from "src/common/schemas/geolocation.schema";
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -13,39 +14,45 @@ export enum Role {
 export type UserRole = keyof typeof Role;
 
 
-@Schema({ timestamps: true })
+@Schema({  
+  collection: 'users',
+  timestamps: true,
+})
 export class User {
 
   @Prop({ type: Types.ObjectId, default: () => new Types.ObjectId })
   _id: Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop({ type: String, minlength: 2, maxlength: 50, required: true })
   firstName: string;
 
-  @Prop({ required: true })
+  @Prop({ type: String, minlength: 2, maxlength: 50, required: true })
   lastName: string;
 
   @Prop({ required: true, unique: true })
   email: string;
 
-  @Prop({ required: true, select: false })
+  @Prop({ type: String, required: true, select: false })
   password: string;
 
-  @Prop({ required: false, unique: true, sparse: true })
+  @Prop({ type: String, maxlength: 11, required: false, unique: true, sparse: true })
   phone?: string;
-
-  @Prop({ default: false })
-  isPhoneVerified: boolean;
 
   @Prop({ default: false })
   isActive: boolean;
 
+  @Prop({ default: false })
+  isPhoneVerified: boolean;
+
   @Prop({
     required: true,
-    enum: [Role.ADMIN, Role.PROVIDER, Role.MANAGER, Role.MESSENGER, Role.CUSTOMER ],
-    default: 'CUSTOMER'
+    enum: [Role.ADMIN, Role.PROVIDER, Role.MANAGER, Role.MESSENGER, Role.CUSTOMER],
+    default: Role.CUSTOMER
   })
   role: UserRole;
+
+  @Prop({ type: Geolocation, required: true})
+  geolocation: Geolocation;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

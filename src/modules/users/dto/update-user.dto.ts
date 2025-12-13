@@ -1,6 +1,7 @@
-import { IsBoolean, IsEmail, IsIn, IsOptional, IsPhoneNumber, IsString, Length } from "class-validator";
+import { IsArray, IsBoolean, IsEmail, IsIn, IsOptional, IsPhoneNumber, IsString, Length } from "class-validator";
 import { Role, UserRole } from "../schemas/user.schema";
 import { ApiPropertyOptional } from "@nestjs/swagger";
+import { Types } from "mongoose";
 
 export class UpdateUserDto {
   @ApiPropertyOptional({ minLength: 2, maxLength: 50, example: 'User' })
@@ -45,5 +46,17 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   isPhoneVerified?: boolean;
+}
 
+
+export class ConvertToProviderDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isMessenger?: boolean;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  businesses?: Types.ObjectId[];
 }

@@ -1,6 +1,11 @@
-import { IsEmail, IsIn, IsMobilePhone, IsNotEmpty, IsOptional, IsString, Length } from "class-validator";
+import { IsArray, IsBoolean, IsDefined, IsEmail, IsIn, IsMobilePhone, IsNotEmpty, IsOptional, IsString, Length } from "class-validator";
 import { Role, UserRole } from "../schemas/user.schema";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Types } from "mongoose";
+
+import { Type } from 'class-transformer';
+import { ValidateNested } from 'class-validator';
+import { GeolocationDto } from '../../../common/dto/geolocation.dto';
 
 export class CreateUserDto {
   @ApiProperty({ minLength: 2, maxLength: 50, example: 'User' })
@@ -8,6 +13,12 @@ export class CreateUserDto {
   @IsString()
   @IsNotEmpty()
   readonly firstName: string;
+
+  @ApiProperty({ type: () => GeolocationDto })
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => GeolocationDto)
+  readonly geolocation?: GeolocationDto;
 
   @ApiProperty({ minLength: 2, maxLength: 50, example: 'Example' })
   @Length(2, 50)
@@ -33,6 +44,43 @@ export class CreateUserDto {
 
   @ApiPropertyOptional({ enum: Role, example: 'CUSTOMER' })
   @IsOptional()
-  @IsIn([Role.ADMIN, Role.PROVIDER, Role.MESSENGER, Role.CUSTOMER])
+  @IsIn([Role.ADMIN, Role.PROVIDER, Role.MANAGER, Role.MESSENGER, Role.CUSTOMER])
   role?: UserRole;
+
 }
+
+export class CreateProviderDto extends CreateUserDto {
+  @ApiProperty()
+  @IsOptional()
+  @IsBoolean()
+  isMessenger?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsArray()
+  businesses?: Types.ObjectId[];
+}
+
+export class CreateManagerDto extends CreateUserDto {
+  @ApiProperty()
+  @IsOptional()
+  @IsBoolean()
+  isMessenger?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()  
+  business: Types.ObjectId;
+}
+
+export class CreateMessengerDto extends CreateUserDto {
+  @ApiProperty()
+  @IsOptional()
+  @IsBoolean()
+  isPlatformMessenger?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsArray()
+  businesses?: Types.ObjectId[];
+}
+
