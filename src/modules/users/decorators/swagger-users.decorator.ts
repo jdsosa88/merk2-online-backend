@@ -8,16 +8,16 @@ export function ApiCreate() {
   return applyDecorators(
     ApiOperation({ summary: 'Create a new user with CUSTOMER role' }),
     ApiHeader({
-          name: 'x-api-key',
-          description: 'API Key for authentication',
-          required: true,
-        }),
+      name: 'x-api-key',
+      description: 'API Key for authentication',
+      required: true,
+    }),
     ApiResponse({
       status: 201,
       description: 'User created',
       type: ApiResponseDto<User>,
       example: new SwaggerResponseUtils().getExampleResponseWithUser(
-        'User created, please check your email for the activation code'
+        { message: 'User created, please check your email for the activation code' }
       ),
     }),
   );
@@ -31,7 +31,7 @@ export function ApiFindOne() {
       status: 200,
       description: 'User obtained',
       type: ApiResponseDto<User>,
-      example: new SwaggerResponseUtils().getExampleResponseWithUser(),
+      example: new SwaggerResponseUtils().getExampleResponseWithUser({}),
     }),
   );
 }
@@ -46,7 +46,7 @@ export function ApiUpdate() {
       status: 200,
       description: 'User updated',
       type: ApiResponseDto<User>,
-      example: new SwaggerResponseUtils().getExampleResponseWithUser('User updated'),
+      example: new SwaggerResponseUtils().getExampleResponseWithUser({ message: 'User updated' }),
     }),
   );
 }
@@ -76,7 +76,7 @@ export function ApiRemove() {
       status: 200,
       description: 'User deleted',
       type: ApiResponseDto<User>,
-      example: new SwaggerResponseUtils().getExampleResponseWithUser('User deleted'),
+      example: new SwaggerResponseUtils().getExampleResponseWithUser({ message: 'User deleted' }),
     }),
   );
 }
@@ -121,9 +121,11 @@ export function ApiCreateAdmin() {
       status: 201,
       description: 'User created',
       type: ApiResponseDto<User>,
-      example: new SwaggerResponseUtils().getExampleResponseWithUser(
-        'Admin user created successfully', Role.ADMIN, true
-      )
+      example: new SwaggerResponseUtils().getExampleResponseWithUser({
+        message: 'Admin user created successfully',
+        role: Role.ADMIN,
+        isAdmin: true
+      })
     }),
   );
 }
@@ -138,7 +140,7 @@ export function ApiFindOtherUser() {
       status: 200,
       description: 'User obtained',
       type: ApiResponseDto<User>,
-      example: new SwaggerResponseUtils().getExampleResponseWithUser(),
+      example: new SwaggerResponseUtils().getExampleResponseWithUser({}),
     }),
   );
 }
@@ -168,7 +170,7 @@ export function ApiUpdateOtherUser() {
       status: 200,
       description: 'User updated',
       type: ApiResponseDto<User>,
-      example: new SwaggerResponseUtils().getExampleResponseWithUser('User updated'),
+      example: new SwaggerResponseUtils().getExampleResponseWithUser({ message: 'User updated' }),
     }),
   );
 }
@@ -183,7 +185,7 @@ export function ApiRemoveOtherUser() {
       status: 200,
       description: 'User deleted',
       type: ApiResponseDto<User>,
-      example: new SwaggerResponseUtils().getExampleResponseWithUser('User deleted'),
+      example: new SwaggerResponseUtils().getExampleResponseWithUser({message: 'User deleted'}),
     }),
   );
 }

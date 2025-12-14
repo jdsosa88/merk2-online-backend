@@ -1,13 +1,119 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Business, BusinessDocument } from './schemas/business.schema';
-import { Model } from 'mongoose';
+import {
+  Business,
+  BusinessStatus
+} from './schemas/business.schema';
+import { Model, Types } from 'mongoose';
+import { CreateBusinessDto } from './dto/create-business.dto';
+import { UpdateBusinessByAdminDto, UpdateBusinessByOwnerDto } from './dto/update-business.dto';
+import { UsersService } from '../users/users.service';
+import { Role } from '../users/schemas/user.schema';
+import { UpdateProviderDto } from '../users/dto/update-user.dto';
 
+type BusinessUpdateData = {
+  id: string,
+  updateBusinessDto: UpdateBusinessByOwnerDto | UpdateBusinessByAdminDto,
+  userId?: string,
+}
 
 @Injectable()
 export class BusinessService {
-
   constructor(
-    @InjectModel(Business.name) private businessModel: Model<BusinessDocument>,
-  ) {}
+    @InjectModel(Business.name) private businessModel: Model<Business | null>,
+    private readonly usersService: UsersService,
+  ) { }
+
+  async requestCreateBusiness(
+    createBusinessDto: CreateBusinessDto,
+    userId: Types.ObjectId,
+  ): Promise<Business> {
+    const createdBusiness = new this.businessModel({
+      ...createBusinessDto,
+      owner: userId,
+      status: BusinessStatus.REQUESTED,
+    });
+    return createdBusiness.save();
+  }
+
+  async updateBusinessByAdmin(updateData: BusinessUpdateData): Promise<Business> {
+    const business = await this.businessModel.findById(updateData.id);
+    const businessDto = updateData.updateBusinessDto as UpdateBusinessByAdminDto;
+    if (!business) throw new NotFoundException('Business not found');
+    const updatedBusiness = await this.businessModel.findByIdAndUpdate(
+      updateData.id,
+      businessDto,
+      { new: true }
+    ).exec();
+
+    if (!updatedBusiness) throw new BadRequestException("Failed upadate operation");
+
+    if (businessDto.status && businessDto.status === BusinessStatus.ACCEPTED) {
+      await this.updateAcceptedBussinessOwnerData(updatedBusiness.owner, updatedBusiness._id);
+    }
+    return updatedBusiness;
+  }
+
+  async updateBusinessByOwner(updateData: BusinessUpdateData): Promise<Business> {
+    const business = await this.businessModel.findById(updateData.id);
+    if (!business) throw new NotFoundException('Business not found');
+
+    const isOwner = updateData.userId && updateData.userId === business.owner.toString();
+    if (!isOwner) throw new ForbiddenException('You are not the owner of this business');
+
+    const updateDtoData = updateData.updateBusinessDto as UpdateBusinessByOwnerDto;
+    const incorrectDtoBusinessStatus =
+      updateDtoData.status
+      && updateDtoData.status !== BusinessStatus.REQUESTED
+      && updateDtoData.status !== BusinessStatus.DISABLED;
+    if (incorrectDtoBusinessStatus) {
+      throw new BadRequestException(
+        'Business status can only be updated when status is requested or disabled'
+      );
+    }
+
+    const updatedBusiness = await this.businessModel.findByIdAndUpdate(
+      updateData.id,
+      updateDtoData,
+      { new: true }
+    ).exec();
+
+    if (!updatedBusiness) throw new BadRequestException("Failed upadate operation");
+    return updatedBusiness;
+  }
+
+  async findById(id: string, userId: string): Promise<Business> {
+    const business = await this.businessModel.findById(id);
+    if (!business) throw new NotFoundException('Business not found');
+    // const isOwner = business.owner.toString() === userId;
+    // if (!isOwner) throw new ForbiddenException('You are not the owner of this business');
+    return business;
+  }
+
+  private async updateAcceptedBussinessOwnerData(
+    ownerId: Types.ObjectId,
+    businessId: Types.ObjectId
+  ): Promise<void> {
+
+    let ownerUser = await this.usersService.findOne(ownerId.toString());
+    const providerData: UpdateProviderDto = {
+      businesses: [businessId],
+      isMessenger: false,
+    };
+    
+    if (ownerUser.role === Role.PROVIDER) {
+      await this.usersService.updateProvider(ownerId, providerData)
+    } else if (ownerUser.role === Role.CUSTOMER) {
+      await this.usersService.convertToProvider(ownerId, providerData);
+    } else {
+      throw new BadRequestException(
+        "User can not be updated because invalid role field, only CUSTOMER and PROVIDER"
+      );
+    }
+  }
 }

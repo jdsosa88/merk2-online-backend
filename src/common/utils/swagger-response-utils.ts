@@ -3,9 +3,18 @@ import { ApiResponseDto } from "../dto/api-response.dto";
 import { Role } from "src/modules/users/schemas/user.schema";
 import { PaginatedListDto } from "../dto/paginated-list.dto";
 
+type UserDataType = {
+  message?: string, 
+  role?: Role, 
+  isAdmin?: boolean,
+} 
+
+type BusinessDataType = {
+  message?: string;
+}
 @Injectable()
 export class SwaggerResponseUtils {
-  getExampleResponseWithUser(message?: string, role: string = Role.CUSTOMER, isAdmin: boolean = false) {
+  getExampleResponseWithUser({ message, role = Role.CUSTOMER, isAdmin = false } : UserDataType) {
     const exampleUser: Object = {
       firstName: "User",
       lastName: "Example",
@@ -83,5 +92,31 @@ export class SwaggerResponseUtils {
       refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2OGI5N2I3YWY2YzI1MjhhYzNlOTA2MzgiLCJpYXQiOjE3NTczNDQ5MDIsImV4cCI6MTc1OTkzNjkwMn0.TQ9p_uaeh59IQWEqZ1T9tUYZ76k626WojI18112L-H8"
     };
     return new ApiResponseDto(message, loginResponse);
+  }
+
+  getResponseWithBusinessResponse({message} : BusinessDataType){
+    const businessExample: any = {
+        "name": "My business name",
+        "description": "A description of the business",
+        "geolocation": {
+            "address": "123 Main St",
+            "latitude": -34.6037,
+            "longitude": -58.3816
+        },
+        "phones": [
+            "123-456-7890",
+            "098-765-4321"
+        ],
+        "week": [
+            null
+        ],
+        "owner": "693ee796035fe383f785f91b",
+        "status": "requested",
+        "_id": "693f367e11e9bb44f52951de",
+        "createdAt": "2025-12-14T22:13:18.825Z",
+        "updatedAt": "2025-12-14T22:13:18.825Z",
+        "__v": 0
+    }
+    return new ApiResponseDto(message, businessExample);
   }
 }

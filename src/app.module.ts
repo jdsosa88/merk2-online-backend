@@ -43,6 +43,7 @@ import { BusinessModule } from './modules/business/business.module';
     AuthModule,
     VerificationCodeModule,
     CaslModule,
-    forwardRef(() => BusinessModule),
+    BusinessModule,
+  ],
 })
 export class AppModule { }

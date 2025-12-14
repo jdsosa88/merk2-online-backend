@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateManagerDto, CreateMessengerDto, CreateProviderDto, CreateUserDto } from './dto/create-user.dto';
-import { ConvertToProviderDto, UpdateUserDto } from './dto/update-user.dto';
+import { UpdateProviderDto, UpdateUserDto } from './dto/update-user.dto';
 import { ApiKeyGuard } from 'src/common/guards/api-key.guard';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
@@ -134,7 +134,7 @@ export class UsersController {
   @Post('/testing2')
   @Public()
   @UseGuards(ApiKeyGuard)
-  async testing2(@Body() convertToProviderDto: ConvertToProviderDto) {    
-    return await this.usersService.convertToProvider("69301ba2e52e0dc556f9bcf6", convertToProviderDto);
+  async testing2(@Body() convertToProviderDto: UpdateProviderDto) {    
+    return await this.usersService.convertToProvider(new Types.ObjectId("69301ba2e52e0dc556f9bcf6"), convertToProviderDto);
   }
 }

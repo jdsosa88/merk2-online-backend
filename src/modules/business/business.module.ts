@@ -6,6 +6,7 @@ import { CaslModule } from '../casl/casl.module';
 import { UsersModule } from '../users/users.module';
 import { ProductsModule } from '../products/products.module';
 import { Business, BusinessSchema } from './schemas/business.schema';
+import { AdminBusinessController } from './admin-business.controller';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { Business, BusinessSchema } from './schemas/business.schema';
         forwardRef(() => UsersModule),             
         //forwardRef(() => ProductsModule),             
       ],
-  controllers: [BusinessController],
+  controllers: [BusinessController, AdminBusinessController],
   providers: [BusinessService],
   exports: [BusinessService],
 })

@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Role, User } from './schemas/user.schema';
 import { Model, Types } from 'mongoose';
 import { CreateProviderDto, CreateUserDto } from './dto/create-user.dto';
-import { ConvertToProviderDto, UpdateUserDto } from './dto/update-user.dto';
+import { UpdateProviderDto, UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { MailerService } from '@nestjs-modules/mailer';
@@ -189,16 +189,19 @@ export class UsersService {
   }
 
    async convertToProvider(
-    userId: string,
-    convertToProviderDto: ConvertToProviderDto
+    userId: Types.ObjectId,
+    updateProviderDto: UpdateProviderDto
   ): Promise<Provider> {
-    try {
-      const _id = new Types.ObjectId(userId);
-      const provider = await this.userFactory.convertUserToProvider(_id, convertToProviderDto);
+    try {      
+      const provider = await this.userFactory.convertUserToProvider(userId, updateProviderDto);
       return provider;
     } catch (error) {
       throw error;
     }
+  }
+
+  async updateProvider(id: Types.ObjectId, updateProviderDto: UpdateProviderDto) {
+    return await this.providerModel.findByIdAndUpdate(id, updateProviderDto, {new: true});
   }
   
   async saveUpdatedUser(userId: string, updateUserDto: UpdateUserDto): Promise<User> {
@@ -207,21 +210,7 @@ export class UsersService {
     if (!user) throw new NotFoundException('User not found');
     return user;
   }
-
-  // private async saveNewUser(createUserDto: CreateUserDto): Promise<User> {
-  //   const { email, phone } = createUserDto;
-  //   await this.validateUniqueFields(email, phone);
-  //   const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-  //   const userToSave: ICreateUser = {
-  //     ...createUserDto,
-  //     password: hashedPassword,
-  //     isActive: createUserDto.role === Role.ADMIN ? true : false,
-  //     isPhoneVerified: createUserDto.role === Role.ADMIN ? true : false
-  //   };
-  //   const user: User = await this.userModel.create(userToSave);
-  //   return user;
-  // }
-
+  
   private async validateUniqueFields(email: string, phone: string | undefined) {
     const orConditions: Object[] = [];
     orConditions.push({ email });

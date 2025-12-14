@@ -8,7 +8,7 @@ import { Model, Types } from "mongoose";
 import { InjectModel } from "@nestjs/mongoose";
 import { Geolocation } from "src/common/schemas/geolocation.schema";
 import * as bcrypt from 'bcrypt';
-import { ConvertToProviderDto } from "./dto/update-user.dto";
+import { UpdateProviderDto } from "./dto/update-user.dto";
 
 export type CreateUserFactoryDto = CreateUserDto | CreateProviderDto | CreateManagerDto | CreateMessengerDto;
 type ProviderData = {
@@ -78,7 +78,7 @@ export class UserFactory {
 
   async convertUserToProvider(
     userId: Types.ObjectId,
-    convertToProviderDto: ConvertToProviderDto
+    convertToProviderDto: UpdateProviderDto
   ): Promise<Provider> {
 
     const customer = await this.getValidatedCustomerUser(userId);
@@ -98,7 +98,7 @@ export class UserFactory {
   }
 
   private getProviderModelData(
-    convertToProviderDto: ConvertToProviderDto,
+    convertToProviderDto: UpdateProviderDto,
     customer: User
   ) {
     const updateData: ProviderData = {
@@ -122,8 +122,7 @@ export class UserFactory {
       provider._id = userId; 
       await provider.save();
       return provider;
-    } catch (error) {
-      console.log(error);
+    } catch (error) {      
       throw new BadRequestException("Error al convertir a Provider");
     }
   }

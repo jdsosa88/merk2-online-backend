@@ -49,7 +49,7 @@ export class UpdateUserDto {
 }
 
 
-export class ConvertToProviderDto {
+export class UpdateProviderDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
