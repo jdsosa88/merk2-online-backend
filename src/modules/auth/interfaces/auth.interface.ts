@@ -5,12 +5,15 @@ interface UserClientContext {
   userAgent: string;
 }
 
-export interface AtuthParams<T> extends UserClientContext{
+export interface AtuthParams<T> extends UserClientContext {
   dto: T;
-  
 }
 
-export interface LoginParams extends UserClientContext{
+export interface LoginParams extends UserClientContext {
   user: User;
+}
+
+export interface GoogleAuthParams extends UserClientContext {
+  googleToken: string;
 }
 

@@ -9,8 +9,9 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Geolocation } from "src/common/schemas/geolocation.schema";
 import * as bcrypt from 'bcrypt';
 import { UpdateProviderDto } from "./dto/update-user.dto";
+import { ICreateUser } from "./types/users.interface";
 
-export type CreateUserFactoryDto = CreateUserDto | CreateProviderDto | CreateManagerDto | CreateMessengerDto;
+export type CreateUserFactoryDto = CreateUserDto | CreateProviderDto | CreateManagerDto | CreateMessengerDto | ICreateUser;
 type ProviderData = {
   role: Role,
   __t: string,

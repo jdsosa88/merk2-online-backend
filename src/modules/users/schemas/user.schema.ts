@@ -32,6 +32,9 @@ export class User {
   @Prop({ required: true, unique: true })
   email: string;
 
+  @Prop({type: String, required:false, unique:true, sparse: true})
+  googleId?: string
+
   @Prop({ type: String, required: true, select: false })
   password: string;
 
@@ -51,8 +54,8 @@ export class User {
   })
   role: UserRole;
 
-  @Prop({ type: Geolocation, required: true})
-  geolocation: Geolocation;
+  @Prop({ type: Geolocation, required: false})
+  geolocation?: Geolocation;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

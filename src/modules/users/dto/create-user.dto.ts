@@ -12,13 +12,7 @@ export class CreateUserDto {
   @Length(2, 50)
   @IsString()
   @IsNotEmpty()
-  readonly firstName: string;
-
-  @ApiProperty({ type: () => GeolocationDto })
-  @IsDefined()
-  @ValidateNested()
-  @Type(() => GeolocationDto)
-  readonly geolocation?: GeolocationDto;
+  readonly firstName: string; 
 
   @ApiProperty({ minLength: 2, maxLength: 50, example: 'Example' })
   @Length(2, 50)
@@ -47,6 +41,11 @@ export class CreateUserDto {
   @IsIn([Role.ADMIN, Role.PROVIDER, Role.MANAGER, Role.MESSENGER, Role.CUSTOMER])
   role?: UserRole;
 
+  @ApiProperty({ type: () => GeolocationDto })
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => GeolocationDto)
+  readonly geolocation?: GeolocationDto;
 }
 
 export class CreateProviderDto extends CreateUserDto {

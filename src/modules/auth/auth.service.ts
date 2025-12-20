@@ -3,7 +3,7 @@ import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UserLoginDto } from './dto/user-login.dto';
-import { User } from '../users/schemas/user.schema';
+import { Role, User } from '../users/schemas/user.schema';
 import { AuthTokensDto } from './dto/atuh-tokens.dto';
 import { RefreshTokenService } from './refresh-token.service';
 import { ConfigService } from '@nestjs/config';
@@ -17,7 +17,9 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { VerifyResetCodeDto } from './dto/verify-reset-code.dto';
 import { VerifyDefaultCodeUserDto } from './dto/verify-default-code-user.dto';
 import { ICreateRefreshToken, IRefreshToken } from './interfaces/refresh-token.interface';
-import { AtuthParams, LoginParams } from './interfaces/auth.interface';
+import { AtuthParams, GoogleAuthParams, LoginParams } from './interfaces/auth.interface';
+import { GoogleAuthService } from './google-auth.service';
+import { ICreateUser } from '../users/types/users.interface';
 
 
 @Injectable()
@@ -29,6 +31,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly verificationCodeService: VerificationCodeService,
     private readonly mailerService: MailerService,
+    private googleAuthService: GoogleAuthService,
   ) { }
 
   async login(authParams: AtuthParams<UserLoginDto>): Promise<LoginResponseDto> {
@@ -133,6 +136,41 @@ export class AuthService {
       if (!isResetCode) throw new BadRequestException('Invalid or expired reset password code');
 
       return await this.makeLogin({ user, ip, userAgent });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async googleAuth(authParams: GoogleAuthParams): Promise<LoginResponseDto> {
+    try {
+      const { googleToken, ip, userAgent } = authParams;
+      const googleUser = await this.googleAuthService.validateGoogleToken(googleToken);
+
+      if (!googleUser.email) throw new BadRequestException("Google user email not found");
+      let user = await this.usersService.findByEmail(googleUser.email);
+
+      if (!user) {
+        const newUserData: ICreateUser = {
+          firstName: googleUser.firstName,
+          lastName: googleUser.lastName,
+          email: googleUser.email,
+          googleId: googleUser.googleId,
+          isActive: true,
+          isPhoneVerified: false,
+          password: googleUser.googleId,
+          role: Role.CUSTOMER,
+        };
+        console.log({newUserData});
+        
+        user = await this.usersService.createGoogleUser(newUserData);
+      } else if (!user.googleId) {
+        user = await this.usersService.linkGoogleAccount(user._id, googleUser.googleId);
+      }
+      console.log({user});
+      const loginResponse = await this.makeLogin({ user, ip, userAgent });
+      console.log({loginResponse});
+      
+      return loginResponse;
     } catch (error) {
       throw error;
     }

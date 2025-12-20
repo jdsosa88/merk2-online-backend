@@ -1,5 +1,5 @@
 import { applyDecorators } from "@nestjs/common";
-import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { ApiResponseDto } from "src/common/dto/api-response.dto";
 import { SwaggerResponseUtils } from "src/common/utils/swagger-response-utils";
 
@@ -11,6 +11,23 @@ export function ApiLogin() {
       description: 'API Key for authentication',
       required: true,
     }),
+    ApiResponse({
+      status: 200,
+      description: 'User login response',
+      type: ApiResponseDto,
+      example: new SwaggerResponseUtils().getResponseWithLoginResponse('Login completed successfully'),
+    }),
+  );
+}
+
+export function ApiGoogleAuth() {
+  return applyDecorators(
+    ApiOperation({ summary: 'Login into the API via Google OAuth' }),
+    ApiHeader({
+      name: 'x-api-key',
+      description: 'API Key for authentication',
+      required: true,
+    }),    
     ApiResponse({
       status: 200,
       description: 'User login response',

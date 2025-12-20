@@ -11,6 +11,7 @@ import { RefreshToken, RefreshTokenSchema } from './schemas/refresh-token.schema
 import { RefreshTokenService } from './refresh-token.service';
 import { VerificationCodeModule } from '../verification-code/verification-code.module';
 import { CaslModule } from 'src/modules/casl/casl.module';
+import { GoogleAuthService } from './google-auth.service';
 
 @Module({
   imports: [
@@ -31,7 +32,7 @@ import { CaslModule } from 'src/modules/casl/casl.module';
     UsersModule,
     VerificationCodeModule,
   ],
-  providers: [AuthService, RefreshTokenService, JwtStrategy],
+  providers: [AuthService, RefreshTokenService, GoogleAuthService, JwtStrategy],
   controllers: [AuthController]
 })
 export class AuthModule { }

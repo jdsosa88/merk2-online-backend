@@ -45,6 +45,11 @@ export class UsersService {
     }
   }
 
+  async createGoogleUser(userData: ICreateUser): Promise<User> {
+    return await this.userFactory.createUser(userData);
+    
+  }
+
   async findAllPaginated(query: ListUsersQueryDto): Promise<PaginatedListDto<User>> {
     try {
       const page: number = Number(query.page) || 1;
@@ -99,6 +104,12 @@ export class UsersService {
     } catch (error) {
       throw error;
     }
+  }
+
+  async linkGoogleAccount(userId: Types.ObjectId, googleId: string): Promise<User>{
+    const user: User | null = await this.userModel.findByIdAndUpdate(userId, {googleId}, { new: true }).exec();
+    if (!user) throw new NotFoundException('User not found');
+    return user;
   }
 
   async createDeleteVerificationCode(userId: Types.ObjectId, email: string): Promise<string> {

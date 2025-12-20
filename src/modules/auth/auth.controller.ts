@@ -9,7 +9,8 @@ import { VerifyResetCodeDto } from './dto/verify-reset-code.dto';
 import { VerifyDefaultCodeUserDto } from './dto/verify-default-code-user.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { AuthTokensDto } from './dto/atuh-tokens.dto';
-import { ApiConfirmAccountActivationCode, ApiConfirmForgottenPasswordCode, ApiForgotPassword, ApiLogin, ApiLogout, ApiRefreshToken } from './decorators/swagger-auth.decorator';
+import { ApiConfirmAccountActivationCode, ApiConfirmForgottenPasswordCode, ApiForgotPassword, ApiGoogleAuth, ApiLogin, ApiLogout, ApiRefreshToken } from './decorators/swagger-auth.decorator';
+import { GoogleAuthDto } from './dto/google-auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -27,6 +28,25 @@ export class AuthController {
       dto: userLoginDto,
       ip,
       userAgent
+    });
+    return new ApiResponseDto("Login completed successfully", loginResponse);
+  }
+ 
+  @Post('google-login')
+  @UseGuards(ApiKeyGuard)
+  @ApiGoogleAuth()
+  @HttpCode(HttpStatus.OK)
+  async googleAuth(
+    @Ip() ip: string,
+    @Headers('user-agent') userAgent: string,
+    @Body() googleAuthDto: GoogleAuthDto
+  ): Promise<ApiResponseDto<LoginResponseDto>> {
+    console.log({googleAuthDto});
+      
+    const loginResponse = await this.authService.googleAuth({
+      googleToken: googleAuthDto.token,
+      ip,
+      userAgent,
     });
     return new ApiResponseDto("Login completed successfully", loginResponse);
   }
