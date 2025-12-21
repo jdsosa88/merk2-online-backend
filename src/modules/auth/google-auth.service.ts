@@ -17,23 +17,33 @@ export class GoogleAuthService {
 
   async validateGoogleToken(token: string): Promise<GoogleUser> {
     try {
+      const clientId = this.configService.get('GOOGLE_CLIENT_ID');
       const ticket = await this.googleClient.verifyIdToken({
         idToken: token,
-        audience: this.configService.get('GOOGLE_CLIENT_ID'),
+        audience: clientId,
       });
-
-      const payload = ticket.getPayload();      
+      const payload = ticket.getPayload();
       if (!payload) throw new UnauthorizedException('Invalid google token');
-      console.log({payload});
-      
       return {
         email: payload.email,
         firstName: payload.given_name || payload.name?.split(' ')[0] || '',
-        lastName: payload.family_name || payload.name?.split(' ').slice(1).join(' ') || '',
+        lastName:
+          payload.family_name ||
+          payload.name?.split(' ').slice(1).join(' ') ||
+          '',
         picture: payload.picture,
         googleId: payload.sub,
       };
-    } catch (error) {
+    } catch (error: any) {
+      if (
+        error.message?.includes('audience') ||
+        error.code === 'auth/id-token-aud-claim-mismatch'
+      ) {
+        throw new UnauthorizedException(
+          `Invalid Google token: Client ID mismatch. Make sure you're using the correct Google Client ID in your Flutter app.`,
+        );
+      }
+
       throw new UnauthorizedException('Invalid Google token');
     }
   }
