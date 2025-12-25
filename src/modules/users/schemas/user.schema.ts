@@ -23,11 +23,11 @@ export class User {
   @Prop({ type: Types.ObjectId, default: () => new Types.ObjectId })
   _id: Types.ObjectId;
 
-  @Prop({ type: String, minlength: 2, maxlength: 50, required: true })
-  firstName: string;
+  @Prop({ type: String, minlength: 2, maxlength: 50, required: false })
+  firstName?: string;
 
-  @Prop({ type: String, minlength: 2, maxlength: 50, required: true })
-  lastName: string;
+  @Prop({ type: String, minlength: 2, maxlength: 50, required: false })
+  lastName?: string;
 
   @Prop({ required: true, unique: true })
   email: string;
