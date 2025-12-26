@@ -3,7 +3,7 @@ import { UserRole } from "../schemas/user.schema";
 
 export interface ICreateUser {  
     readonly firstName: string;
-    readonly lastName: string;
+    readonly lastName?: string;
     readonly email: string;  
     readonly googleId: string;
     readonly password: string;
