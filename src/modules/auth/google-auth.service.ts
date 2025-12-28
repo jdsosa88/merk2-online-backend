@@ -24,13 +24,17 @@ export class GoogleAuthService {
       });
       const payload = ticket.getPayload();
       if (!payload) throw new UnauthorizedException('Invalid google token');
+      // Extraer apellido de manera segura
+      let lastName = payload.family_name;
+      if (!lastName && payload.name) {
+        const nameParts = payload.name.split(' ').slice(1);
+        lastName = nameParts.length > 0 ? nameParts.join(' ') : undefined;
+      }
+      
       return {
         email: payload.email,
         firstName: payload.given_name || payload.name?.split(' ')[0] || '',
-        lastName:
-          payload.family_name ||
-          payload.name?.split(' ').slice(1).join(' ') ||
-          '',
+        lastName: lastName && lastName.trim().length >= 2 ? lastName : undefined,
         picture: payload.picture,
         googleId: payload.sub,
       };
