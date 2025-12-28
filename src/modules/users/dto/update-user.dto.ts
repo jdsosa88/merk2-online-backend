@@ -69,19 +69,12 @@ export class UpdateProviderDto extends UpdateUserDto {
   businesses?: Types.ObjectId[];
 }
 
-export class UpdateManagerDto extends UpdateUserDto {
+export class UpdateUserAllDto extends UpdateUserDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   isMessenger?: boolean;
 
-  @ApiPropertyOptional({ type: [String] })
-  @IsOptional()
-  @IsMongoId()
-  business?: Types.ObjectId;
-}
-
-export class UpdateMessengerDto extends UpdateUserDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
@@ -91,4 +84,9 @@ export class UpdateMessengerDto extends UpdateUserDto {
   @IsOptional()
   @IsArray()
   businesses?: Types.ObjectId[];
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsMongoId()
+  business?: Types.ObjectId;
 }

@@ -42,7 +42,7 @@ import { DeleteUserPolicyHandler } from './policies/delete-user.policy';
 import { ListUsersPolicyHandler } from './policies/list-user.policy';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
-import { UpdateUserFactoryDto } from './types/user-factory.type';
+import { UpdateUserAllDto } from './dto/update-user.dto';
 
 
 @UseGuards(JwtAuthGuard, PoliciesGuard)
@@ -77,7 +77,9 @@ export class UsersController {
   @Patch()
   @CheckPolicies(new UpdateUserPolicyHandler())
   @ApiUpdate()
-  async update(@AuthUser('id') id: string, @Body() updateUserDto: UpdateUserFactoryDto): Promise<ApiResponseDto<User>> {
+  async update(@AuthUser('id') id: string,   
+  @Body() updateUserDto: UpdateUserAllDto
+): Promise<ApiResponseDto<User>> {
     const user = await this.usersService.update(id, updateUserDto);
     return new ApiResponseDto("User updated", user);
   }

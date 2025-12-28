@@ -2,11 +2,11 @@ import { Types } from "mongoose";
 import { CreateManagerDto, CreateMessengerDto, CreateProviderDto, CreateUserDto } from "../dto/create-user.dto";
 import { Role, User, UserRole } from "../schemas/user.schema";
 import { ICreateUser, IUpdateUserDto } from "./users.interface";
-import { UpdateManagerDto, UpdateMessengerDto, UpdateProviderDto, UpdateUserDto } from "../dto/update-user.dto";
+import { UpdateUserAllDto, UpdateUserDto } from "../dto/update-user.dto";
 
 export type CreateUserFactoryDto = CreateUserDto | CreateProviderDto | CreateManagerDto | CreateMessengerDto | ICreateUser;
 
-export type UpdateUserFactoryDto = UpdateUserDto | UpdateProviderDto | UpdateManagerDto | UpdateMessengerDto | IUpdateUserDto;
+export type UpdateUserFactoryDto = UpdateUserDto | UpdateUserAllDto | IUpdateUserDto;
 
 export type CreateUserParams = {
   createUserDto: CreateUserFactoryDto;

@@ -14,7 +14,7 @@ import { CreateBusinessDto } from './dto/create-business.dto';
 import { UpdateBusinessByAdminDto, UpdateBusinessByOwnerDto } from './dto/update-business.dto';
 import { UsersService } from '../users/users.service';
 import { Role } from '../users/schemas/user.schema';
-import { UpdateProviderDto } from '../users/dto/update-user.dto';
+import { UpdateUserAllDto } from '../users/dto/update-user.dto';
 import { Provider } from '../users/schemas/provider.schema';
 
 type BusinessUpdateData = {
@@ -102,7 +102,7 @@ export class BusinessService {
   ): Promise<void> {
 
     let ownerUser = await this.usersService.findOne(ownerId.toString());
-    const providerData: UpdateProviderDto = {
+    const providerData: UpdateUserAllDto = {
       businesses: [businessId],
       isMessenger: false,
     };
