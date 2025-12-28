@@ -51,7 +51,7 @@ export class UpdateUserDto {
   @IsBoolean()
   isPhoneVerified?: boolean;
 
-  @ApiPropertyOptional({ type: () => GeolocationDto })
+  @ApiPropertyOptional({ type: () => GeolocationDto, description: 'Geolocation of the user' })
   @IsOptional()
   @ValidateNested()
   @Type(() => GeolocationDto)
@@ -64,7 +64,6 @@ export class UpdateUserDto {
   @IsValidImage()
   avatar?: ImageDto;
 }
-
 
 export class UpdateUserAllDto extends UpdateUserDto {
   @ApiPropertyOptional()

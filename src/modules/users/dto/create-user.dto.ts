@@ -7,13 +7,14 @@ import { Type } from 'class-transformer';
 import { ValidateNested } from 'class-validator';
 import { GeolocationDto } from '../../../common/dto/geolocation.dto';
 import { ImageDto } from "src/common/dto/image.dto";
+import { IsValidImage } from "src/common/decorators/image.decorator";
 
 export class CreateUserDto {
   @ApiProperty({ minLength: 2, maxLength: 50, example: 'User' })
   @Length(2, 50)
   @IsString()
   @IsNotEmpty()
-  readonly firstName: string; 
+  readonly firstName: string;
 
   @ApiProperty({ minLength: 2, maxLength: 50, example: 'Example' })
   @Length(2, 50)
@@ -42,7 +43,7 @@ export class CreateUserDto {
   @IsIn([Role.ADMIN, Role.PROVIDER, Role.MANAGER, Role.MESSENGER, Role.CUSTOMER])
   role?: UserRole;
 
-  @ApiPropertyOptional({ type: () => GeolocationDto })
+  @ApiPropertyOptional({ type: () => GeolocationDto, description: 'Geolocation of the user' })
   @IsOptional()
   @ValidateNested()
   @Type(() => GeolocationDto)
@@ -52,6 +53,7 @@ export class CreateUserDto {
   @IsOptional()
   @ValidateNested()
   @Type(() => ImageDto)
+  @IsValidImage()
   readonly avatar?: ImageDto;
 }
 
@@ -74,7 +76,7 @@ export class CreateManagerDto extends CreateUserDto {
   isMessenger?: boolean;
 
   @ApiPropertyOptional()
-  @IsNotEmpty()  
+  @IsNotEmpty()
   @IsMongoId()
   business: Types.ObjectId;
 }

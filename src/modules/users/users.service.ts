@@ -17,7 +17,7 @@ import { Provider } from './schemas/provider.schema';
 import { UserFactory } from './user.factory';
 import { Manager } from './schemas/manager.schema';
 import { Messenger } from './schemas/messenger.schema';
-import { UpdateUserFactoryDto } from './types/user-factory.type';
+import { CreateUserFactoryDto, UpdateUserFactoryDto } from './types/user-factory.type';
 
 
 @Injectable()
@@ -32,7 +32,7 @@ export class UsersService {
     private readonly verificationCodeService: VerificationCodeService,
   ) { }
 
-  async create(createUserDto: CreateUserDto, role: Role = Role.CUSTOMER): Promise<User> {
+  async create(createUserDto: CreateUserFactoryDto, role: Role = Role.CUSTOMER): Promise<User> {
     try {
       createUserDto.role = role;
       const user = await this.userFactory.createUser({ createUserDto });

@@ -10,6 +10,8 @@ import {
 } from 'class-validator';
 import { GeolocationDto } from 'src/common/dto/geolocation.dto';
 import { DayDto } from './day.dto';
+import { ImageDto } from 'src/common/dto/image.dto';
+import { IsValidImage } from 'src/common/decorators/image.decorator';
 
 export class CreateBusinessDto {
   @ApiProperty({
@@ -36,16 +38,25 @@ export class CreateBusinessDto {
   @Length(2, 255)
   description: string;
 
-  @ApiProperty({
-    type: GeolocationDto,
-    description: 'Geolocation of the business',
-  })
-  
-  @ApiPropertyOptional({ type: () => GeolocationDto })
+  @ApiPropertyOptional({ type: () => GeolocationDto, description: 'Geolocation of the business' })
   @IsOptional()
   @ValidateNested()
   @Type(() => GeolocationDto)
   readonly geolocation?: GeolocationDto;
+
+  @ApiPropertyOptional({ type: () => ImageDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ImageDto)
+  @IsValidImage()
+  readonly pick?: ImageDto;
+
+  @ApiPropertyOptional({ type: () => ImageDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ImageDto)
+  @IsValidImage()
+  readonly portalPick?: ImageDto;
 
   @ApiPropertyOptional({
     type: [String],

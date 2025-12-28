@@ -12,6 +12,8 @@ import {
 import { GeolocationDto } from 'src/common/dto/geolocation.dto';
 import { DayDto } from './day.dto';
 import { BusinessStatus } from '../schemas/business.schema';
+import { ImageDto } from 'src/common/dto/image.dto';
+import { IsValidImage } from 'src/common/decorators/image.decorator';
 
 export class UpdateBusinessByOwnerDto {
   @ApiPropertyOptional({
@@ -38,14 +40,25 @@ export class UpdateBusinessByOwnerDto {
   @Length(2, 255)
   description?: string;
 
-  @ApiPropertyOptional({
-    type: GeolocationDto,
-    description: 'Geolocation of the business',
-  })
+  @ApiPropertyOptional({ type: () => GeolocationDto, description: 'Geolocation of the business' })
   @IsOptional()
-  @Type(() => GeolocationDto)
   @ValidateNested()
+  @Type(() => GeolocationDto)
   geolocation?: GeolocationDto;
+
+  @ApiPropertyOptional({ type: () => ImageDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ImageDto)
+  @IsValidImage()
+  pick?: ImageDto;
+
+  @ApiPropertyOptional({ type: () => ImageDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ImageDto)
+  @IsValidImage()
+  portalPick?: ImageDto;
 
   @ApiPropertyOptional({
     type: [String],
@@ -77,7 +90,7 @@ export class UpdateBusinessByOwnerDto {
 }
 
 
-export class UpdateBusinessByAdminDto extends UpdateBusinessByOwnerDto { 
+export class UpdateBusinessByAdminDto extends UpdateBusinessByOwnerDto {
   @ApiPropertyOptional({
     type: [String],
     description: 'Owner IDs (Array of User ObjectIds)',

@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { Geolocation } from 'src/common/schemas/geolocation.schema';
+import { Image } from 'src/common/schemas/image.schema';
 
 export type BusinessDocument = HydratedDocument<Business>;
 
@@ -11,7 +12,7 @@ export enum BusinessStatus {
   DISABLED = 'disabled',
 }
 type BusinessStatusType = BusinessStatus;
-  
+
 
 @Schema({ _id: false })
 class Employees {
@@ -32,7 +33,7 @@ class Day {
 
 @Schema({ timestamps: true })
 export class Business {
-  @Prop({ type: String, required: true, length: 150, unique:true })
+  @Prop({ type: String, required: true, length: 150, unique: true })
   name: string;
 
   @Prop({ type: String, required: true, length: 255 })
@@ -41,7 +42,11 @@ export class Business {
   @Prop({ type: Geolocation, required: false })
   geolocation?: Geolocation;
 
-  //faltan portalPick y pick que son imagenes
+  @Prop({ type: Image, required: false })
+  pick?: Image;
+
+  @Prop({ type: Image, required: false })
+  portalPick?: Image;
 
   @Prop({ type: [String], required: false, default: [String] })
   phones: string[];
@@ -60,14 +65,14 @@ export class Business {
   // @Prop({ type: [{ type: Types.ObjectId, ref: 'Product' }], default: [Types.ObjectId] })
   // products: Types.ObjectId[];
 
-  @Prop({ 
+  @Prop({
     required: true,
     enum: [
-      BusinessStatus.REQUESTED, 
-      BusinessStatus.ACCEPTED, 
-      BusinessStatus.PENDING, 
+      BusinessStatus.REQUESTED,
+      BusinessStatus.ACCEPTED,
+      BusinessStatus.PENDING,
       BusinessStatus.DISABLED
-    ], 
+    ],
     default: BusinessStatus.REQUESTED,
   })
   status: BusinessStatusType;
