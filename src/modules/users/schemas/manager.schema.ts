@@ -9,13 +9,12 @@ export class Manager extends User {
   @Prop({ required: true, default: false })
   isMessenger: boolean;
 
-    @Prop({
-      type: Types.ObjectId,
-      ref: 'Business',
-      required: false,
-      default: null,
-    })  
-    business: Types.ObjectId | null;
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Business',
+    required: true,
+  })
+  business: Types.ObjectId;
 }
 
 export const ManagerSchema = SchemaFactory.createForClass(Manager);

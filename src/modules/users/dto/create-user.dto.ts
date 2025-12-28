@@ -1,4 +1,4 @@
-import { IsArray, IsBoolean, IsDefined, IsEmail, IsIn, IsMobilePhone, IsNotEmpty, IsOptional, IsString, Length } from "class-validator";
+import { IsArray, IsBoolean, IsDefined, IsEmail, IsIn, IsMobilePhone, IsMongoId, IsNotEmpty, IsOptional, IsString, Length } from "class-validator";
 import { Role, UserRole } from "../schemas/user.schema";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Types } from "mongoose";
@@ -41,8 +41,8 @@ export class CreateUserDto {
   @IsIn([Role.ADMIN, Role.PROVIDER, Role.MANAGER, Role.MESSENGER, Role.CUSTOMER])
   role?: UserRole;
 
-  @ApiProperty({ type: () => GeolocationDto })
-  @IsDefined()
+  @ApiPropertyOptional({ type: () => GeolocationDto })
+  @IsOptional()
   @ValidateNested()
   @Type(() => GeolocationDto)
   readonly geolocation?: GeolocationDto;
@@ -67,7 +67,8 @@ export class CreateManagerDto extends CreateUserDto {
   isMessenger?: boolean;
 
   @ApiPropertyOptional()
-  @IsOptional()  
+  @IsNotEmpty()  
+  @IsMongoId()
   business: Types.ObjectId;
 }
 

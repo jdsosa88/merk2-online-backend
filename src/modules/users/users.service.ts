@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException, 
 import { InjectModel } from '@nestjs/mongoose';
 import { Role, User } from './schemas/user.schema';
 import { Model, Types } from 'mongoose';
-import { CreateProviderDto, CreateUserDto } from './dto/create-user.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProviderDto, UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
 import { SetPasswordDto } from './dto/set-password.dto';
@@ -14,9 +14,10 @@ import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { PaginatedListDto } from '../../common/dto/paginated-list.dto';
 import { ICreateUser } from './types/users.interface';
 import { Provider } from './schemas/provider.schema';
-import { CreateUserFactoryDto, UserFactory } from './user.factory';
+import { UserFactory } from './user.factory';
 import { Manager } from './schemas/manager.schema';
 import { Messenger } from './schemas/messenger.schema';
+import { CreateUserFactoryDto, UpdateUserFactoryDto } from './types/user-factory.type';
 
 
 @Injectable()
@@ -34,8 +35,8 @@ export class UsersService {
   async create(createUserDto: CreateUserDto, role: Role = Role.CUSTOMER): Promise<User> {
     try {
       createUserDto.role = role;
-      const user = await this.userFactory.createUser(createUserDto);
-      if (role === Role.CUSTOMER) {        
+      const user = await this.userFactory.createUser({ createUserDto });
+      if (role === Role.CUSTOMER) {
         const activationCode = await this.verificationCodeService.createCode(user._id, 'activation', 3);
         await this.sendCodeEmail(user.email, 'activation', activationCode.code);
       }
@@ -46,8 +47,8 @@ export class UsersService {
   }
 
   async createGoogleUser(userData: ICreateUser): Promise<User> {
-    return await this.userFactory.createUser(userData);
-    
+    return await this.userFactory.createUser({ createUserDto: userData });
+
   }
 
   async findAllPaginated(query: ListUsersQueryDto): Promise<PaginatedListDto<User>> {
@@ -58,7 +59,11 @@ export class UsersService {
       const filter: any = {};
       if (query.role && query.role.trim().length > 0) {
         const roles = query.role.split(',').map(r => r.trim()).filter((rol) => {
-          return rol === Role.ADMIN || rol === Role.CUSTOMER || rol === Role.MESSENGER || rol === Role.PROVIDER;
+          return rol === Role.ADMIN
+            || rol === Role.CUSTOMER
+            || rol === Role.MESSENGER
+            || rol === Role.MANAGER
+            || rol === Role.PROVIDER;
         });
         if (roles.length > 0) {
           filter.role = { $in: roles };
@@ -98,7 +103,7 @@ export class UsersService {
     }
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
+  async update(id: string, updateUserDto: UpdateUserFactoryDto): Promise<User> {
     try {
       return await this.saveUpdatedUser(id, updateUserDto);
     } catch (error) {
@@ -106,8 +111,8 @@ export class UsersService {
     }
   }
 
-  async linkGoogleAccount(userId: Types.ObjectId, googleId: string): Promise<User>{
-    const user: User | null = await this.userModel.findByIdAndUpdate(userId, {googleId}, { new: true }).exec();
+  async linkGoogleAccount(userId: Types.ObjectId, googleId: string): Promise<User> {
+    const user: User | null = await this.userModel.findByIdAndUpdate(userId, { googleId }, { new: true }).exec();
     if (!user) throw new NotFoundException('User not found');
     return user;
   }
@@ -199,35 +204,9 @@ export class UsersService {
     return await this.userModel.findOne({ email }).exec();
   }
 
-   async convertToProvider(
-    userId: Types.ObjectId,
-    updateProviderDto: UpdateProviderDto
-  ): Promise<Provider> {
-    try {      
-      const provider = await this.userFactory.convertUserToProvider(userId, updateProviderDto);
-      return provider;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async updateProvider(id: Types.ObjectId, updateProviderDto: UpdateProviderDto) {
-    return await this.providerModel.findByIdAndUpdate(id, updateProviderDto, {new: true});
-  }
-  
-  async saveUpdatedUser(userId: string, updateUserDto: UpdateUserDto): Promise<User> {
-    const _id = new Types.ObjectId(userId);
-    const user: User | null = await this.userModel.findByIdAndUpdate(_id, updateUserDto, { new: true }).exec();
-    if (!user) throw new NotFoundException('User not found');
-    return user;
-  }
-  
-  private async validateUniqueFields(email: string, phone: string | undefined) {
-    const orConditions: Object[] = [];
-    orConditions.push({ email });
-    if (phone) orConditions.push({ phone });
-    const existsUser = await this.userModel.exists({ $or: orConditions });
-    if (existsUser) throw new ConflictException('Fields email or phone already exists');
+  async saveUpdatedUser(userId: string | Types.ObjectId, updateUserDto: UpdateUserFactoryDto): Promise<User> {
+    const id = new Types.ObjectId(userId);
+    return await this.userFactory.updateUser({ userId: id, updateUserDto });
   }
 
   private async deleteSavedUser(userId: Types.ObjectId): Promise<User> {
@@ -244,10 +223,4 @@ export class UsersService {
       html: `<p>Your ${codeType} code is: <b>${code}</b></p>`,
     });
   }
-
-  //test methods
-  async test(createUserDto: CreateUserFactoryDto) {
-    return this.userFactory.createUser(createUserDto);
-  }
-
 }

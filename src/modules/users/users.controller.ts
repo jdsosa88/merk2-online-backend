@@ -11,8 +11,7 @@ import {
   UseGuards
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { CreateManagerDto, CreateMessengerDto, CreateProviderDto, CreateUserDto } from './dto/create-user.dto';
-import { UpdateProviderDto, UpdateUserDto } from './dto/update-user.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import { ApiKeyGuard } from 'src/common/guards/api-key.guard';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
@@ -43,7 +42,7 @@ import { DeleteUserPolicyHandler } from './policies/delete-user.policy';
 import { ListUsersPolicyHandler } from './policies/list-user.policy';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
-import { CreateUserFactoryDto } from './user.factory';
+import { UpdateUserFactoryDto } from './types/user-factory.type';
 
 
 @UseGuards(JwtAuthGuard, PoliciesGuard)
@@ -78,7 +77,7 @@ export class UsersController {
   @Patch()
   @CheckPolicies(new UpdateUserPolicyHandler())
   @ApiUpdate()
-  async update(@AuthUser('id') id: string, @Body() updateUserDto: UpdateUserDto): Promise<ApiResponseDto<User>> {
+  async update(@AuthUser('id') id: string, @Body() updateUserDto: UpdateUserFactoryDto): Promise<ApiResponseDto<User>> {
     const user = await this.usersService.update(id, updateUserDto);
     return new ApiResponseDto("User updated", user);
   }
@@ -121,20 +120,5 @@ export class UsersController {
   async changeForgottenPassword(@AuthUser('id') id: string, @Body() resetPasswordDto: ResetPasswordDto): Promise<ApiResponseDto> {
     const message = await this.usersService.resetPassword(id, resetPasswordDto);
     return new ApiResponseDto(message);
-  }
-
-  //test area
-  @Post('/testing')
-  @Public()
-  @UseGuards(ApiKeyGuard)
-  async testing(@Body() createUserDto: CreateUserDto) {    
-    return await this.usersService.test(createUserDto);
-  }
-
-  @Post('/testing2')
-  @Public()
-  @UseGuards(ApiKeyGuard)
-  async testing2(@Body() convertToProviderDto: UpdateProviderDto) {    
-    return await this.usersService.convertToProvider(new Types.ObjectId("69301ba2e52e0dc556f9bcf6"), convertToProviderDto);
   }
 }
