@@ -40,10 +40,12 @@ export class CreateBusinessDto {
     type: GeolocationDto,
     description: 'Geolocation of the business',
   })
-  @Type(() => GeolocationDto)
+  
+  @ApiPropertyOptional({ type: () => GeolocationDto })
+  @IsOptional()
   @ValidateNested()
-  @IsNotEmpty()
-  geolocation: GeolocationDto;
+  @Type(() => GeolocationDto)
+  readonly geolocation?: GeolocationDto;
 
   @ApiPropertyOptional({
     type: [String],

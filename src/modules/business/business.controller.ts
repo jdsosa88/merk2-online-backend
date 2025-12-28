@@ -3,8 +3,6 @@ import {
   Controller, 
   Post, 
   UseGuards, 
-  Put, 
-  Param,
   Get,
   Patch,
   Query
@@ -15,16 +13,6 @@ import { BusinessService } from './business.service';
 import { CreateBusinessDto } from './dto/create-business.dto';
 import { CheckPolicies } from 'src/modules/casl/decorators/policies.decorator';
 import { CreateBusinessPolicy } from './policies/create-business.policy';
-
-import {
-  ApiCreatedResponse,
-  ApiBody,
-  ApiOperation,
-  ApiTags,
-  ApiBearerAuth,
-  ApiResponse,
-  ApiParam,
-} from '@nestjs/swagger';
 import { Business } from './schemas/business.schema';
 import { AuthUser } from 'src/common/decorators/user.decorator';
 import { Types } from 'mongoose';
@@ -35,7 +23,6 @@ import { ApiResponseDto } from 'src/common/dto/api-response.dto';
 import { ApiGetBusiness, ApiRequestCreateBusiness, ApiUpdateBusinessByOwner } from './decorators/swagger-business.decorator';
 import { IdDto } from 'src/common/dto/id.dto';
 
-@ApiBearerAuth('JWT')
 @UseGuards(JwtAuthGuard, PoliciesGuard)
 @Controller('business')
 export class BusinessController {

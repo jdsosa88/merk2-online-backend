@@ -38,8 +38,8 @@ export class Business {
   @Prop({ type: String, required: true, length: 255 })
   description: string;
 
-  @Prop({ type: Geolocation, required: true })
-  geolocation: Geolocation;
+  @Prop({ type: Geolocation, required: false })
+  geolocation?: Geolocation;
 
   //faltan portalPick y pick que son imagenes
 

@@ -15,6 +15,7 @@ import { UpdateBusinessByAdminDto, UpdateBusinessByOwnerDto } from './dto/update
 import { UsersService } from '../users/users.service';
 import { Role } from '../users/schemas/user.schema';
 import { UpdateProviderDto } from '../users/dto/update-user.dto';
+import { Provider } from '../users/schemas/provider.schema';
 
 type BusinessUpdateData = {
   id: string,
@@ -105,14 +106,21 @@ export class BusinessService {
       businesses: [businessId],
       isMessenger: false,
     };
-    
+
     if (ownerUser.role === Role.PROVIDER) {
-      await this.usersService.updateProvider(ownerId, providerData)
+      const ownerProvider = ownerUser as Provider;
+      if (providerData.businesses && providerData.businesses.length > 0) {
+        providerData.businesses = new Array().concat(
+          ownerProvider.businesses,
+          providerData.businesses
+        );
+      }
+      await this.usersService.saveUpdatedUser(ownerId, providerData)
     } else if (ownerUser.role === Role.CUSTOMER) {
-      await this.usersService.convertToProvider(ownerId, providerData);
+      await this.usersService.saveUpdatedUser(ownerId, providerData);
     } else {
       throw new BadRequestException(
-        "User can not be updated because invalid role field, only CUSTOMER and PROVIDER"
+        "User can not be updated because invalid role field, only CUSTOMER and PROVIDER can request create a new business"
       );
     }
   }
