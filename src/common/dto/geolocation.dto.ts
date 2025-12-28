@@ -3,9 +3,9 @@ import { IsNumber, IsOptional, IsString, Length, IsNotEmpty } from "class-valida
 
 export class GeolocationDto {
   @ApiProperty({ minLength: 2, maxLength: 250, example: '123 Main St' })
+  @IsNotEmpty()
   @Length(2, 250)
   @IsString()
-  @IsNotEmpty()
   readonly address: string;
 
   @ApiPropertyOptional({ example: -34.6037 })

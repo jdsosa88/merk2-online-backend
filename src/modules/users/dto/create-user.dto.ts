@@ -6,6 +6,7 @@ import { Types } from "mongoose";
 import { Type } from 'class-transformer';
 import { ValidateNested } from 'class-validator';
 import { GeolocationDto } from '../../../common/dto/geolocation.dto';
+import { ImageDto } from "src/common/dto/image.dto";
 
 export class CreateUserDto {
   @ApiProperty({ minLength: 2, maxLength: 50, example: 'User' })
@@ -46,6 +47,12 @@ export class CreateUserDto {
   @ValidateNested()
   @Type(() => GeolocationDto)
   readonly geolocation?: GeolocationDto;
+
+  @ApiPropertyOptional({ type: () => ImageDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ImageDto)
+  readonly avatar?: ImageDto;
 }
 
 export class CreateProviderDto extends CreateUserDto {

@@ -11,6 +11,8 @@ import { ChangeRoleParams, CreateUserParams, SchemaData, UpdateUserParams } from
 import { Geolocation } from "src/common/schemas/geolocation.schema";
 import { GeolocationDto } from "src/common/dto/geolocation.dto";
 import { IUpdateUserDto } from "./types/users.interface";
+import { ImageDto } from "src/common/dto/image.dto";
+import { Image } from "src/common/schemas/image.schema";
 
 
 @Injectable()
@@ -166,12 +168,15 @@ export class UserFactory {
       geolocation: updateUserDto.geolocation
         ? this.getGeolocationFromDto(updateUserDto.geolocation)
         : existentUser.geolocation,
+      avatar: updateUserDto.avatar
+        ? this.getImageFromDto(updateUserDto.avatar)
+        : existentUser.avatar,
       role: updateUserDto.role ? updateUserDto.role : existentUser.role,
       googleId: (updateUserDto as IUpdateUserDto).googleId
         ? (updateUserDto as IUpdateUserDto).googleId
         : existentUser.googleId,
     }
-    
+
     const discriminator = this.getShemaDiscriminator(updateUserDto.role);
 
     const updateData: SchemaData = {
@@ -183,15 +188,22 @@ export class UserFactory {
   }
 
   private getGeolocationFromDto(geolocationDto: GeolocationDto): Geolocation | undefined {
-    let geolocation: Geolocation | undefined;
-    if (geolocationDto) {
-      return {
-        address: geolocationDto.address,
-        latitude: geolocationDto.latitude ? geolocationDto.latitude : null,
-        longitude: geolocationDto.longitude ? geolocationDto.longitude : null,
-      }
+    if (!geolocationDto) return undefined;
+    return {
+      address: geolocationDto.address,
+      latitude: geolocationDto.latitude ? geolocationDto.latitude : null,
+      longitude: geolocationDto.longitude ? geolocationDto.longitude : null,
     }
-    return undefined;
+  }
+
+  private getImageFromDto(imageDto: ImageDto): Image | undefined {
+    if (!imageDto) return undefined;
+    return {
+      filename: imageDto.filename,
+      mimeType: imageDto.mimeType,
+      size: imageDto.size,
+      url: imageDto.url,
+    };
   }
 
   private getShemaDiscriminator(role: UserRole | undefined): string | null {
@@ -206,7 +218,6 @@ export class UserFactory {
         return null;
     }
   }
-
 
   private async updateToOtherSchema(
     userId: Types.ObjectId,

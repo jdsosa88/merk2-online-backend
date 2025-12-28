@@ -1,9 +1,11 @@
-import { IsArray, IsBoolean, IsEmail, IsEnum, IsIn, IsMongoId, IsOptional, IsPhoneNumber, IsString, Length, ValidateNested } from "class-validator";
+import { IsArray, IsBoolean, IsEmail, IsEnum, IsMongoId, IsOptional, IsPhoneNumber, IsString, Length, ValidateNested } from "class-validator";
 import { Role, UserRole } from "../schemas/user.schema";
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { Types } from "mongoose";
 import { GeolocationDto } from "src/common/dto/geolocation.dto";
 import { Type } from "class-transformer";
+import { ImageDto } from "src/common/dto/image.dto";
+import { IsValidImage } from "src/common/decorators/image.decorator";
 
 export class UpdateUserDto {
   @ApiPropertyOptional({ minLength: 2, maxLength: 50, example: 'User' })
@@ -53,21 +55,16 @@ export class UpdateUserDto {
   @IsOptional()
   @ValidateNested()
   @Type(() => GeolocationDto)
-  readonly geolocation?: GeolocationDto;
+  geolocation?: GeolocationDto;
+
+  @ApiPropertyOptional({ type: () => ImageDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ImageDto)
+  @IsValidImage()
+  avatar?: ImageDto;
 }
 
-
-export class UpdateProviderDto extends UpdateUserDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsBoolean()
-  isMessenger?: boolean;
-
-  @ApiPropertyOptional({ type: [String] })
-  @IsOptional()
-  @IsArray()
-  businesses?: Types.ObjectId[];
-}
 
 export class UpdateUserAllDto extends UpdateUserDto {
   @ApiPropertyOptional()

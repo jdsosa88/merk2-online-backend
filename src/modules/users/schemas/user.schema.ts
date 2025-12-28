@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument, Types } from "mongoose";
 import { Geolocation } from "src/common/schemas/geolocation.schema";
+import { Image } from "src/common/schemas/image.schema";
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -56,6 +57,9 @@ export class User {
 
   @Prop({ type: Geolocation, required: false})
   geolocation?: Geolocation;
+
+  @Prop({ type: Image, required: false })
+  avatar?: Image;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

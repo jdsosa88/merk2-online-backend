@@ -1,5 +1,6 @@
 import { GeolocationDto } from "src/common/dto/geolocation.dto";
 import { UserRole } from "../schemas/user.schema";
+import { Image } from "src/common/schemas/image.schema";
 
 export interface ICreateUser {  
     readonly firstName: string;
@@ -25,4 +26,5 @@ export interface IUpdateUserDto {
   isActive?: boolean;
   isPhoneVerified?: boolean;
   geolocation?: GeolocationDto;
+  avatar?: Image;
 }
