@@ -37,7 +37,8 @@ export class CaslAbilityFactory {
     //users module
     cannot(Action.CREATE, User);
     can(Action.DELETE, User, { _id: user._id });
-    can(Action.UPDATE, User, ['email', 'firstName', 'lastName', 'phone', 'isPhoneVerified'], { _id: user._id });
+    can(Action.UPDATE, User, { _id: user._id });
+    cannot(Action.UPDATE, User, ['_id', 'password', 'isActive', 'role']);
     can(Action.UPDATE_RESTRICTED_FIELDS, User, ['password'], { _id: user._id });
     cannot(Action.LIST, User);
 
@@ -50,12 +51,12 @@ export class CaslAbilityFactory {
         can(Action.MANAGE, 'all');
         cannot(Action.UPDATE, User, ['_id']);
         cannot(Action.UPDATE, User, ['isActive', 'role'], { _id: user._id });
-        cannot(Action.CREATE, Business, {owner: user._id});
+        cannot(Action.CREATE, Business, { owner: user._id });
         break;
 
       case Role.PROVIDER:
         can(Action.READ, User);
-        can(Action.CREATE, Business, {owner: user._id});
+        can(Action.CREATE, Business, { owner: user._id });
         can(Action.UPDATE, Business, { owner: user._id });
         break;
 
@@ -69,7 +70,7 @@ export class CaslAbilityFactory {
 
       case Role.CUSTOMER:
         can(Action.READ, User, { _id: user._id });
-        can(Action.CREATE, Business, {owner: user._id});
+        can(Action.CREATE, Business, { owner: user._id });
         can(Action.UPDATE, Business, { owner: user._id });
         break;
 
