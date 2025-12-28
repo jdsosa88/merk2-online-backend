@@ -16,8 +16,8 @@ import { VerificationCodeService } from '../verification-code/verification-code.
 import { MailerService } from '@nestjs-modules/mailer';
 import { VerifyResetCodeDto } from './dto/verify-reset-code.dto';
 import { VerifyDefaultCodeUserDto } from './dto/verify-default-code-user.dto';
-import { ICreateRefreshToken, IRefreshToken } from './interfaces/refresh-token.interface';
-import { AtuthParams, GoogleAuthParams, LoginParams } from './interfaces/auth.interface';
+import { ICreateRefreshToken, IRefreshToken } from './types/refresh-token.interface';
+import { AtuthParams, GoogleAuthParams, LoginParams } from './types/auth.interface';
 import { GoogleAuthService } from './google-auth.service';
 import { ICreateUser } from '../users/types/users.interface';
 

@@ -3,7 +3,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { RefreshTokenService } from './refresh-token.service';
 import { RefreshToken } from './schemas/refresh-token.schema';
 import { Model, Types } from 'mongoose';
-import { ICreateRefreshToken, IRefreshToken } from './interfaces/refresh-token.interface';
+import { ICreateRefreshToken, IRefreshToken } from './types/refresh-token.interface';
 
 describe('RefreshTokenService', () => {
   let service: RefreshTokenService;
