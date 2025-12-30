@@ -13,6 +13,7 @@ export interface ICreateUser {
   readonly isActive: boolean;
   readonly isPhoneVerified: boolean;
   readonly geolocation?: GeolocationDto;
+  avatar?: Image;
 }
 
 export interface IUpdateUserDto {

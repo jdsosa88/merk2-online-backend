@@ -21,6 +21,7 @@ import { AtuthParams, GoogleAuthParams, LoginParams } from './types/auth.interfa
 import { GoogleAuthService } from './google-auth.service';
 import { ICreateUser } from '../users/types/users.interface';
 import { Role } from '../users/types/users.type';
+import { generateRandomPassword } from 'src/common/utils/random-utils';
 
 
 @Injectable()
@@ -158,19 +159,20 @@ export class AuthService {
           googleId: googleUser.googleId,
           isActive: true,
           isPhoneVerified: false,
-          password: googleUser.googleId,
+          password: generateRandomPassword(),
           role: Role.CUSTOMER,
+          avatar: googleUser?.picture ? { url: googleUser.picture} : undefined,
         };
-        console.log({newUserData});
-        
+        console.log({ newUserData });
+
         user = await this.usersService.createGoogleUser(newUserData);
       } else if (!user.googleId) {
         user = await this.usersService.linkGoogleAccount(user._id, googleUser.googleId);
       }
-      console.log({user});
+      console.log({ user });
       const loginResponse = await this.makeLogin({ user, ip, userAgent });
-      console.log({loginResponse});
-      
+      console.log({ loginResponse });
+
       return loginResponse;
     } catch (error) {
       throw error;
