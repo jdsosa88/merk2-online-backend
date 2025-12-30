@@ -5,7 +5,7 @@ import { UsersService } from "./users.service";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { ApiResponseDto } from "src/common/dto/api-response.dto";
 import { CheckPolicies } from "../casl/decorators/policies.decorator";
-import { Role, User } from "./schemas/user.schema";
+import { User } from "./schemas/user.schema";
 import { UpdateUserDto } from "./dto/update-user.dto"
 import { IdDto } from "src/common/dto/id.dto";
 import {
@@ -16,6 +16,7 @@ import {
 import { CreateUserPolicyHandler } from "./policies/create-user.policy";
 import { UpdateOtherUserPolicyHandler } from "./policies/update-user.policy";
 import { DeleteOtherUserPolicyHandler } from "./policies/delete-user.policy";
+import { Role } from "./types/users.type";
 
 @UseGuards(JwtAuthGuard, PoliciesGuard)
 @Controller('admin/users')

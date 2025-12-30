@@ -1,6 +1,6 @@
 import { GeolocationDto } from "src/common/dto/geolocation.dto";
-import { UserRole } from "../schemas/user.schema";
 import { Image } from "src/common/schemas/image.schema";
+import { UserRole } from "./users.type";
 
 export interface ICreateUser {
   readonly firstName: string;

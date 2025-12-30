@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { AbilityBuilder, MongoAbility, createMongoAbility, InferSubjects, ExtractSubjectType } from '@casl/ability';
-import { Role, User } from '../users/schemas/user.schema';
+import { User } from '../users/schemas/user.schema';
 import { Business } from '../business/schemas/business.schema';
+import { Role } from '../users/types/users.type';
 
 /**
  * Defines the possible actions that can be performed on resources

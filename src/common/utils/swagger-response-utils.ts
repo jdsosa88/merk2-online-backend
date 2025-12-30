@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { ApiResponseDto } from "../dto/api-response.dto";
-import { Role } from "src/modules/users/schemas/user.schema";
+import { Role } from "src/modules/users/types/users.type";
 import { PaginatedListDto } from "../dto/paginated-list.dto";
 
 type UserDataType = {

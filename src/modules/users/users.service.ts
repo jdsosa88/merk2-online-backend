@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Role, User } from './schemas/user.schema';
+import { User } from './schemas/user.schema';
 import { Model, Types } from 'mongoose';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -18,6 +18,7 @@ import { UserFactory } from './user.factory';
 import { Manager } from './schemas/manager.schema';
 import { Messenger } from './schemas/messenger.schema';
 import { CreateUserFactoryDto, UpdateUserFactoryDto } from './types/user-factory.type';
+import { Role } from './types/users.type';
 
 
 @Injectable()

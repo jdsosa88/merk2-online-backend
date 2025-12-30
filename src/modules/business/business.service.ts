@@ -13,7 +13,7 @@ import { Model, Types } from 'mongoose';
 import { CreateBusinessDto } from './dto/create-business.dto';
 import { UpdateBusinessByAdminDto, UpdateBusinessByOwnerDto } from './dto/update-business.dto';
 import { UsersService } from '../users/users.service';
-import { Role } from '../users/schemas/user.schema';
+import { Role } from '../users/types/users.type';
 import { UpdateUserAllDto } from '../users/dto/update-user.dto';
 import { Provider } from '../users/schemas/provider.schema';
 
@@ -90,9 +90,7 @@ export class BusinessService {
 
   async findById(id: string, userId: string): Promise<Business> {
     const business = await this.businessModel.findById(id);
-    if (!business) throw new NotFoundException('Business not found');
-    // const isOwner = business.owner.toString() === userId;
-    // if (!isOwner) throw new ForbiddenException('You are not the owner of this business');
+    if (!business) throw new NotFoundException('Business not found');    
     return business;
   }
 

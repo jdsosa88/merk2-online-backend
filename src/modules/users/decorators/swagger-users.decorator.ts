@@ -1,8 +1,9 @@
 import { applyDecorators } from "@nestjs/common";
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { ApiResponseDto } from "src/common/dto/api-response.dto";
-import { Role, User } from "../schemas/user.schema";
+import { User } from "../schemas/user.schema";
 import { SwaggerResponseUtils } from "src/common/utils/swagger-response-utils";
+import { Role } from "../types/users.type";
 
 export function ApiCreate() {
   return applyDecorators(

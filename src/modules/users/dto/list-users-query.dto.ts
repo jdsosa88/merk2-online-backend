@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { IsOptional, IsString } from "class-validator";
 import { PaginationListParamsDto } from "src/common/dto/pagination-list-params.dto";
-import { Role } from "../schemas/user.schema";
+import { Role } from "../types/users.type";
 
 export class ListUsersQueryDto extends PaginationListParamsDto {
 

@@ -2,18 +2,9 @@ import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { HydratedDocument, Types } from "mongoose";
 import { Geolocation } from "src/common/schemas/geolocation.schema";
 import { Image } from "src/common/schemas/image.schema";
+import { Role, UserRole } from "../types/users.type";
 
 export type UserDocument = HydratedDocument<User>;
-
-export enum Role {
-  ADMIN = 'ADMIN',
-  PROVIDER = 'PROVIDER',
-  MANAGER = 'MANAGER',
-  MESSENGER = 'MESSENGER',
-  CUSTOMER = 'CUSTOMER',
-}
-export type UserRole = keyof typeof Role;
-
 
 @Schema({  
   collection: 'users',

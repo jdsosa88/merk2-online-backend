@@ -3,7 +3,7 @@ import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UserLoginDto } from './dto/user-login.dto';
-import { Role, User } from '../users/schemas/user.schema';
+import { User } from '../users/schemas/user.schema';
 import { AuthTokensDto } from './dto/atuh-tokens.dto';
 import { RefreshTokenService } from './refresh-token.service';
 import { ConfigService } from '@nestjs/config';
@@ -20,6 +20,7 @@ import { ICreateRefreshToken, IRefreshToken } from './types/refresh-token.interf
 import { AtuthParams, GoogleAuthParams, LoginParams } from './types/auth.interface';
 import { GoogleAuthService } from './google-auth.service';
 import { ICreateUser } from '../users/types/users.interface';
+import { Role } from '../users/types/users.type';
 
 
 @Injectable()

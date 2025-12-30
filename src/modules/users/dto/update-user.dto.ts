@@ -1,7 +1,7 @@
 import { IsArray, IsBoolean, IsEmail, IsEnum, IsMongoId, IsOptional, IsPhoneNumber, IsString, Length, ValidateNested } from "class-validator";
-import { Role, UserRole } from "../schemas/user.schema";
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { Types } from "mongoose";
+import { Role, UserRole } from "../types/users.type";
 import { GeolocationDto } from "src/common/dto/geolocation.dto";
 import { Type } from "class-transformer";
 import { ImageDto } from "src/common/dto/image.dto";

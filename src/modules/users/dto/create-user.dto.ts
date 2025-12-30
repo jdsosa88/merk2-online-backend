@@ -1,5 +1,5 @@
 import { IsArray, IsBoolean, IsDefined, IsEmail, IsIn, IsMobilePhone, IsMongoId, IsNotEmpty, IsOptional, IsString, Length } from "class-validator";
-import { Role, UserRole } from "../schemas/user.schema";
+import { Role, UserRole } from "../types/users.type";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Types } from "mongoose";
 

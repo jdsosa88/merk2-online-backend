@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { CreateManagerDto, CreateMessengerDto, CreateProviderDto } from "./dto/create-user.dto";
-import { Role, User, UserRole } from "./schemas/user.schema";
+import { User } from "./schemas/user.schema";
 import { Provider } from "./schemas/provider.schema";
 import { Manager } from "./schemas/manager.schema";
 import { Messenger } from "./schemas/messenger.schema";
@@ -13,6 +13,7 @@ import { GeolocationDto } from "src/common/dto/geolocation.dto";
 import { IUpdateUserDto } from "./types/users.interface";
 import { ImageDto } from "src/common/dto/image.dto";
 import { Image } from "src/common/schemas/image.schema";
+import { Role, UserRole } from "./types/users.type";
 
 
 @Injectable()
