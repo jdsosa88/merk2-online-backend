@@ -180,10 +180,6 @@ export class UsersService {
 
   async updateOtherUser(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     try {
-      if (new ObjectValidationsUtils().isDefinedObject(updateUserDto.password)) {
-        const newPassword: string = updateUserDto.password as string;
-        updateUserDto.password = await bcrypt.hash(newPassword, 10);
-      }
       return await this.saveUpdatedUser(id, updateUserDto);
     } catch (error) {
       throw error;

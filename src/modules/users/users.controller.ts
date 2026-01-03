@@ -77,9 +77,9 @@ export class UsersController {
   @Patch()
   @CheckPolicies(new UpdateUserPolicyHandler())
   @ApiUpdate()
-  async update(@AuthUser('id') id: string,   
-  @Body() updateUserDto: UpdateUserAllDto
-): Promise<ApiResponseDto<User>> {
+  async update(@AuthUser('id') id: string,
+    @Body() updateUserDto: UpdateUserAllDto
+  ): Promise<ApiResponseDto<User>> {
     const user = await this.usersService.update(id, updateUserDto);
     return new ApiResponseDto("User updated", user);
   }
@@ -100,7 +100,7 @@ export class UsersController {
     return new ApiResponseDto('User deleted', user);
   }
 
-  @Get('/list')
+  @Get('list')
   @CheckPolicies(new ListUsersPolicyHandler())
   @ApiFindAll()
   async findAll(@Query() query: ListUsersQueryDto): Promise<ApiResponseDto<PaginatedListDto<User>>> {
@@ -108,7 +108,7 @@ export class UsersController {
     return new ApiResponseDto(paginatedList);
   }
 
-  @Patch('/set-password')
+  @Patch('set-password')
   @CheckPolicies(new UpdateUserPasswordPolicyHandler())
   @ApiSetPassword()
   async setPassword(@AuthUser('id') id: string, @Body() setPasswordDto: SetPasswordDto): Promise<ApiResponseDto> {
@@ -116,7 +116,7 @@ export class UsersController {
     return new ApiResponseDto(message);
   }
 
-  @Patch('/change-forgotten-password')
+  @Patch('change-forgotten-password')
   @CheckPolicies(new UpdateUserPasswordPolicyHandler())
   @ApiChangeForgottenPassword()
   async changeForgottenPassword(@AuthUser('id') id: string, @Body() resetPasswordDto: ResetPasswordDto): Promise<ApiResponseDto> {

@@ -25,4 +25,10 @@ export class Image {
     required: false,
   })
   url?: string;
+
+  @Prop({
+    type: String,
+    required: false,
+  })
+  alt?: string;
 }

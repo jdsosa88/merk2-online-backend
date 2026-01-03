@@ -30,4 +30,9 @@ export class ImageDto {
   @IsString()
   @IsNotEmpty()
   readonly url?: string;
+
+  @ApiPropertyOptional({ example: 'Image description' })
+  @IsOptional()
+  @IsString()
+  readonly alt?: string;
 }

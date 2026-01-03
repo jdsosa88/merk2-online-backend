@@ -134,7 +134,7 @@ export class UserFactory {
         return updatedManager;
 
       case Role.MESSENGER:
-        const updatedMessenger = await this.managerModel.findByIdAndUpdate(
+        const updatedMessenger = await this.messengerModel.findByIdAndUpdate(
           userId,
           updateUserDto,
           { new: true }
