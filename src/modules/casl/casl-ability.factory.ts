@@ -4,6 +4,7 @@ import { User } from '../users/schemas/user.schema';
 import { Business } from '../business/schemas/business.schema';
 import { Role } from '../users/types/users.type';
 import { EmploymentRequest } from '../business/schemas/employment-request.schema';
+import { Product } from '../products/schemas/product.schema';
 import { Category } from '../categories/schemas/category.schema';
 
 /**
@@ -24,6 +25,7 @@ export type Subjects = InferSubjects<
   | typeof Business
   | typeof EmploymentRequest
   | typeof Category
+  | typeof Product
 > | 'all';
 
 export type AppAbility = MongoAbility<[Action, Subjects]>;
@@ -52,6 +54,7 @@ export class CaslAbilityFactory {
     cannot(Action.LIST, User);
 
     can(Action.READ, Category);
+    can(Action.READ, Product);
     can(Action.READ, Business);
 
     //Role based module
@@ -69,10 +72,12 @@ export class CaslAbilityFactory {
         can(Action.UPDATE, Business, { owner: user._id });
         can(Action.CREATE, EmploymentRequest, { invitedBy: user._id });
         can(Action.UPDATE, EmploymentRequest, ['status'], { invitedBy: user._id });
+        can(Action.MANAGE, Product);
         break;
 
       case Role.MANAGER:
         can(Action.READ, User);
+        can(Action.MANAGE, Product);
         break;
 
       case Role.MESSENGER:

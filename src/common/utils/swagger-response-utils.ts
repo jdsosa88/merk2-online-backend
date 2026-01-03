@@ -2,12 +2,13 @@ import { Injectable } from "@nestjs/common";
 import { ApiResponseDto } from "../dto/api-response.dto";
 import { Role } from "src/modules/users/types/users.type";
 import { PaginatedListDto } from "../dto/paginated-list.dto";
+import { ProductType } from "src/modules/products/schemas/product.schema";
 
 type UserDataType = {
-  message?: string, 
-  role?: Role, 
+  message?: string,
+  role?: Role,
   isAdmin?: boolean,
-} 
+}
 
 type BusinessDataType = {
   message?: string;
@@ -19,9 +20,17 @@ type CategoryDataType = {
   withHierarchy?: boolean;
   withChildren?: boolean;
 }
+
+type ProductDataType = {
+  message?: string;
+  type?: ProductType;
+  withAddons?: boolean;
+  withParent?: boolean;
+}
+
 @Injectable()
 export class SwaggerResponseUtils {
-  getExampleResponseWithUser({ message, role = Role.CUSTOMER, isAdmin = false } : UserDataType) {
+  getExampleResponseWithUser({ message, role = Role.CUSTOMER, isAdmin = false }: UserDataType) {
     const exampleUser: Object = {
       firstName: "User",
       lastName: "Example",
@@ -43,7 +52,7 @@ export class SwaggerResponseUtils {
 
   getResponseWithUsersList() {
     const listData: PaginatedListDto<Object> = {
-      items: [       
+      items: [
         {
           _id: "68b97b7bf6c2528ac3e9063e",
           firstName: "Provider",
@@ -101,31 +110,161 @@ export class SwaggerResponseUtils {
     return new ApiResponseDto(message, loginResponse);
   }
 
-  getResponseWithBusinessResponse({message} : BusinessDataType){
+  getResponseWithBusinessResponse({ message }: BusinessDataType) {
     const businessExample: any = {
-        "name": "My business name",
-        "description": "A description of the business",
-        "geolocation": {
-            "address": "123 Main St",
-            "latitude": -34.6037,
-            "longitude": -58.3816
-        },
-        "phones": [
-            "123-456-7890",
-            "098-765-4321"
-        ],
-        "week": [
-            null
-        ],
-        "owner": "693ee796035fe383f785f91b",
-        "status": "requested",
-        "_id": "693f367e11e9bb44f52951de",
-        "createdAt": "2025-12-14T22:13:18.825Z",
-        "updatedAt": "2025-12-14T22:13:18.825Z",
-        "__v": 0
+      "name": "My business name",
+      "description": "A description of the business",
+      "geolocation": {
+        "address": "123 Main St",
+        "latitude": -34.6037,
+        "longitude": -58.3816
+      },
+      "phones": [
+        "123-456-7890",
+        "098-765-4321"
+      ],
+      "week": [
+        null
+      ],
+      "owner": "693ee796035fe383f785f91b",
+      "status": "requested",
+      "_id": "693f367e11e9bb44f52951de",
+      "createdAt": "2025-12-14T22:13:18.825Z",
+      "updatedAt": "2025-12-14T22:13:18.825Z",
+      "__v": 0
     }
     return new ApiResponseDto(message, businessExample);
   }
+
+  getExampleResponseWithProduct({ message, type = ProductType.SIMPLE, withAddons = false, withParent = false }: ProductDataType) {
+    const exampleProduct: any = {
+      _id: "65a1b2c3d4e5f67890123456",
+      name: "iPhone 15 Pro",
+      description: "Smartphone Apple con chip A17 Pro y cámara triple",
+      type: type,
+      brand: "Apple",
+      price: 1299.99,
+      images: [
+        {
+          url: "https://example.com/images/iphone1.jpg",
+          alt: "iPhone 15 Pro frontal",
+          order: 1
+        }
+      ],
+      discountValue: 0,
+      discountPercent: 10,
+      finalPrice: 1169.99,
+      warranty: "1 año de garantía",
+      size: "6.1 pulgadas",
+      colors: ["black", "white"],
+      weight: "187g",
+      stock: 50,
+      isAvailable: true,
+      sku: "IPH15-PRO-001",
+      business: {
+        _id: "60d21b4667d0d8992e610c85",
+        name: "Tech Store"
+      },
+      category: {
+        _id: "60d21b4667d0d8992e610c86",
+        name: "Smartphones",
+        level: 0
+      },
+      timesOrdered: 100,
+      averageRating: 4.5,
+      totalReviews: 200,
+      isActive: true,
+      createdAt: "2024-01-01T00:00:00.000Z",
+      updatedAt: "2024-01-01T00:00:00.000Z"
+    };
+
+    if (withAddons) {
+      exampleProduct.addons = [
+        {
+          _id: "65a1b2c3d4e5f67890123457",
+          name: "Funda Protectora",
+          price: 49.99,
+          finalPrice: 49.99,
+          sku: "CASE-001",
+          isAvailable: true
+        }
+      ];
+    }
+
+    if (withParent) {
+      exampleProduct.parentProduct = {
+        _id: "65a1b2c3d4e5f67890123456",
+        name: "iPhone 15 Pro",
+        price: 1299.99,
+        finalPrice: 1169.99,
+        sku: "IPH15-PRO-001"
+      };
+    }
+
+    if (message) {
+      return new ApiResponseDto(message, exampleProduct);
+    } else {
+      return new ApiResponseDto(exampleProduct);
+    }
+  }
+
+  getResponseWithProductsList() {
+    const listData: PaginatedListDto<any> = {
+      items: [
+        {
+          _id: "65a1b2c3d4e5f67890123456",
+          name: "iPhone 15 Pro",
+          type: "simple",
+          price: 1299.99,
+          finalPrice: 1169.99,
+          sku: "IPH15-PRO-001",
+          business: {
+            _id: "60d21b4667d0d8992e610c85",
+            name: "Tech Store"
+          },
+          category: {
+            _id: "60d21b4667d0d8992e610c86",
+            name: "Smartphones",
+            level: 0
+          },
+          stock: 50,
+          isAvailable: true,
+          isActive: true,
+          timesOrdered: 100,
+          averageRating: 4.5
+        },
+        {
+          _id: "65a1b2c3d4e5f67890123457",
+          name: "Funda Protectora",
+          type: "addon",
+          price: 49.99,
+          finalPrice: 49.99,
+          sku: "CASE-001",
+          business: {
+            _id: "60d21b4667d0d8992e610c85",
+            name: "Tech Store"
+          },
+          category: {
+            _id: "60d21b4667d0d8992e610c87",
+            name: "Accesorios",
+            level: 0
+          },
+          stock: 100,
+          isAvailable: true,
+          isActive: true,
+          timesOrdered: 50,
+          averageRating: 4.0
+        }
+      ],
+      total: 2,
+      page: 1,
+      perPage: 10,
+      totalPages: 1
+    };
+
+    return new ApiResponseDto(listData);
+  }
+
   getExampleResponseWithCategory({ message, isRoot = false, withHierarchy = false, withChildren = false }: CategoryDataType) {
     const exampleCategory: any = {
       _id: "60d21b4667d0d8992e610c86",
