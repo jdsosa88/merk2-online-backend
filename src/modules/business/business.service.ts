@@ -2,13 +2,12 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
-  BadRequestException
+  BadRequestException,
+  ConflictException
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import {
-  Business,
-  BusinessStatus
-} from './schemas/business.schema';
+import { Business } from './schemas/business.schema';
+import { BusinessStatus } from './types/business.type';
 import { Model, Types } from 'mongoose';
 import { CreateBusinessDto } from './dto/create-business.dto';
 import { UpdateBusinessByAdminDto, UpdateBusinessByOwnerDto } from './dto/update-business.dto';
@@ -64,6 +63,10 @@ export class BusinessService {
     const business = await this.businessModel.findById(updateData.id);
     if (!business) throw new NotFoundException('Business not found');
 
+    if (business.status !== BusinessStatus.ACCEPTED) {
+      throw new ForbiddenException('Your business have not accepted status yet');
+    }
+
     const isOwner = updateData.userId && updateData.userId === business.owner.toString();
     if (!isOwner) throw new ForbiddenException('You are not the owner of this business');
 
@@ -88,10 +91,35 @@ export class BusinessService {
     return updatedBusiness;
   }
 
-  async findById(id: string, userId: string): Promise<Business> {
+  async findById(id: string): Promise<Business> {
     const business = await this.businessModel.findById(id);
-    if (!business) throw new NotFoundException('Business not found');    
+    if (!business) throw new NotFoundException('Business not found');
     return business;
+  }
+
+  async addProduct(businessId: string, productId: Types.ObjectId) {
+    const _id = new Types.ObjectId(businessId);
+    const business = await this.businessModel.findOne(_id);
+    if (!business) throw new BadRequestException('Business not found');
+    business.products.forEach((existentProductId) => {
+      if (existentProductId.toString() === productId.toString()) {
+        throw new ConflictException('Product already exists');
+      }
+    });
+    business.products.push(productId);
+    await business.save();
+  }
+
+  async removeProduct(businessId: string, productId: Types.ObjectId) {
+    const _id = new Types.ObjectId(businessId);
+    const business = await this.businessModel.findOne(_id);
+    if (!business) throw new BadRequestException('Business not found');
+
+    business.products = business.products.filter(
+      id  => id.toString() !== productId.toString()
+    );
+    
+    await business.save();
   }
 
   private async updateAcceptedBussinessOwnerData(
@@ -101,6 +129,7 @@ export class BusinessService {
 
     let ownerUser = await this.usersService.findOne(ownerId.toString());
     const providerData: UpdateUserAllDto = {
+      role: Role.PROVIDER,
       businesses: [businessId],
       isMessenger: false,
     };

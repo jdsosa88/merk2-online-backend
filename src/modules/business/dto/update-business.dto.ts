@@ -11,9 +11,9 @@ import {
 } from 'class-validator';
 import { GeolocationDto } from 'src/common/dto/geolocation.dto';
 import { DayDto } from './day.dto';
-import { BusinessStatus } from '../schemas/business.schema';
 import { ImageDto } from 'src/common/dto/image.dto';
 import { IsValidImage } from 'src/common/decorators/image.decorator';
+import { BusinessStatus } from '../types/business.type';
 
 export class UpdateBusinessByOwnerDto {
   @ApiPropertyOptional({

@@ -7,16 +7,22 @@ import { UsersModule } from '../users/users.module';
 import { ProductsModule } from '../products/products.module';
 import { Business, BusinessSchema } from './schemas/business.schema';
 import { AdminBusinessController } from './admin-business.controller';
+import { EmploymentRequest, EmploymentRequestSchema } from './schemas/employment-request.schema';
+import { EmployeeService } from './employee.service';
+import { EmploymentRequestService } from './employment-request.service';
 
 @Module({
   imports: [
-        MongooseModule.forFeature([{ name: Business.name, schema: BusinessSchema }]),
+        MongooseModule.forFeature([
+          { name: Business.name, schema: BusinessSchema },
+          { name: EmploymentRequest.name, schema: EmploymentRequestSchema },
+        ]),
         CaslModule,
         forwardRef(() => UsersModule),             
-        //forwardRef(() => ProductsModule),             
+        forwardRef(() => ProductsModule),             
       ],
   controllers: [BusinessController, AdminBusinessController],
-  providers: [BusinessService],
+  providers: [BusinessService, EmployeeService, EmploymentRequestService],
   exports: [BusinessService],
 })
 export class BusinessModule {}

@@ -2,17 +2,9 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { Geolocation } from 'src/common/schemas/geolocation.schema';
 import { Image } from 'src/common/schemas/image.schema';
+import { BusinessStatus, BusinessStatusType } from '../types/business.type';
 
 export type BusinessDocument = HydratedDocument<Business>;
-
-export enum BusinessStatus {
-  REQUESTED = 'requested',
-  ACCEPTED = 'accepted',
-  PENDING = 'pending',
-  DISABLED = 'disabled',
-}
-type BusinessStatusType = BusinessStatus;
-
 
 @Schema({ _id: false })
 class Employees {
@@ -21,6 +13,9 @@ class Employees {
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [Types.ObjectId] })
   messengers: Types.ObjectId[];
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'EmploymentRequest' }], default: [] })
+  pendingEmployees: Types.ObjectId[];
 }
 
 @Schema({ _id: false })
@@ -43,10 +38,10 @@ export class Business {
   geolocation?: Geolocation;
 
   @Prop({ type: Image, required: false })
-  pick?: Image;
+  pic?: Image;
 
   @Prop({ type: Image, required: false })
-  portalPick?: Image;
+  portalPic?: Image;
 
   @Prop({ type: [String], required: false, default: [String] })
   phones: string[];
@@ -62,8 +57,8 @@ export class Business {
   @Prop({ type: Employees })
   employees: Employees;
 
-  // @Prop({ type: [{ type: Types.ObjectId, ref: 'Product' }], default: [Types.ObjectId] })
-  // products: Types.ObjectId[];
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Product' }], default: [] })
+  products: Types.ObjectId[];
 
   @Prop({
     required: true,

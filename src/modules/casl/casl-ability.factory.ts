@@ -3,6 +3,7 @@ import { AbilityBuilder, MongoAbility, createMongoAbility, InferSubjects, Extrac
 import { User } from '../users/schemas/user.schema';
 import { Business } from '../business/schemas/business.schema';
 import { Role } from '../users/types/users.type';
+import { EmploymentRequest } from '../business/schemas/employment-request.schema';
 
 /**
  * Defines the possible actions that can be performed on resources
@@ -17,7 +18,12 @@ export enum Action {
   UPDATE_RESTRICTED_FIELDS = 'update_restricted_fields',
 }
 
-export type Subjects = InferSubjects<typeof User | typeof Business> | 'all';
+export type Subjects = InferSubjects<
+  typeof User
+  | typeof Business
+  | typeof EmploymentRequest
+> | 'all';
+
 export type AppAbility = MongoAbility<[Action, Subjects]>;
 
 /**
@@ -59,6 +65,8 @@ export class CaslAbilityFactory {
         can(Action.READ, User);
         can(Action.CREATE, Business, { owner: user._id });
         can(Action.UPDATE, Business, { owner: user._id });
+        can(Action.CREATE, EmploymentRequest, { invitedBy: user._id });
+        can(Action.UPDATE, EmploymentRequest, ['status'], { invitedBy: user._id });
         break;
 
       case Role.MANAGER:
@@ -73,6 +81,7 @@ export class CaslAbilityFactory {
         can(Action.READ, User, { _id: user._id });
         can(Action.CREATE, Business, { owner: user._id });
         can(Action.UPDATE, Business, { owner: user._id });
+        can(Action.UPDATE, EmploymentRequest, ['status'], { user: user._id });
         break;
 
       default:

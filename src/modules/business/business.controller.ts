@@ -1,8 +1,8 @@
-import { 
-  Body, 
-  Controller, 
-  Post, 
-  UseGuards, 
+import {
+  Body,
+  Controller,
+  Post,
+  UseGuards,
   Get,
   Patch,
   Query
@@ -20,13 +20,24 @@ import { UpdateBusinessByOwnerDto } from './dto/update-business.dto';
 import { UpdateBusinessPolicy } from './policies/update-business.policy';
 import { ReadBusinessPolicy } from './policies/read-business.policy';
 import { ApiResponseDto } from 'src/common/dto/api-response.dto';
-import { ApiGetBusiness, ApiRequestCreateBusiness, ApiUpdateBusinessByOwner } from './decorators/swagger-business.decorator';
+import { ApiAddEmployee, ApiGetBusiness, ApiRequestCreateBusiness, ApiRespondEmploymentRequest, ApiUpdateBusinessByOwner } from './decorators/swagger-business.decorator';
 import { IdDto } from 'src/common/dto/id.dto';
+import { AddEmployeeDto } from './dto/add-employee.dto';
+import { EmployeeService } from './employee.service';
+import { EmploymentRequestService } from './employment-request.service';
+import { User } from '../users/schemas/user.schema';
+import { EmploymentRequestResponseDto } from './dto/employment-request-response.dto';
+import { AddEmployeePolicy } from './policies/add-employee.policy';
+import { RespondEmploymentRequestPolicy } from './policies/respond-employment-request.policy.ts';
 
 @UseGuards(JwtAuthGuard, PoliciesGuard)
 @Controller('business')
 export class BusinessController {
-  constructor(private readonly businessService: BusinessService) {}
+  constructor(
+    private readonly businessService: BusinessService,
+    private readonly employeeService: EmployeeService,
+    private readonly employmentRequestService: EmploymentRequestService,
+  ) { }
 
   @Post('request-create-business')
   @CheckPolicies(new CreateBusinessPolicy())
@@ -36,13 +47,13 @@ export class BusinessController {
     @AuthUser('id') userId: string,
   ): Promise<ApiResponseDto<Business>> {
     const newBusiness = await this.businessService.requestCreateBusiness(
-      createBusinessDto, 
+      createBusinessDto,
       new Types.ObjectId(userId)
     );
     return new ApiResponseDto("The business has been successfully requested", newBusiness);
   }
 
-  @Patch()  
+  @Patch()
   @CheckPolicies(new UpdateBusinessPolicy())
   @ApiUpdateBusinessByOwner()
   async updateBusinessByOwner(
@@ -58,13 +69,36 @@ export class BusinessController {
     return new ApiResponseDto("Business updated successfully", updatedBusiness);
   }
 
-  @Get()  
+  @Get()
   @CheckPolicies(new ReadBusinessPolicy())
   @ApiGetBusiness()
   async getBusiness(
-    @Query() idDto: IdDto,
-    @AuthUser('id') userId: string,
+    @Query() idDto: IdDto,    
   ) {
-    return this.businessService.findById(idDto.id, userId);
+    return this.businessService.findById(idDto.id);
+  }
+
+  @Post('employees')
+  @CheckPolicies(new AddEmployeePolicy())
+  @ApiAddEmployee() 
+  async addEmployee(
+    @Query('id') businessId: string,
+    @Body() addEmployeeDto: AddEmployeeDto,
+    @AuthUser('id') userId: string,
+  ): Promise<ApiResponseDto<any>> {
+    const result = await this.employeeService.addEmployee(businessId, addEmployeeDto, userId);
+    return new ApiResponseDto(result.message, result.addEmployeeResponseDto);
+  }
+
+  @Patch('employment-requests')
+  @CheckPolicies(new RespondEmploymentRequestPolicy())
+  @ApiRespondEmploymentRequest()
+  async rejectRequest(
+    @Query('id') requestId: string,
+    @Body('isAccepted') isAccepted: boolean,
+    @AuthUser() user: User,
+  ): Promise<ApiResponseDto<EmploymentRequestResponseDto>> {
+    const result = await this.employmentRequestService.manageEmploymentRequestResponse({ requestId, user, isAccepted });
+    return new ApiResponseDto(`Employment request ${isAccepted ? 'accepted' : 'rejected'}`, result);
   }
 }
