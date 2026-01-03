@@ -87,6 +87,17 @@ export class UpdateBusinessByOwnerDto {
   @IsOptional()
   @IsEnum(BusinessStatus)
   status?: BusinessStatus;
+
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'List of categories ids availables for the business',
+    example: ['69554e327f1dd0e6bda76601', '69554e327f1dd0e6bda76612'],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsMongoId({ each: true })
+  categories?: string[];
 }
 
 

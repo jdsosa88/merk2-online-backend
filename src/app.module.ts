@@ -7,6 +7,7 @@ import { VerificationCodeModule } from './modules/verification-code/verification
 import { MailerModule } from '@nestjs-modules/mailer';
 import { CaslModule } from './modules/casl/casl.module';
 import { BusinessModule } from './modules/business/business.module';
+import { CategoriesModule } from './modules/categories/categories.module';
 
 
 @Module({
@@ -44,6 +45,7 @@ import { BusinessModule } from './modules/business/business.module';
     VerificationCodeModule,
     CaslModule,
     BusinessModule,
+    CategoriesModule,
   ],
 })
 export class AppModule { }

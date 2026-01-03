@@ -15,6 +15,7 @@ import { UsersService } from '../users/users.service';
 import { Role } from '../users/types/users.type';
 import { UpdateUserAllDto } from '../users/dto/update-user.dto';
 import { Provider } from '../users/schemas/provider.schema';
+import { CategoriesService } from '../categories/categories.service';
 
 type BusinessUpdateData = {
   id: string,
@@ -27,6 +28,7 @@ export class BusinessService {
   constructor(
     @InjectModel(Business.name) private businessModel: Model<Business | null>,
     private readonly usersService: UsersService,
+    private readonly categoriesService: CategoriesService,
   ) { }
 
   async requestCreateBusiness(
@@ -79,6 +81,11 @@ export class BusinessService {
       throw new BadRequestException(
         'Business status can only be updated when status is requested or disabled'
       );
+    }
+
+    if (updateDtoData.categories) {
+      const areValidCategories = await this.categoriesService.existAllCategories(updateDtoData.categories);
+      if (!areValidCategories) throw new BadRequestException("You have at least an invalid category id");
     }
 
     const updatedBusiness = await this.businessModel.findByIdAndUpdate(

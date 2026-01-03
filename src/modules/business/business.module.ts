@@ -10,6 +10,7 @@ import { AdminBusinessController } from './admin-business.controller';
 import { EmploymentRequest, EmploymentRequestSchema } from './schemas/employment-request.schema';
 import { EmployeeService } from './employee.service';
 import { EmploymentRequestService } from './employment-request.service';
+import { CategoriesModule } from '../categories/categories.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { EmploymentRequestService } from './employment-request.service';
         ]),
         CaslModule,
         forwardRef(() => UsersModule),             
+        forwardRef(() => CategoriesModule),             
         forwardRef(() => ProductsModule),             
       ],
   controllers: [BusinessController, AdminBusinessController],

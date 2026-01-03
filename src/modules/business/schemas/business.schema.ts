@@ -49,7 +49,8 @@ export class Business {
   @Prop({ type: [Day], required: true, default: [Day] })
   week: Day[];
 
-  // faltan aqui categorias y sub-categorias
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Category' }], default: [] })
+  categories: Types.ObjectId[];
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   owner: Types.ObjectId;

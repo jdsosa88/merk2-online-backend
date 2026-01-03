@@ -12,6 +12,13 @@ type UserDataType = {
 type BusinessDataType = {
   message?: string;
 }
+
+type CategoryDataType = {
+  message?: string;
+  isRoot?: boolean;
+  withHierarchy?: boolean;
+  withChildren?: boolean;
+}
 @Injectable()
 export class SwaggerResponseUtils {
   getExampleResponseWithUser({ message, role = Role.CUSTOMER, isAdmin = false } : UserDataType) {
@@ -119,4 +126,169 @@ export class SwaggerResponseUtils {
     }
     return new ApiResponseDto(message, businessExample);
   }
+  getExampleResponseWithCategory({ message, isRoot = false, withHierarchy = false, withChildren = false }: CategoryDataType) {
+    const exampleCategory: any = {
+      _id: "60d21b4667d0d8992e610c86",
+      name: "Electronics",
+      level: isRoot ? 0 : 2,
+      isRoot: isRoot,
+      isActive: true,
+      description: "Electronic devices and gadgets",
+      icon: "electronics-icon",
+      color: "#FF5733",
+      createdAt: "2024-01-01T00:00:00.000Z",
+      updatedAt: "2024-01-01T00:00:00.000Z"
+    };
+
+    // Agregar jerarquía si se solicita
+    if (withHierarchy) {
+      exampleCategory.parents = isRoot ? [] : [
+        {
+          _id: "60d21b4667d0d8992e610c85",
+          name: "Home Appliances",
+          level: 1,
+          isRoot: false
+        },
+        {
+          _id: "60d21b4667d0d8992e610c84",
+          name: "Appliances",
+          level: 0,
+          isRoot: true
+        }
+      ];
+
+      exampleCategory.subcategories = withChildren ? [
+        {
+          _id: "60d21b4667d0d8992e610c87",
+          name: "Smartphones",
+          subcategories: [],
+          level: exampleCategory.level + 1,
+          isActive: true
+        },
+        {
+          _id: "60d21b4667d0d8992e610c88",
+          name: "Laptops",
+          subcategories: [
+            {
+              _id: "60d21b4667d0d8992e610c89",
+              name: "Gaming Laptops",
+              subcategories: [],
+              level: exampleCategory.level + 2,
+              isActive: true
+            }
+          ],
+          level: exampleCategory.level + 1,
+          isActive: true
+        }
+      ] : [];
+    }
+
+    if (message) {
+      return new ApiResponseDto(message, exampleCategory);
+    } else {
+      return new ApiResponseDto(exampleCategory);
+    }
+  }
+
+  getResponseWithCategoriesList({ isRoot = false } = {}) {
+    const listData: PaginatedListDto<any> = {
+      items: [
+        {
+          _id: "60d21b4667d0d8992e610c84",
+          name: "Electronics",
+          level: isRoot ? 0 : 2,
+          isRoot: isRoot,
+          isActive: true,
+          description: "Electronic devices",
+          icon: "electronics",
+          color: "#FF5733",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z"
+        },
+        {
+          _id: "60d21b4667d0d8992e610c85",
+          name: "Home & Garden",
+          level: isRoot ? 0 : 2,
+          isRoot: isRoot,
+          isActive: true,
+          description: "Home and garden items",
+          icon: "home",
+          color: "#33FF57",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z"
+        },
+        {
+          _id: "60d21b4667d0d8992e610c86",
+          name: "Clothing",
+          level: isRoot ? 0 : 2,
+          isRoot: isRoot,
+          isActive: false,
+          description: "Clothing items",
+          icon: "clothing",
+          color: "#3357FF",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z"
+        }
+      ],
+      total: 3,
+      page: 1,
+      perPage: 10,
+      totalPages: 1
+    };
+
+    return new ApiResponseDto(listData);
+  }
+
+  getExampleResponseWithCategoryTree() {
+    const treeExample = {
+      _id: "60d21b4667d0d8992e610c84",
+      name: "Electronics",
+      level: 0,
+      isRoot: true,
+      isActive: true,
+      description: "Electronic devices and gadgets",
+      icon: "electronics-icon",
+      color: "#FF5733",
+      subcategories: [
+        {
+          _id: "60d21b4667d0d8992e610c85",
+          name: "Computers",
+          level: 1,
+          isRoot: false,
+          isActive: true,
+          description: "Computers and accessories",
+          icon: "computer",
+          color: "#33FF57",
+          subcategories: [
+            {
+              _id: "60d21b4667d0d8992e610c86",
+              name: "Laptops",
+              level: 2,
+              isRoot: false,
+              isActive: true,
+              description: "Portable computers",
+              icon: "laptop",
+              color: "#5733FF",
+              subcategories: [
+                {
+                  _id: "60d21b4667d0d8992e610c87",
+                  name: "Gaming Laptops",
+                  level: 3,
+                  isRoot: false,
+                  isActive: true,
+                  description: "High-performance gaming laptops",
+                  icon: "gaming",
+                  color: "#FF33A1",
+                  subcategories: []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+
+    return new ApiResponseDto(treeExample);
+  }
+
 }
