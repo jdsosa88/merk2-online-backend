@@ -7,8 +7,9 @@ export const envValidationSchema = Joi.object({
     .default('development'),
   PORT: Joi.number().port().default(3000),
   APP_STATUS: Joi.string()
-    .valid('running', 'in_maintenance')
-    .default('running'),
+    .valid('operational', 'maintenance')
+    .default('operational'),
+  APP_VERSION: Joi.string().default('1.0.0'),
 
   // Database (REQUERIDO)
   MONGO_URI: Joi.string().uri().required(),

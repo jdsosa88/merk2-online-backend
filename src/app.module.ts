@@ -10,6 +10,7 @@ import { BusinessModule } from './modules/business/business.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import configuration from './config/configuration';
 import { envValidationSchema } from './config/schemas/env.schema';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { envValidationSchema } from './config/schemas/env.schema';
     CaslModule,
     BusinessModule,
     CategoriesModule,
+    HealthModule,
   ],
 })
 export class AppModule { }
