@@ -8,36 +8,34 @@ import { MailerModule } from '@nestjs-modules/mailer';
 import { CaslModule } from './modules/casl/casl.module';
 import { BusinessModule } from './modules/business/business.module';
 import { CategoriesModule } from './modules/categories/categories.module';
-
+import configuration from './config/configuration';
+import { envValidationSchema } from './config/schemas/env.schema';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
+      envFilePath: `src/config/envs/.env.${process.env.NODE_ENV || 'development'}`,
+      load: [configuration],
+      validationSchema: envValidationSchema,
+      validationOptions: {
+        abortEarly: false,
+      },
       isGlobal: true,
+      cache: true,
     }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        uri: `${config.get('MONGO_URI')}`,
+        uri: config.get<string>('database.uri'),
       }),
     }),
     MailerModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        transport: {
-          host: config.get<string>('MAILER_HOST'),
-          port: config.get<number>('MAILER_PORT'),
-          secure: config.get<boolean>('MAILER_SECURE') === true, // true -> 465, false -> 587
-          auth: {
-            user: config.get<string>('MAILER_AUTH_USER'),
-            pass: config.get<string>('MAILER_AUTH_PASS'),
-          },
-        },
-        defaults: {
-          from: `"${config.get('MAILER_EMAIL_FROM_NAME')}" <${config.get('MAILER_EMAIL_FROM_DOMAIN')}>`,
-        },
+        transport: config.get('mailer.transport'),
+        defaults: config.get('mailer.defaults'),
       }),
     }),
     UsersModule,

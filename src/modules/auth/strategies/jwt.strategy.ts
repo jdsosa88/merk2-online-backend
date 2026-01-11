@@ -7,10 +7,10 @@ import { UsersService } from "../../users/users.service";
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
-    private configService: ConfigService,
+    configService: ConfigService,
     private usersService: UsersService,
   ) {
-    const jwtSecret = configService.get<string>('JWT_ACCESS_SECRET');
+    const jwtSecret = configService.get<string>('auth.jwt.accessSecret');
     if (!jwtSecret) {
       throw new InternalServerErrorException('JWT_SECRET is not defined in environment variables');
     }

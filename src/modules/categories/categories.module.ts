@@ -17,4 +17,4 @@ import { CaslModule } from '../casl/casl.module';
   providers: [CategoriesService],
   exports: [CategoriesService]
 })
-export class CategoriesModule {}
+export class CategoriesModule { }

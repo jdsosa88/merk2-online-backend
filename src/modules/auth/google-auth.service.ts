@@ -10,14 +10,14 @@ export class GoogleAuthService {
 
   constructor(private configService: ConfigService) {
     this.googleClient = new OAuth2Client(
-      this.configService.get('GOOGLE_CLIENT_ID'),
-      this.configService.get('GOOGLE_CLIENT_SECRET'),
+      this.configService.get('auth.google.clientId'),
+      this.configService.get('auth.google.clientSecret'),
     );
   }
 
   async validateGoogleToken(token: string): Promise<GoogleUser> {
     try {
-      const clientId = this.configService.get('GOOGLE_CLIENT_ID');
+      const clientId = this.configService.get('auth.google.clientId');
       const ticket = await this.googleClient.verifyIdToken({
         idToken: token,
         audience: clientId,

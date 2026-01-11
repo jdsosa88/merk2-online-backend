@@ -19,6 +19,7 @@ import { Manager } from './schemas/manager.schema';
 import { Messenger } from './schemas/messenger.schema';
 import { CreateUserFactoryDto, UpdateUserFactoryDto } from './types/user-factory.type';
 import { Role } from './types/users.type';
+import { ConfigService } from '@nestjs/config';
 
 
 @Injectable()
@@ -31,6 +32,7 @@ export class UsersService {
     @InjectModel(Messenger.name) private messengerModel: Model<Messenger>,
     private readonly mailerService: MailerService,
     private readonly verificationCodeService: VerificationCodeService,
+    private readonly configService: ConfigService,
   ) { }
 
   async create(createUserDto: CreateUserFactoryDto, role: Role = Role.CUSTOMER): Promise<User> {
@@ -38,7 +40,12 @@ export class UsersService {
       createUserDto.role = role;
       const user = await this.userFactory.createUser({ createUserDto });
       if (role === Role.CUSTOMER) {
-        const activationCode = await this.verificationCodeService.createCode(user._id, 'activation', 3);
+        const verificationTimeInHours = this.configService.get<number>('verificationCode.expiresHours') || 3;
+        const activationCode = await this.verificationCodeService.createCode(
+          user._id, 
+          'activation', 
+          verificationTimeInHours
+        );
         await this.sendCodeEmail(user.email, 'activation', activationCode.code);
       }
       return user;
@@ -120,7 +127,12 @@ export class UsersService {
 
   async createDeleteVerificationCode(userId: Types.ObjectId, email: string): Promise<string> {
     try {
-      const deleteCode = await this.verificationCodeService.createCode(userId, 'delete');
+      const verificationTimeInHours = this.configService.get<number>('verificationCode.expiresHours') || 3;
+      const deleteCode = await this.verificationCodeService.createCode(
+        userId, 
+        'delete',
+        verificationTimeInHours
+      );
       await this.sendCodeEmail(email, 'delete', deleteCode.code);
       return "A delete code has been sent to your email";
     } catch (error) {

@@ -14,17 +14,17 @@ import { CategoriesModule } from '../categories/categories.module';
 
 @Module({
   imports: [
-        MongooseModule.forFeature([
-          { name: Business.name, schema: BusinessSchema },
-          { name: EmploymentRequest.name, schema: EmploymentRequestSchema },
-        ]),
-        CaslModule,
-        forwardRef(() => UsersModule),             
-        forwardRef(() => CategoriesModule),             
-        forwardRef(() => ProductsModule),             
-      ],
+    MongooseModule.forFeature([
+      { name: Business.name, schema: BusinessSchema },
+      { name: EmploymentRequest.name, schema: EmploymentRequestSchema },
+    ]),
+    CaslModule,
+    forwardRef(() => UsersModule),
+    forwardRef(() => CategoriesModule),
+    forwardRef(() => ProductsModule),
+  ],
   controllers: [BusinessController, AdminBusinessController],
   providers: [BusinessService, EmployeeService, EmploymentRequestService],
   exports: [BusinessService],
 })
-export class BusinessModule {}
+export class BusinessModule { }

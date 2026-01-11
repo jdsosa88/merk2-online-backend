@@ -109,11 +109,11 @@ export class AuthService {
       const user = await this.usersService.findByEmail(forgotPasswordDto.email, false);
       if (!user) throw new NotFoundException(`User not found`);
       if (!user.isActive) throw new UnauthorizedException(`User is not active`);
-
+      const verificationTimeInHours = this.configService.get<number>('verificationCode.expiresHours') || 3;
       const code = await this.verificationCodeService.createCode(
         user._id,
         'reset_password',
-        3
+        verificationTimeInHours
       );
       await this.sendResetPasswordEmail(user.email, code.code);
 
@@ -209,7 +209,7 @@ export class AuthService {
     let payload: any;
     try {
       payload = this.jwtService.verify(refreshToken, {
-        secret: this.configService.get('JWT_REFRESH_SECRET'),
+        secret: this.configService.get<string>('auth.jwt.refreshSecret'),
       });
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
@@ -227,14 +227,14 @@ export class AuthService {
 
   private async generateRefreshToken(payload: any): Promise<string> {
     return this.jwtService.sign(payload, {
-      secret: this.configService.get('JWT_REFRESH_SECRET'),
-      expiresIn: this.configService.get('JWT_REFRESH_EXPIRATION'),
+      secret: this.configService.get<string>('auth.jwt.refreshSecret'),
+      expiresIn: this.configService.get<string>('auth.jwt.refreshExpiration'),
     });
   }
 
   private async saveRefreshToken(refreshTokenData: IRefreshToken): Promise<RefreshToken> {
     await this.refreshTokenService.deletePreviousToken(refreshTokenData);
-    const expiration = this.configService.get('JWT_REFRESH_EXPIRATION');
+    const expiration = this.configService.get('auth.jwt.refreshExpiration');
     const expiresAt = new Date(Date.now() + ms(expiration));
     const refreshTokenDto: ICreateRefreshToken = {
       userId: refreshTokenData.userId,

@@ -93,7 +93,7 @@ export class BusinessController {
   @Patch('employment-requests')
   @CheckPolicies(new RespondEmploymentRequestPolicy())
   @ApiRespondEmploymentRequest()
-  async rejectRequest(
+  async acceptRejectRequest(
     @Query('id') requestId: string,
     @Body('isAccepted') isAccepted: boolean,
     @AuthUser() user: User,

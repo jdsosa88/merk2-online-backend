@@ -4,7 +4,7 @@ import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config'; // Ya está global
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { MongooseModule } from '@nestjs/mongoose';
 import { RefreshToken, RefreshTokenSchema } from './schemas/refresh-token.schema';
@@ -15,17 +15,18 @@ import { GoogleAuthService } from './google-auth.service';
 
 @Module({
   imports: [
-    ConfigModule,
+    // ConfigModule ya no necesita importarse aquí (es global)
     MongooseModule.forFeature([
       { name: RefreshToken.name, schema: RefreshTokenSchema },
     ]),
     PassportModule,
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
+    JwtModule.registerAsync({      
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_ACCESS_SECRET'),
-        signOptions: { expiresIn: config.get<string>('JWT_ACCESS_EXPIRATION') },
+        secret: config.get<string>('auth.jwt.accessSecret'),
+        signOptions: { 
+          expiresIn: config.get<string>('auth.jwt.accessExpiration') 
+        },
       }),
     }),
     CaslModule,

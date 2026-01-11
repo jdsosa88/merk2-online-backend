@@ -12,4 +12,4 @@ import { VerificationCode, VerificationCodeSchema } from './schemas/verification
   providers: [VerificationCodeService],
   exports: [VerificationCodeService],
 })
-export class VerificationCodeModule {}
+export class VerificationCodeModule { }
