@@ -6,6 +6,7 @@ import { Role } from '../users/types/users.type';
 import { EmploymentRequest } from '../business/schemas/employment-request.schema';
 import { Product } from '../products/schemas/product.schema';
 import { Category } from '../categories/schemas/category.schema';
+import { AppConfig } from '../health/schemas/app-config.schema';
 
 /**
  * Defines the possible actions that can be performed on resources
@@ -26,7 +27,10 @@ export type Subjects = InferSubjects<
   | typeof EmploymentRequest
   | typeof Category
   | typeof Product
-> | 'all';
+  | typeof AppConfig
+> 
+| 'Health'
+|'all';
 
 export type AppAbility = MongoAbility<[Action, Subjects]>;
 
@@ -56,6 +60,8 @@ export class CaslAbilityFactory {
     can(Action.READ, Category);
     can(Action.READ, Product);
     can(Action.READ, Business);
+    can(Action.READ, 'Health');
+    cannot(Action.MANAGE, AppConfig);
 
     //Role based module
     switch (user.role) {
