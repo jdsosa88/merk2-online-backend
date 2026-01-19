@@ -1,9 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsString, Length } from 'class-validator';
 
 export class GoogleAuthDto {
-  @ApiProperty({ example: '1234eweqqw1212sasa1' })
+  @ApiProperty({ 
+    example: 'ya29.a0AfH6SMB...',
+    description: 'Google ID token received from Google Sign-In',
+    minLength: 100
+  })
   @IsNotEmpty()
-  @IsString()
+  @IsString()  
   token: string;
 }

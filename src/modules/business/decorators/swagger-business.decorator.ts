@@ -1,12 +1,14 @@
 import { applyDecorators } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiQuery } from "@nestjs/swagger";
 import { ApiResponseDto } from "src/common/dto/api-response.dto";
+import { ErrorResponseDto } from "src/common/dto/error-response.dto";
 import { Business } from "../schemas/business.schema";
 import { SwaggerResponseUtils } from "src/common/utils/swagger-response-utils";
 import { AddEmployeeResponseDto } from "../dto/add-employee-response.dto";
 import { EmploymentRequestResponseDto } from "../dto/employment-request-response.dto";
 
 export function ApiRequestCreateBusiness() {
+  const utils = new SwaggerResponseUtils();
   return applyDecorators(
     ApiOperation({ summary: 'Request create a new business by an user with CUSTOMER role' }),
     ApiBearerAuth('JWT'),
@@ -14,54 +16,175 @@ export function ApiRequestCreateBusiness() {
       status: 201,
       description: 'The business has been successfully requested',
       type: ApiResponseDto<Business>,
-      example: new SwaggerResponseUtils().getResponseWithBusinessResponse({
+      example: utils.getResponseWithBusinessResponse({
         message: 'The business has been successfully requested'
       }),
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Bad request - validation error',
+      type: ErrorResponseDto,
+      example: utils.getBadRequestError(['Name should not be empty'])
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized - Invalid or missing JWT token',
+      type: ErrorResponseDto,
+      example: utils.getInvalidTokenError()
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Insufficient permissions',
+      type: ErrorResponseDto,
+      example: utils.getInsufficientPermissionsError()
+    }),
+    ApiResponse({
+      status: 500,
+      description: 'Internal server error',
+      type: ErrorResponseDto,
+      example: utils.getInternalServerError()
     }),
   );
 }
 
 export function ApiUpdateBusinessByOwner() {
+  const utils = new SwaggerResponseUtils();
   return applyDecorators(
     ApiOperation({ summary: 'Update business (owner only, if passed dto status must be requested or disabled)' }),
+    ApiBearerAuth('JWT'),
     ApiResponse({
       status: 200,
       description: 'Business updated successfully',
       type: ApiResponseDto<Business>,
-      example: new SwaggerResponseUtils().getResponseWithBusinessResponse({
+      example: utils.getResponseWithBusinessResponse({
         message: 'Business updated successfully'
-      })
+      }),
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Bad request - validation error or business status invalid',
+      type: ErrorResponseDto,
+      examples: {
+        businessNotAccepted: { summary: 'Business not accepted', value: utils.getBusinessNotAcceptedError() },
+        invalidStatusUpdate: { summary: 'Invalid status update', value: utils.getBusinessInvalidStatusError() },
+        invalidCategory: { summary: 'Invalid category', value: utils.getBusinessInvalidCategoryError() },
+        failedUpdate: { summary: 'Failed update', value: utils.getBadRequestError('Failed update operation') },
+        validationError: { summary: 'Validation error', value: utils.getValidationError(['Name should not be empty']) }
+      }
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized - Invalid or missing JWT token',
+      type: ErrorResponseDto,
+      example: utils.getInvalidTokenError()
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - User is not the owner of the business',
+      type: ErrorResponseDto,
+      example: utils.getForbiddenError('You are not the owner of this business')
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Business not found',
+      type: ErrorResponseDto,
+      example: utils.getBusinessNotFoundError()
+    }),
+    ApiResponse({
+      status: 500,
+      description: 'Internal server error',
+      type: ErrorResponseDto,
+      example: utils.getInternalServerError()
     }),
   );
 }
 
 export function ApiGetBusiness() {
+  const utils = new SwaggerResponseUtils();
   return applyDecorators(
     ApiOperation({ summary: 'Get business details (owner only)' }),
+    ApiBearerAuth('JWT'),
     ApiResponse({
       status: 200,
       description: 'Business details',
       type: ApiResponseDto<Business>,
-      example: new SwaggerResponseUtils().getResponseWithBusinessResponse({}),
+      example: utils.getResponseWithBusinessResponse({}),
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized - Invalid or missing JWT token',
+      type: ErrorResponseDto,
+      example: utils.getInvalidTokenError()
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Insufficient permissions',
+      type: ErrorResponseDto,
+      example: utils.getInsufficientPermissionsError()
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Business not found',
+      type: ErrorResponseDto,
+      example: utils.getBusinessNotFoundError()
+    }),
+    ApiResponse({
+      status: 500,
+      description: 'Internal server error',
+      type: ErrorResponseDto,
+      example: utils.getInternalServerError()
     }),
   );
 }
 
 export function ApiUpdateBusinessByAdmin() {
+  const utils = new SwaggerResponseUtils();
   return applyDecorators(
     ApiOperation({ summary: 'Admin: Update any business field' }),
+    ApiBearerAuth('JWT'),
     ApiResponse({
       status: 200,
       description: 'Business updated successfully',
       type: ApiResponseDto<Business>,
-      example: new SwaggerResponseUtils().getResponseWithBusinessResponse({
+      example: utils.getResponseWithBusinessResponse({
         message: 'Business updated successfully',
       }),
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Bad request - validation error',
+      type: ErrorResponseDto,
+      example: utils.getBadRequestError('Failed update operation')
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized - Invalid or missing JWT token',
+      type: ErrorResponseDto,
+      example: utils.getInvalidTokenError()
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - User is not an admin',
+      type: ErrorResponseDto,
+      example: utils.getInsufficientPermissionsError()
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Business not found',
+      type: ErrorResponseDto,
+      example: utils.getBusinessNotFoundError()
+    }),
+    ApiResponse({
+      status: 500,
+      description: 'Internal server error',
+      type: ErrorResponseDto,
+      example: utils.getInternalServerError()
     }),
   );
 }
 
 export function ApiAddEmployee() {
+  const utils = new SwaggerResponseUtils();
   return applyDecorators(
     ApiOperation({ summary: 'Add an employee to a business (owner or admin only)' }),
     ApiBearerAuth('JWT'),
@@ -70,18 +193,76 @@ export function ApiAddEmployee() {
       status: 200,
       description: 'Employee added successfully',
       type: ApiResponseDto<AddEmployeeResponseDto>,
-      example: new SwaggerResponseUtils().getResponseWithBusinessResponse({
+      example: utils.getResponseWithBusinessResponse({
         message: 'Employee added successfully'
       }),
     }),
-    ApiResponse({ status: 404, description: 'Business not found' }),
-    ApiResponse({ status: 400, description: 'Business must have status ACCEPTED to add employees' }),
-    ApiResponse({ status: 403, description: 'Only business owner or admin can add employees' }),
-    ApiResponse({ status: 409, description: 'Employee already exists or pending request exists' }),
+    ApiResponse({
+      status: 400,
+      description: 'Bad request',
+      type: ErrorResponseDto,
+      examples: {
+        businessNotAccepted: {
+          summary: 'Business not accepted',
+          value: utils.getBadRequestError('Business must have status ACCEPTED to add employees')
+        },
+        missingNames: {
+          summary: 'Missing names',
+          value: utils.getBadRequestError('First name and last name are required to create a new user')
+        },
+        invalidEmployeeType: {
+          summary: 'Invalid employee type',
+          value: utils.getBadRequestError('Invalid employee type or user role')
+        },
+        managerAlreadyAssigned: {
+          summary: 'Manager already assigned',
+          value: utils.getEmployeeAlreadyAssignedError()
+        },
+        differentProvider: {
+          summary: 'Different provider',
+          value: utils.getBadRequestError('Messenger is already working for a different provider')
+        }
+      }
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized - Invalid or missing JWT token',
+      type: ErrorResponseDto,
+      example: utils.getInvalidTokenError()
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Only business owner or admin can add employees',
+      type: ErrorResponseDto,
+      example: utils.getForbiddenError('Only business owner or admin can add employees')
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Business not found',
+      type: ErrorResponseDto,
+      example: utils.getBusinessNotFoundError()
+    }),
+    ApiResponse({
+      status: 409,
+      description: 'Conflict',
+      type: ErrorResponseDto,
+      examples: {
+        employeeExists: { summary: 'Employee exists', value: utils.getEmployeeAlreadyExistsError() },
+        requestExists: { summary: 'Request exists', value: utils.getEmploymentRequestExistsError() },
+        messengerAssociated: { summary: 'Messenger associated', value: utils.getConflictError('Messenger is already associated with this business') }
+      }
+    }),
+    ApiResponse({
+      status: 500,
+      description: 'Internal server error',
+      type: ErrorResponseDto,
+      example: utils.getInternalServerError()
+    }),
   );
 }
 
 export function ApiRespondEmploymentRequest() {
+  const utils = new SwaggerResponseUtils();
   return applyDecorators(
     ApiOperation({ summary: 'Respond to an employment request (accept/reject)' }),
     ApiBearerAuth('JWT'),
@@ -90,12 +271,52 @@ export function ApiRespondEmploymentRequest() {
       status: 200,
       description: 'Employment request accepted/rejected successfully',
       type: ApiResponseDto<EmploymentRequestResponseDto>,
-      example: new SwaggerResponseUtils().getResponseWithBusinessResponse({
+      example: utils.getResponseWithBusinessResponse({
         message: 'Employment request accepted'
       }),
     }),
-    ApiResponse({ status: 404, description: 'Employment request not found' }),
-    ApiResponse({ status: 403, description: 'You can only respond to your own employment requests' }),
-    ApiResponse({ status: 400, description: 'Request is already processed or has expired' }),
+    ApiResponse({
+      status: 400,
+      description: 'Bad request',
+      type: ErrorResponseDto,
+      examples: {
+        requestProcessed: {
+          summary: 'Request processed',
+          value: utils.getBadRequestError('Request is already processed')
+        },
+        requestExpired: {
+          summary: 'Request expired',
+          value: utils.getEmploymentRequestExpiredError()
+        },
+        notCustomer: {
+          summary: 'Not customer',
+          value: utils.getBadRequestError('Only customers can accept employment requests')
+        }
+      }
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized - Invalid or missing JWT token',
+      type: ErrorResponseDto,
+      example: utils.getInvalidTokenError()
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - You can only respond to your own employment requests',
+      type: ErrorResponseDto,
+      example: utils.getForbiddenError('You can only respond to your own employment requests')
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Employment request not found',
+      type: ErrorResponseDto,
+      example: utils.getNotFoundError('Employment request not found')
+    }),
+    ApiResponse({
+      status: 500,
+      description: 'Internal server error',
+      type: ErrorResponseDto,
+      example: utils.getInternalServerError()
+    }),
   );
 }

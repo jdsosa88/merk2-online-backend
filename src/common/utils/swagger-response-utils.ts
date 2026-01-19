@@ -3,6 +3,7 @@ import { ApiResponseDto } from "../dto/api-response.dto";
 import { Role } from "src/modules/users/types/users.type";
 import { PaginatedListDto } from "../dto/paginated-list.dto";
 import { ProductType } from "src/modules/products/schemas/product.schema";
+import { ErrorResponseDto } from "../dto/error-response.dto";
 
 type UserDataType = {
   message?: string,
@@ -428,6 +429,142 @@ export class SwaggerResponseUtils {
     };
 
     return new ApiResponseDto(treeExample);
+  }
+
+  getErrorResponse(statusCode: number, error: string, message: string | string[], data?: any): ErrorResponseDto {
+    const errorResponse: ErrorResponseDto = {
+      timestamp: new Date().toISOString(),
+      statusCode,
+      error,
+      message: Array.isArray(message) ? message[0] : message,
+      data
+    };
+    return errorResponse;
+  }
+
+  getUnauthorizedError(message: string = 'Unauthorized'): ErrorResponseDto {
+    return this.getErrorResponse(401, 'Unauthorized', message);
+  }
+
+  getForbiddenError(message: string = 'Forbidden resource'): ErrorResponseDto {
+    return this.getErrorResponse(403, 'Forbidden', message);
+  }
+
+  getNotFoundError(message: string = 'Resource not found'): ErrorResponseDto {
+    return this.getErrorResponse(404, 'Not Found', message);
+  }
+
+  getBadRequestError(message: string | string[]): ErrorResponseDto {
+    return this.getErrorResponse(400, 'Bad Request', message);
+  }
+
+  getConflictError(message: string): ErrorResponseDto {
+    return this.getErrorResponse(409, 'Conflict', message);
+  }
+
+  getUnprocessableEntityError(message: string): ErrorResponseDto {
+    return this.getErrorResponse(422, 'Unprocessable Entity', message);
+  }
+
+  getInternalServerError(message: string = 'Internal server error'): ErrorResponseDto {
+    return this.getErrorResponse(500, 'Internal Server Error', message);
+  }
+
+  getValidationError(messages: string[]): ErrorResponseDto {
+    return this.getBadRequestError(messages);
+  }
+
+  getInsufficientPermissionsError(): ErrorResponseDto {
+    return this.getForbiddenError('Insufficient permissions');
+  }
+
+  getInvalidApiKeyError(): ErrorResponseDto {
+    return this.getUnauthorizedError('Invalid or missing API key');
+  }
+
+  getInvalidTokenError(message: string = 'Authentication error'): ErrorResponseDto {
+    return this.getUnauthorizedError(message);
+  }
+
+  getInactiveUserError(): ErrorResponseDto {
+    return this.getUnauthorizedError('Inactive user');
+  }
+
+  // Métodos específicos para business
+  getBusinessNotFoundError(): ErrorResponseDto {
+    return this.getNotFoundError('Business not found');
+  }
+
+  getBusinessNotAcceptedError(): ErrorResponseDto {
+    return this.getBadRequestError('Your business have not accepted status yet');
+  }
+
+  getBusinessInvalidStatusError(): ErrorResponseDto {
+    return this.getBadRequestError('Business status can only be updated when status is requested or disabled');
+  }
+
+  getBusinessInvalidCategoryError(): ErrorResponseDto {
+    return this.getBadRequestError('You have at least an invalid category id');
+  }
+
+  // Métodos específicos para categories
+  getCategoryConflictError(name: string): ErrorResponseDto {
+    return this.getConflictError(`Category with name "${name}" already exists`);
+  }
+
+  getCategoryNotFoundError(id: string): ErrorResponseDto {
+    return this.getNotFoundError(`Category with ID ${id} not found`);
+  }
+
+  getCategoryHasSubcategoriesError(): ErrorResponseDto {
+    return this.getBadRequestError('Cannot delete category with subcategories');
+  }
+
+  // Métodos específicos para products
+  getProductSkuConflictError(sku: string): ErrorResponseDto {
+    return this.getConflictError(`Product with SKU "${sku}" already exists`);
+  }
+
+  getProductNotFoundError(id: string): ErrorResponseDto {
+    return this.getNotFoundError(`Product with ID ${id} not found`);
+  }
+
+  getProductSkuNotFoundError(sku: string): ErrorResponseDto {
+    return this.getNotFoundError(`Product with SKU ${sku} not found`);
+  }
+
+  getProductInvalidAddonsError(): ErrorResponseDto {
+    return this.getBadRequestError('One or more addons are invalid or not of type ADDON');
+  }
+
+  getProductInsufficientStockError(): ErrorResponseDto {
+    return this.getBadRequestError('Insufficient stock');
+  }
+
+  // Métodos específicos para employees
+  getEmployeeAlreadyExistsError(): ErrorResponseDto {
+    return this.getConflictError('Employee already exists');
+  }
+
+  getEmployeeAlreadyAssignedError(): ErrorResponseDto {
+    return this.getBadRequestError('Manager is already assigned to a business');
+  }
+
+  getEmploymentRequestExistsError(): ErrorResponseDto {
+    return this.getConflictError('A pending employment request already exists for this user');
+  }
+
+  getEmploymentRequestExpiredError(): ErrorResponseDto {
+    return this.getBadRequestError('Employment request has expired');
+  }
+
+  // Métodos específicos para app-config
+  getAppConfigExistsError(): ErrorResponseDto {
+    return this.getConflictError('App configuration already exists. Use update instead.');
+  }
+
+  getAppConfigNotFoundError(): ErrorResponseDto {
+    return this.getNotFoundError('App configuration not found');
   }
 
 }

@@ -4,8 +4,11 @@ import { PaginationListParamsDto } from "src/common/dto/pagination-list-params.d
 import { Role } from "../types/users.type";
 
 export class ListUsersQueryDto extends PaginationListParamsDto {
-
-  @ApiPropertyOptional({example: `${Role.MESSENGER}, ${Role.PROVIDER}`, default: 'undefined'})
+  @ApiPropertyOptional({
+    example: `${Role.MESSENGER},${Role.PROVIDER}`,
+    description: 'Comma-separated list of roles to filter users. Available roles: ADMIN, CUSTOMER, PROVIDER, MANAGER, MESSENGER',
+    default: undefined
+  })
   @IsOptional()
   @IsString()
   role?: string;  
