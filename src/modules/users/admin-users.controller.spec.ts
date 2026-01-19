@@ -6,13 +6,12 @@ import { PoliciesGuard } from '../../common/guards/policies.guard';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { IdDto } from '../../common/dto/id.dto';
-import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { ApiResponseDto } from '../../common/dto/api-response.dto';
-import { User, Role } from './schemas/user.schema';
+import { User } from './schemas/user.schema';
 import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { CaslAbilityFactory } from '../casl/casl-ability.factory';
 import { Reflector } from '@nestjs/core';
-import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
+import { Role } from './types/users.type';
 
 describe('AdminUsersController', () => {
   let controller: AdminUsersController;

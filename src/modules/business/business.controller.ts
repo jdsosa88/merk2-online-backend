@@ -73,14 +73,15 @@ export class BusinessController {
   @CheckPolicies(new ReadBusinessPolicy())
   @ApiGetBusiness()
   async getBusiness(
-    @Query() idDto: IdDto,    
-  ) {
-    return this.businessService.findById(idDto.id);
+    @Query() idDto: IdDto,
+  ): Promise<ApiResponseDto<Business>> {
+    const business = await this.businessService.findById(idDto.id);
+    return new ApiResponseDto('Business retrieved successfully', business);
   }
 
   @Post('employees')
   @CheckPolicies(new AddEmployeePolicy())
-  @ApiAddEmployee() 
+  @ApiAddEmployee()
   async addEmployee(
     @Query('id') businessId: string,
     @Body() addEmployeeDto: AddEmployeeDto,
@@ -98,7 +99,12 @@ export class BusinessController {
     @Body('isAccepted') isAccepted: boolean,
     @AuthUser() user: User,
   ): Promise<ApiResponseDto<EmploymentRequestResponseDto>> {
-    const result = await this.employmentRequestService.manageEmploymentRequestResponse({ requestId, user, isAccepted });
-    return new ApiResponseDto(`Employment request ${isAccepted ? 'accepted' : 'rejected'}`, result);
+    const result = await this.employmentRequestService.manageEmploymentRequestResponse({
+      requestId,
+      user,
+      isAccepted
+    });
+    const message = `Employment request ${isAccepted ? 'accepted' : 'rejected'}`;
+    return new ApiResponseDto(message, result);
   }
 }

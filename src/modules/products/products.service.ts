@@ -13,6 +13,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { BusinessService } from '../business/business.service';
 import { CategoriesService } from '../categories/categories.service';
+import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
 
 @Injectable()
 export class ProductsService {
@@ -135,7 +136,7 @@ export class ProductsService {
     includeInactive: boolean = false,
     page: number = 1,
     perPage: number = 20
-  ): Promise<{ products: Product[]; total: number; pages: number }> {
+  ): Promise<PaginatedListDto<Product>> {
     const query: any = {};
 
     if (!includeInactive) {
@@ -170,9 +171,11 @@ export class ProductsService {
     ]);
 
     return {
-      products,
+      items: products,
       total,
-      pages: Math.ceil(total / perPage)
+      page,
+      perPage,
+      totalPages: Math.ceil(total / perPage)
     };
   }
 

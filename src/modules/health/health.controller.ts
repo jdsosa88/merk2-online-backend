@@ -9,9 +9,9 @@ import { HealthService } from './health.service';
 import { ApiKeyGuard } from 'src/common/guards/api-key.guard';
 import { HealthStatus } from './types/health-status.interface';
 import { AppConfigService } from './app-config.service';
+import { ApiResponseDto } from 'src/common/dto/api-response.dto';
 
 @ApiTags('Health')
-@UseGuards(ApiKeyGuard)
 @Controller('health')
 export class HealthController {
   constructor(
@@ -21,6 +21,7 @@ export class HealthController {
   ) {}
 
   @Get('status')
+  @UseGuards(ApiKeyGuard)
   @ApiGetHealthStatus()
   async getStatus(): Promise<HealthStatus> {
     const appStatus = this.configService.get<string>('app.status');
@@ -48,11 +49,9 @@ export class HealthController {
   }
   
   @Get('ping')
+  @UseGuards(ApiKeyGuard)
   @ApiGetHealthPing()
-  async ping() {
-    return {
-      message: 'success',
-      timestamp: new Date().toISOString()
-    };
+  async ping(): Promise<ApiResponseDto> {
+    return new ApiResponseDto('success');
   }  
 }

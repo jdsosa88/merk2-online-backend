@@ -8,13 +8,14 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ApiResponseDto } from '../../common/dto/api-response.dto';
-import { Role, User, UserRole } from './schemas/user.schema';
+import {  User } from './schemas/user.schema';
 import { UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { VerificationCodeDto } from './dto/verification-code.dto';
 import { CaslAbilityFactory } from '../casl/casl-ability.factory';
 import { IdDto } from 'src/common/dto/id.dto';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
+import { Role, UserRole } from './types/users.type';
 
 describe('UsersController', () => {
   let controller: UsersController;

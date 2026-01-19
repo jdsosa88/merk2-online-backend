@@ -4,7 +4,6 @@ import {
   Post, 
   Body, 
   Patch, 
-  Param, 
   Delete, 
   Query,
   ParseBoolPipe,
@@ -36,6 +35,9 @@ import {
   ApiAddProductReview,
   ApiIncrementTimesOrdered
 } from './decorators/swagger-products.decorator';
+import { ApiResponseDto } from 'src/common/dto/api-response.dto';
+import { Product } from './schemas/product.schema';
+import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
 
 @UseGuards(JwtAuthGuard, PoliciesGuard)
 @Controller('products')
@@ -44,8 +46,12 @@ export class ProductsController {
 
   @Post()
   @ApiCreateProduct()
-  async create(@AuthUser('id') userId: string, @Body() createProductDto: CreateProductDto) {
-    return this.productsService.create(createProductDto, userId);
+  async create(
+    @AuthUser('id') userId: string, 
+    @Body() createProductDto: CreateProductDto
+  ): Promise<ApiResponseDto<Product>> {
+    const product = await this.productsService.create(createProductDto, userId);
+    return new ApiResponseDto("Product created successfully", product);
   }
 
   @Get('list')
@@ -57,8 +63,9 @@ export class ProductsController {
     @Query('includeInactive', new DefaultValuePipe(false), ParseBoolPipe) includeInactive?: boolean,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) perPage?: number
-  ) {
-    return this.productsService.findAll(businessId, categoryId, type, includeInactive, page, perPage);
+  ): Promise<ApiResponseDto<PaginatedListDto<Product>>> {
+    const result = await this.productsService.findAll(businessId, categoryId, type, includeInactive, page, perPage);
+    return new ApiResponseDto("Products retrieved successfully", result);
   }
 
   @Get('search')
@@ -71,15 +78,17 @@ export class ProductsController {
     @Query('minPrice') minPrice?: number,
     @Query('maxPrice') maxPrice?: number,
     @Query('inStockOnly', new DefaultValuePipe(false), ParseBoolPipe) inStockOnly?: boolean
-  ) {
-    return this.productsService.searchProducts(
+  ): Promise<ApiResponseDto<Product[]>> {
+    const products = await this.productsService.searchProducts(
       searchTerm, 
       businessId, 
       categoryId,
       type, 
       minPrice, 
       maxPrice, 
-      inStockOnly);
+      inStockOnly
+    );
+    return new ApiResponseDto("Products search completed", products);
   }
 
   @Get('business')
@@ -87,8 +96,9 @@ export class ProductsController {
   async getBusinessProducts(
     @Query('businessId') businessId: string,
     @Query('type', new ParseEnumPipe(ProductType, { optional: true })) type?: ProductType,
-  ) {
-    return this.productsService.getBusinessProducts(businessId, type);
+  ): Promise<ApiResponseDto<Product[]>> {
+    const products = await this.productsService.getBusinessProducts(businessId, type);
+    return new ApiResponseDto("Business products retrieved", products);
   }
 
   @Get('category')
@@ -96,32 +106,40 @@ export class ProductsController {
   async getCategoryProducts(
     @Query('categoryId') categoryId: string,
     @Query('type', new ParseEnumPipe(ProductType, { optional: true })) type?: ProductType,
-  ) {
-    return this.productsService.getCategoryProducts(categoryId, type);
+  ): Promise<ApiResponseDto<Product[]>> {
+    const products = await this.productsService.getCategoryProducts(categoryId, type);
+    return new ApiResponseDto("Category products retrieved", products);
   }
 
   @Get('sku')
   @ApiFindProductBySku()
-  async findBySku(@Query('sku') sku: string) {
-    return this.productsService.findBySku(sku);
+  async findBySku(@Query('sku') sku: string): Promise<ApiResponseDto<Product>> {
+    const product = await this.productsService.findBySku(sku);
+    return new ApiResponseDto("Product retrieved by SKU", product);
   }
 
   @Get()
   @ApiFindProductById()
-  async findOne(@Query('id') id: string) {
-    return this.productsService.findOne(id);
+  async findOne(@Query('id') id: string): Promise<ApiResponseDto<Product>> {
+    const product = await this.productsService.findOne(id);
+    return new ApiResponseDto("Product retrieved", product);
   }
 
   @Patch()
   @ApiUpdateProduct()
-  async update(@Query('id') id: string, @Body() updateProductDto: UpdateProductDto) {
-    return this.productsService.update(id, updateProductDto);
+  async update(
+    @Query('id') id: string, 
+    @Body() updateProductDto: UpdateProductDto
+  ): Promise<ApiResponseDto<Product>> {
+    const product = await this.productsService.update(id, updateProductDto);
+    return new ApiResponseDto("Product updated successfully", product);
   }
 
   @Delete()
   @ApiDeleteProduct()
-  async remove(@Query('id') id: string) {
-    return this.productsService.remove(id);
+  async remove(@Query('id') id: string): Promise<ApiResponseDto<Product>> {
+    const product = await this.productsService.remove(id);
+    return new ApiResponseDto("Product deleted successfully", product);
   }
 
   @Patch('stock')
@@ -131,8 +149,9 @@ export class ProductsController {
     @Query('id') id: string,
     @Query('quantity', ParseIntPipe) quantity: number,
     @Query('operation') operation: 'add' | 'subtract'
-  ) {
-    return this.productsService.updateStock(id, quantity, operation);
+  ): Promise<ApiResponseDto<Product>> {
+    const product = await this.productsService.updateStock(id, quantity, operation);
+    return new ApiResponseDto("Product stock updated", product);
   }
 
   @Patch('review')
@@ -141,14 +160,16 @@ export class ProductsController {
   async addReview(
     @Query('id') id: string,
     @Query('rating', ParseIntPipe) rating: number
-  ) {
-    return this.productsService.addReview(id, rating);
+  ): Promise<ApiResponseDto<Product>> {
+    const product = await this.productsService.addReview(id, rating);
+    return new ApiResponseDto("Review added to product", product);
   }
 
   @Patch('increment-ordered')
   @HttpCode(HttpStatus.OK)
   @ApiIncrementTimesOrdered()
-  async incrementTimesOrdered(@Query('id') id: string) {
-    return this.productsService.incrementTimesOrdered(id);
+  async incrementTimesOrdered(@Query('id') id: string): Promise<ApiResponseDto<Product>> {
+    const product = await this.productsService.incrementTimesOrdered(id);
+    return new ApiResponseDto("Times ordered incremented", product);
   }
 }

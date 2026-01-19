@@ -14,6 +14,7 @@ import {
   ApiUpdateAppConfig,
   ApiDeleteAppConfig
 } from './decorators/swagger-health.decorator';
+import { ApiResponseDto } from 'src/common/dto/api-response.dto';
 
 @ApiTags('Health - App Config')
 @UseGuards(JwtAuthGuard, PoliciesGuard)
@@ -24,29 +25,33 @@ export class AppConfigController {
   @Post()
   @ApiCreateAppConfig()
   @CheckPolicies(new ManageAppConfigPolicy())
-  async create(@Body() createAppConfigDto: CreateAppConfigDto): Promise<AppConfig> {
-    return this.appConfigService.create(createAppConfigDto);
+  async create(@Body() createAppConfigDto: CreateAppConfigDto): Promise<ApiResponseDto<AppConfig>> {
+    const appConfig = await this.appConfigService.create(createAppConfigDto);
+    return new ApiResponseDto('App configuration created successfully', appConfig);
   }
 
   @Get()
   @ApiGetAppConfig()
   @CheckPolicies(new ManageAppConfigPolicy())
-  async findOne(): Promise<AppConfig> {
-    return this.appConfigService.findOne();
+  async findOne(): Promise<ApiResponseDto<AppConfig>> {
+    const appConfig = await this.appConfigService.findOne();
+    return new ApiResponseDto('App configuration retrieved successfully', appConfig);
   }
 
   @Patch()
   @ApiUpdateAppConfig()
   @CheckPolicies(new ManageAppConfigPolicy())
-  async update(@Body() updateAppConfigDto: UpdateAppConfigDto): Promise<AppConfig> {
-    return this.appConfigService.update(updateAppConfigDto);
+  async update(@Body() updateAppConfigDto: UpdateAppConfigDto): Promise<ApiResponseDto<AppConfig>> {
+    const appConfig = await this.appConfigService.update(updateAppConfigDto);
+    return new ApiResponseDto('App configuration updated successfully', appConfig);
   }
 
   @Delete()
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiDeleteAppConfig()
   @CheckPolicies(new ManageAppConfigPolicy())
-  async remove(): Promise<void> {
+  async remove(): Promise<ApiResponseDto> {
     await this.appConfigService.remove();
+    return new ApiResponseDto('App configuration deleted successfully');
   }
 }
