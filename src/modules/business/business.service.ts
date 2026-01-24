@@ -104,6 +104,70 @@ export class BusinessService {
     return business;
   }
 
+  async findAllPaginated(query: ListBusinessQueryDto): Promise<PaginatedListDto<Business>> {
+    try {
+      const page: number = Number(query.page) || 1;
+      const perPage: number = Number(query.perPage) || 25;
+
+      const filter: any = {};
+
+      // Filtro por estados (status)
+      if (query.status && query.status.trim().length > 0) {
+        const statuses = query.status.split(',').map(s => s.trim()).filter((status) => {
+          return status === BusinessStatus.REQUESTED ||
+            status === BusinessStatus.ACCEPTED ||
+            status === BusinessStatus.PENDING ||
+            status === BusinessStatus.DISABLED;
+        });
+        if (statuses.length > 0) {
+          filter.status = { $in: statuses };
+        }
+      }
+
+      // Filtro por nombre (búsqueda parcial, insensible a mayúsculas, minusculas y diacriticos)
+      if (query.name && query.name.trim().length > 0) {
+        const regex = createDiacriticInsensitiveRegex(query.name);
+        filter.name = { $regex: regex };
+      }
+
+      // Filtro por categorías
+      if (query.categories && query.categories.trim().length > 0) {
+        const categoryIds = query.categories.split(',').map(id => id.trim()).filter(id => Types.ObjectId.isValid(id));
+        if (categoryIds.length > 0) {
+          filter.categories = { $in: categoryIds.map(id => new Types.ObjectId(id)) };
+        }
+      }
+
+      // Filtro por dueño (owner)
+      if (query.owner && query.owner.trim().length > 0 && Types.ObjectId.isValid(query.owner)) {
+        filter.owner = new Types.ObjectId(query.owner);
+      }
+
+      const items: Business[] = await this.businessModel
+        .find(filter)
+        .skip((page - 1) * perPage)
+        .limit(perPage)
+        .populate('owner', 'firstName lastName email')
+        .populate('categories', 'name')
+        .exec();
+
+      const total: number = await this.businessModel.countDocuments(filter).exec();
+      const totalPages: number = Math.ceil(total / perPage) || 1;
+
+      const paginatedList: PaginatedListDto<Business> = {
+        items,
+        total,
+        page,
+        perPage,
+        totalPages,
+      };
+
+      return paginatedList;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   async addProduct(businessId: string, productId: Types.ObjectId) {
     const _id = new Types.ObjectId(businessId);
     const business = await this.businessModel.findOne(_id);

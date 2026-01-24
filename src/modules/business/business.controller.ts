@@ -20,7 +20,7 @@ import { UpdateBusinessByOwnerDto } from './dto/update-business.dto';
 import { UpdateBusinessPolicy } from './policies/update-business.policy';
 import { ReadBusinessPolicy } from './policies/read-business.policy';
 import { ApiResponseDto } from 'src/common/dto/api-response.dto';
-import { ApiAddEmployee, ApiGetBusiness, ApiRequestCreateBusiness, ApiRespondEmploymentRequest, ApiUpdateBusinessByOwner } from './decorators/swagger-business.decorator';
+import { ApiAddEmployee, ApiGetBusiness, ApiListBusiness, ApiRequestCreateBusiness, ApiRespondEmploymentRequest, ApiUpdateBusinessByOwner } from './decorators/swagger-business.decorator';
 import { IdDto } from 'src/common/dto/id.dto';
 import { AddEmployeeDto } from './dto/add-employee.dto';
 import { EmployeeService } from './employee.service';
@@ -29,6 +29,9 @@ import { User } from '../users/schemas/user.schema';
 import { EmploymentRequestResponseDto } from './dto/employment-request-response.dto';
 import { AddEmployeePolicy } from './policies/add-employee.policy';
 import { RespondEmploymentRequestPolicy } from './policies/respond-employment-request.policy.ts';
+import { ListBusinessPolicyHandler } from './policies/list-business.policy';
+import { ListBusinessQueryDto } from './dto/list-business-query.dto';
+import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
 
 @UseGuards(JwtAuthGuard, PoliciesGuard)
 @Controller('business')
@@ -77,6 +80,14 @@ export class BusinessController {
   ): Promise<ApiResponseDto<Business>> {
     const business = await this.businessService.findById(idDto.id);
     return new ApiResponseDto('Business retrieved successfully', business);
+  }
+
+  @Get('list')
+  @CheckPolicies(new ListBusinessPolicyHandler())
+  @ApiListBusiness()
+  async findAll(@Query() query: ListBusinessQueryDto): Promise<ApiResponseDto<PaginatedListDto<Business>>> {
+    const paginatedList: PaginatedListDto<Business> = await this.businessService.findAllPaginated(query);
+    return new ApiResponseDto(paginatedList);
   }
 
   @Post('employees')

@@ -6,6 +6,7 @@ import { Business } from "../schemas/business.schema";
 import { SwaggerResponseUtils } from "src/common/utils/swagger-response-utils";
 import { AddEmployeeResponseDto } from "../dto/add-employee-response.dto";
 import { EmploymentRequestResponseDto } from "../dto/employment-request-response.dto";
+import { PaginatedListDto } from "src/common/dto/paginated-list.dto";
 
 export function ApiRequestCreateBusiness() {
   const utils = new SwaggerResponseUtils();
@@ -317,6 +318,53 @@ export function ApiRespondEmploymentRequest() {
       description: 'Internal server error',
       type: ErrorResponseDto,
       example: utils.getInternalServerError()
+    }),
+  );
+}
+
+export function ApiListBusiness() {
+  return applyDecorators(
+    ApiOperation({ summary: 'Get a paginated list of businesses with optional filters' }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      type: Number,
+      description: 'Page number, default is 1',
+    }),
+    ApiQuery({
+      name: 'perPage',
+      required: false,
+      type: Number,
+      description: 'Number of items per page, default is 25',
+    }),
+    ApiQuery({
+      name: 'status',
+      required: false,
+      type: String,
+      description: 'Comma-separated list of statuses to filter (REQUESTED, ACCEPTED, PENDING, DISABLED)',
+    }),
+    ApiQuery({
+      name: 'name',
+      required: false,
+      type: String,
+      description: 'Partial name of the business to search for',
+    }),
+    ApiQuery({
+      name: 'categories',
+      required: false,
+      type: String,
+      description: 'Comma-separated list of category IDs to filter businesses',
+    }),
+    ApiQuery({
+      name: 'owner',
+      required: false,
+      type: String,
+      description: 'Owner ID to filter businesses',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Returns a paginated list of businesses',
+      type: PaginatedListDto<Business>,
     }),
   );
 }

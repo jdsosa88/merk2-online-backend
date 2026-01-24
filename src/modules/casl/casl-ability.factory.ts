@@ -49,18 +49,28 @@ export class CaslAbilityFactory {
   createForUser(user: User): AppAbility {
 
     const { can, cannot, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
-    //users module
+    //CREATE
     cannot(Action.CREATE, User);
-    can(Action.DELETE, User, { _id: user._id });
-    can(Action.UPDATE, User, { _id: user._id });
-    cannot(Action.UPDATE, User, ['_id', 'password', 'isActive', 'role']);
-    can(Action.UPDATE_RESTRICTED_FIELDS, User, ['password'], { _id: user._id });
-    cannot(Action.LIST, User);
 
+    //READ
     can(Action.READ, Category);
     can(Action.READ, Product);
     can(Action.READ, Business);
     can(Action.READ, 'Health');
+
+    //UPDATE
+    can(Action.UPDATE, User, { _id: user._id });
+    cannot(Action.UPDATE, User, ['_id', 'password', 'isActive', 'role']);
+    can(Action.UPDATE_RESTRICTED_FIELDS, User, ['password'], { _id: user._id });
+
+    //DELETE
+    can(Action.DELETE, User, { _id: user._id });
+
+    //LIST
+    cannot(Action.LIST, User);
+    can(Action.LIST, Business);
+
+    //MANAGE
     cannot(Action.MANAGE, AppConfig);
 
     //Role based module
