@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Business } from './schemas/business.schema';
-import { BusinessStatus } from './types/business.type';
+import { BusinessStatus, BusinessStatusType } from './types/business.type';
 import { Model, Types } from 'mongoose';
 import { CreateBusinessDto } from './dto/create-business.dto';
 import { UpdateBusinessByAdminDto, UpdateBusinessByOwnerDto } from './dto/update-business.dto';
@@ -16,6 +16,9 @@ import { Role } from '../users/types/users.type';
 import { UpdateUserAllDto } from '../users/dto/update-user.dto';
 import { Provider } from '../users/schemas/provider.schema';
 import { CategoriesService } from '../categories/categories.service';
+import { ListBusinessQueryDto } from './dto/list-business-query.dto';
+import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
+import { createDiacriticInsensitiveRegex } from 'src/common/utils/text-regex';
 
 type BusinessUpdateData = {
   id: string,
@@ -44,9 +47,14 @@ export class BusinessService {
   }
 
   async updateBusinessByAdmin(updateData: BusinessUpdateData): Promise<Business> {
-    const business = await this.businessModel.findById(updateData.id);
+    const business = await this.findById(updateData.id);
     const businessDto = updateData.updateBusinessDto as UpdateBusinessByAdminDto;
-    if (!business) throw new NotFoundException('Business not found');
+    await this.validateCategories(businessDto.categories);
+    if (!businessDto.categories) {
+      businessDto.categories = [];
+    }
+    const existentCtegories = business.categories.map(category => category.toString());
+    businessDto.categories = [...new Set([...existentCtegories, ...businessDto.categories])];
     const updatedBusiness = await this.businessModel.findByIdAndUpdate(
       updateData.id,
       businessDto,
@@ -62,32 +70,15 @@ export class BusinessService {
   }
 
   async updateBusinessByOwner(updateData: BusinessUpdateData): Promise<Business> {
-    const business = await this.businessModel.findById(updateData.id);
-    if (!business) throw new NotFoundException('Business not found');
-
-    if (business.status !== BusinessStatus.ACCEPTED) {
-      throw new ForbiddenException('Your business have not accepted status yet');
+    const business = await this.findById(updateData.id);
+    this.validateBusinessStatustoOwner(business.status);
+    const updateDtoData = this.getValidUpdateBusinessByOwnerDto(updateData, business);
+    await this.validateCategories(updateDtoData.categories);
+    if (!updateDtoData.categories) {
+      updateDtoData.categories = [];
     }
-
-    const isOwner = updateData.userId && updateData.userId === business.owner.toString();
-    if (!isOwner) throw new ForbiddenException('You are not the owner of this business');
-
-    const updateDtoData = updateData.updateBusinessDto as UpdateBusinessByOwnerDto;
-    const incorrectDtoBusinessStatus =
-      updateDtoData.status
-      && updateDtoData.status !== BusinessStatus.REQUESTED
-      && updateDtoData.status !== BusinessStatus.DISABLED;
-    if (incorrectDtoBusinessStatus) {
-      throw new BadRequestException(
-        'Business status can only be updated when status is requested or disabled'
-      );
-    }
-
-    if (updateDtoData.categories) {
-      const areValidCategories = await this.categoriesService.existAllCategories(updateDtoData.categories);
-      if (!areValidCategories) throw new BadRequestException("You have at least an invalid category id");
-    }
-
+    const existentCtegories = business.categories.map(category => category.toString());
+    updateDtoData.categories = [...new Set([...existentCtegories, ...updateDtoData.categories])];
     const updatedBusiness = await this.businessModel.findByIdAndUpdate(
       updateData.id,
       updateDtoData,
@@ -187,9 +178,9 @@ export class BusinessService {
     if (!business) throw new BadRequestException('Business not found');
 
     business.products = business.products.filter(
-      id  => id.toString() !== productId.toString()
+      id => id.toString() !== productId.toString()
     );
-    
+
     await business.save();
   }
 
@@ -221,5 +212,38 @@ export class BusinessService {
         "User can not be updated because invalid role field, only CUSTOMER and PROVIDER can request create a new business"
       );
     }
+  }
+
+  private async validateCategories(categories: string[] | undefined): Promise<void> {
+    if (categories) {
+      const areValidCategories = await this.categoriesService.existAllCategories(categories);
+      if (!areValidCategories) throw new BadRequestException("You have at least an invalid category id");
+    }
+  }
+
+  private validateBusinessStatustoOwner(businessStatus: BusinessStatusType): void {
+    if (businessStatus !== BusinessStatus.ACCEPTED) {
+      throw new ForbiddenException('Your business have not accepted status yet');
+    }
+  }
+
+  private getValidUpdateBusinessByOwnerDto(updateData: BusinessUpdateData, business: Business): UpdateBusinessByOwnerDto {
+
+    const isOwner = updateData.userId && updateData.userId === business.owner.toString();
+    if (!isOwner) throw new ForbiddenException('You are not the owner of this business');
+
+    const updateDtoData = updateData.updateBusinessDto as UpdateBusinessByOwnerDto;
+    const incorrectDtoBusinessStatus =
+      updateDtoData.status
+      && updateDtoData.status !== BusinessStatus.REQUESTED
+      && updateDtoData.status !== BusinessStatus.DISABLED;
+
+    if (incorrectDtoBusinessStatus) {
+      throw new BadRequestException(
+        'Business status can only be updated when status is requested or disabled'
+      );
+    }
+
+    return updateDtoData;
   }
 }

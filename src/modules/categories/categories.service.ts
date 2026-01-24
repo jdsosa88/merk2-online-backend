@@ -231,7 +231,7 @@ export class CategoriesService {
   async remove(id: string): Promise<Category> {
     const _id = new Types.ObjectId(id);
     const deletedCategory = await this.deleteCategoryWithSubcategories(_id, true);
-    if(!deletedCategory) throw new NotFoundException(`Category not found`);
+    if (!deletedCategory) throw new NotFoundException(`Category not found`);
     return deletedCategory;
   }
 
@@ -260,15 +260,15 @@ export class CategoriesService {
   }
 
   async existAllCategories(categories: string[]): Promise<boolean> {
-    const allCategories: Category[] = await this.categoryModel.find();
-    if (allCategories.length === 0) return false;
-    const allCategoriesIds = allCategories.map(existentCategory => existentCategory._id.toString());
-   for (const category of categories) {
-    if (!allCategoriesIds.includes(category)) {
+    const categoryIds = categories.map(category => new Types.ObjectId(category));
+    try {
+      const categories = await this.categoryModel.find({
+        _id: { $in: categoryIds }
+      });
+      return categories.length === categoryIds.length;
+    } catch (error) {
       return false;
     }
-   }
-   return true;
   }
 
   private async getAllSubcategoriesRecursive(categoryId: Types.ObjectId): Promise<any[]> {
@@ -419,7 +419,7 @@ export class CategoriesService {
       if (isDeleteCategory && !deletedCategory) throw new BadRequestException("Category not found");
       return deletedCategory;
     }
-    if(isDeleteCategory) throw new NotFoundException(`Category with ID ${categoryId} not found`);
+    if (isDeleteCategory) throw new NotFoundException(`Category with ID ${categoryId} not found`);
     return null;
   }
 }

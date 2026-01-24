@@ -104,11 +104,10 @@ export class UpdateBusinessByOwnerDto {
 export class UpdateBusinessByAdminDto extends UpdateBusinessByOwnerDto {
   @ApiPropertyOptional({
     type: [String],
-    description: 'Owner IDs (Array of User ObjectIds)',
-    example: ['507f1f77bcf86cd799439011'],
+    description: 'Owner ID (User ObjectId)',
+    example: '507f1f77bcf86cd799439011',
   })
   @IsOptional()
-  @IsArray()
-  @IsMongoId({ each: true })
-  owner?: string[];
+  @IsMongoId()
+  owner?: string;
 }
