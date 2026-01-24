@@ -19,6 +19,7 @@ export enum Action {
   DELETE = 'delete',
   LIST = 'list',
   UPDATE_RESTRICTED_FIELDS = 'update_restricted_fields',
+  REQUEST_DELETE = 'reques_delete',
 }
 
 export type Subjects = InferSubjects<
@@ -89,6 +90,7 @@ export class CaslAbilityFactory {
         can(Action.CREATE, EmploymentRequest, { invitedBy: user._id });
         can(Action.UPDATE, EmploymentRequest, ['status'], { invitedBy: user._id });
         can(Action.MANAGE, Product);
+        can(Action.REQUEST_DELETE, Business, {owner: user._id});
         break;
 
       case Role.MANAGER:

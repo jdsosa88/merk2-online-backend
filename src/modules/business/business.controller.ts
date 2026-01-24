@@ -5,7 +5,10 @@ import {
   UseGuards,
   Get,
   Patch,
-  Query
+  Query,
+  Delete,
+  HttpCode,
+  HttpStatus
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { PoliciesGuard } from 'src/common/guards/policies.guard';
@@ -20,7 +23,7 @@ import { UpdateBusinessByOwnerDto } from './dto/update-business.dto';
 import { UpdateBusinessPolicy } from './policies/update-business.policy';
 import { ReadBusinessPolicy } from './policies/read-business.policy';
 import { ApiResponseDto } from 'src/common/dto/api-response.dto';
-import { ApiAddEmployee, ApiGetBusiness, ApiListBusiness, ApiRequestCreateBusiness, ApiRespondEmploymentRequest, ApiUpdateBusinessByOwner } from './decorators/swagger-business.decorator';
+import { ApiAddEmployee, ApiDeleteBusiness, ApiGetBusiness, ApiListBusiness, ApiRemoveBusinessCategories, ApiRequestCreateBusiness, ApiRequestDeleteBusiness, ApiRespondEmploymentRequest, ApiUpdateBusinessByOwner } from './decorators/swagger-business.decorator';
 import { IdDto } from 'src/common/dto/id.dto';
 import { AddEmployeeDto } from './dto/add-employee.dto';
 import { EmployeeService } from './employee.service';
@@ -32,9 +35,13 @@ import { RespondEmploymentRequestPolicy } from './policies/respond-employment-re
 import { ListBusinessPolicyHandler } from './policies/list-business.policy';
 import { ListBusinessQueryDto } from './dto/list-business-query.dto';
 import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
+import { RemoveCategoriesDto } from './dto/remove-categories.dto';
+import { RemoveBusinessCategoriesPolicyHandler } from './policies/remove-business-categories.policy';
+import { DeleteBusinessPolicy } from './policies/delete-business.policy';
+import { RequestDeleteBusinessPolicy } from './policies/request-delete-business.policy';
 
 @UseGuards(JwtAuthGuard, PoliciesGuard)
-@Controller('business')
+@Controller('businesses')
 export class BusinessController {
   constructor(
     private readonly businessService: BusinessService,
@@ -72,6 +79,28 @@ export class BusinessController {
     return new ApiResponseDto("Business updated successfully", updatedBusiness);
   }
 
+  @Delete('categories')
+  @CheckPolicies(new RemoveBusinessCategoriesPolicyHandler())
+  @ApiRemoveBusinessCategories()
+  async removeBusinessCategories(
+    @Query('id') businessId: string,
+    @Body() removeCategoriesDto: RemoveCategoriesDto,
+    @AuthUser() user: User,
+  ): Promise<ApiResponseDto<Business>> {
+    
+    const updatedBusiness = await this.businessService.removeCategories({
+      businessId,
+      categoryIds: removeCategoriesDto.categories,
+      userId: user._id.toString(),
+      userRole: user.role,
+    });
+
+    return new ApiResponseDto(
+      'Categories removed successfully from business',
+      updatedBusiness
+    );
+  }
+
   @Get()
   @CheckPolicies(new ReadBusinessPolicy())
   @ApiGetBusiness()
@@ -88,6 +117,20 @@ export class BusinessController {
   async findAll(@Query() query: ListBusinessQueryDto): Promise<ApiResponseDto<PaginatedListDto<Business>>> {
     const paginatedList: PaginatedListDto<Business> = await this.businessService.findAllPaginated(query);
     return new ApiResponseDto(paginatedList);
+  }
+
+  @Delete('request-delete')
+  @CheckPolicies(new RequestDeleteBusinessPolicy())
+  @ApiRequestDeleteBusiness()
+  async requestDeleteBusiness(
+    @Query() idDto: IdDto,
+    @AuthUser('id') userId: string,
+  ): Promise<ApiResponseDto<Business>> {
+    const business = await this.businessService.requestDeleteBusiness(
+      idDto.id,
+      userId
+    );
+    return new ApiResponseDto('Business deletion requested successfully', business);
   }
 
   @Post('employees')

@@ -3,10 +3,12 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
-  ConflictException
+  ConflictException,
+  Inject,
+  forwardRef
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Business } from './schemas/business.schema';
+import { Business, BusinessDocument } from './schemas/business.schema';
 import { BusinessStatus, BusinessStatusType } from './types/business.type';
 import { Model, Types } from 'mongoose';
 import { CreateBusinessDto } from './dto/create-business.dto';
@@ -19,6 +21,8 @@ import { CategoriesService } from '../categories/categories.service';
 import { ListBusinessQueryDto } from './dto/list-business-query.dto';
 import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
 import { createDiacriticInsensitiveRegex } from 'src/common/utils/text-regex';
+import { ProductsService } from '../products/products.service';
+import { EmploymentRequest } from './schemas/employment-request.schema';
 
 type BusinessUpdateData = {
   id: string,
@@ -26,12 +30,21 @@ type BusinessUpdateData = {
   userId?: string,
 }
 
+type RemoveCategoriesParams = {
+  businessId: string,
+  categoryIds: string[],
+  userId: string,
+  userRole: string,
+}
+
 @Injectable()
 export class BusinessService {
   constructor(
     @InjectModel(Business.name) private businessModel: Model<Business | null>,
+    @InjectModel(EmploymentRequest.name) private employmentRequestModel: Model<EmploymentRequest>,
     private readonly usersService: UsersService,
     private readonly categoriesService: CategoriesService,
+    @Inject(forwardRef(() => ProductsService)) private readonly productsService: ProductsService,
   ) { }
 
   async requestCreateBusiness(
@@ -87,6 +100,203 @@ export class BusinessService {
 
     if (!updatedBusiness) throw new BadRequestException("Failed upadate operation");
     return updatedBusiness;
+  }
+
+  async removeCategories(params: RemoveCategoriesParams): Promise<Business> {
+    try {
+      const { businessId, categoryIds, userId, userRole } = params;
+      const _id = new Types.ObjectId(businessId);
+
+      // Verificar que el negocio exista
+      const business = await this.businessModel.findById(_id).populate('products', 'category');
+      if (!business) {
+        throw new NotFoundException('Business not found');
+      }
+      console.log(business.products);
+
+
+      // Verificar que el usuario sea el dueño      
+      const isOwner = userId === business.owner.toString();
+      if (!isOwner && userRole !== Role.ADMIN) throw new ForbiddenException('You are not an ADMIN or the owner of this business');
+
+
+      // Verificar que el negocio tenga al menos una de las categorías
+      const existingCategoryIds = business.categories.map(category => category.toString());
+      const categoriesToRemove = categoryIds.filter(categoryId =>
+        existingCategoryIds.includes(categoryId)
+      );
+
+      if (categoriesToRemove.length === 0) {
+        throw new BadRequestException('None of the provided categories are associated with this business');
+      }
+
+      // Filtrar las categorías a remover
+      const updatedCategories = business.categories.filter(
+        categoryId => !categoriesToRemove.some(removeId => removeId.toString() === categoryId.toString())
+      );
+
+      //Eliminar productos relacionados a las categorias eliminadas
+      const productsToRemove = business.products.filter((product: any) =>
+        categoriesToRemove.includes(product.category.toString())
+      ).map((product: any) => product._id);
+
+      await this.productsService.removeMany(productsToRemove);
+
+      const updatedProducts = business.products.filter((product: any) =>
+        !categoriesToRemove.includes(product.category.toString())
+      ).map((product: any) => product._id);
+      console.log({ updatedProducts, productsToRemove });
+
+
+      // Actualizar el negocio
+      const updatedBusiness = await this.businessModel.findByIdAndUpdate(
+        _id,
+        { $set: { categories: updatedCategories, products: updatedProducts } },
+        { new: true }
+      ).exec();
+
+      if (!updatedBusiness) {
+        throw new BadRequestException('Failed to remove categories');
+      }
+
+      return updatedBusiness;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async requestDeleteBusiness(
+    businessId: string,
+    userId: string
+  ): Promise<Business> {
+    const business = await this.businessModel.findById(new Types.ObjectId(businessId));
+
+    if (!business) throw new NotFoundException("Business not found");
+    if (business.owner.toString() !== userId) {
+      throw new ForbiddenException('Only the business owner can request deletion');
+    }
+
+    // Cambiar estado a DISABLED
+    business.status = BusinessStatus.DISABLED;
+    await business.save();
+
+    // TODO: Aquí agregar lógica para notificar al admin
+
+    return business;
+  }
+
+  async deleteBusiness(
+    businessId: string    
+  ): Promise<void> {
+    try {
+      const business = await this.businessModel
+        .findById(businessId)
+        .populate('owner', 'businesses')
+        .populate('employees.messengers', 'businesses isPlatformMessenger')
+        .exec();
+
+      if (!business) {
+        throw new NotFoundException('Business not found');
+      }
+
+      // 1. Eliminar todos los productos del negocio
+      if (business.products && business.products.length > 0) {
+        await this.productsService.removeMany(business.products);
+      }
+
+      // 2. Manejar dueño del negocio
+      await this.handleOwnerAfterBusinessDeletion(business.owner, business._id);
+
+      // 3. Manejar empleados del negocio
+      if (business.employees) {
+        // Manejar managers
+        if (business.employees.managers && business.employees.managers.length > 0) {
+          await this.handleManagersAfterBusinessDeletion(business.employees.managers);
+        }
+
+        // Manejar messengers
+        if (business.employees.messengers && business.employees.messengers.length > 0) {
+          await this.handleMessengersAfterBusinessDeletion(
+            business.employees.messengers,
+            business._id
+          );
+        }
+
+        // Eliminar solicitudes de empleo pendientes
+        if (business.employees.pendingEmployees && business.employees.pendingEmployees.length > 0) {
+          await this.employmentRequestModel.deleteMany({
+            _id: { $in: business.employees.pendingEmployees }
+          });
+        }
+      }
+
+      // 4. Eliminar el negocio
+      await this.businessModel.findByIdAndDelete(businessId);
+
+    } catch (error) {      
+      console.error(`Error deleting business ${businessId}:`, error);
+      throw error;
+    }
+  }
+
+  private async handleOwnerAfterBusinessDeletion(
+    owner: any,
+    deletedBusinessId: Types.ObjectId
+  ): Promise<void> {
+    const hasOtherBusinesses = owner.businesses && owner.businesses.length > 1;
+    if (hasOtherBusinesses) {
+      const remainigBusinesses = owner.businesses.filter(
+        (business: any) => business.toString() !== deletedBusinessId.toString()
+      );
+      await this.usersService.saveUpdatedUser(
+        owner._id,
+        { businesses: remainigBusinesses }
+      );
+    } else {
+      await this.usersService.saveUpdatedUser(
+        owner._id,
+        { role: Role.CUSTOMER }
+      );
+    }
+  }
+
+  private async handleManagersAfterBusinessDeletion(
+    managerIds: Types.ObjectId[]
+  ): Promise<void> {
+    for (const managerId of managerIds) {
+      await this.usersService.saveUpdatedUser(
+        managerId,
+        { role: Role.CUSTOMER }
+      );
+    }
+  }
+
+  private async handleMessengersAfterBusinessDeletion(
+    messengers: any[],
+    deletedBusinessId: Types.ObjectId
+  ): Promise<void> {
+    for (const messenger of messengers) {
+      if (messenger && messenger.businesses) {
+        const hasOtherBusinesses = messenger.businesses.length > 1;
+        if (hasOtherBusinesses) {
+          const remainigBusinesses = messenger.businesses.filter(
+            (business: any) => business.toString() !== deletedBusinessId.toString()
+          );
+          await this.usersService.saveUpdatedUser(
+            messenger._id,
+            { businesses: remainigBusinesses }
+          );
+          continue;
+        }
+
+        if (!messenger.isPlatformMessenger) {
+          await this.usersService.saveUpdatedUser(
+            messenger._id,
+            { role: Role.CUSTOMER }
+          );
+        }
+      }
+    }
   }
 
   async findById(id: string): Promise<Business> {

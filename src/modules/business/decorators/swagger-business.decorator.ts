@@ -184,6 +184,63 @@ export function ApiUpdateBusinessByAdmin() {
   );
 }
 
+export function ApiRemoveBusinessCategories() {
+  return applyDecorators(
+    ApiOperation({ 
+      summary: 'Remove categories from a business',
+      description: 'Removes the association between a business and specific categories. Does not delete the categories themselves.'
+    }),
+    ApiQuery({
+      name: 'id',
+      required: true,
+      type: String,
+      description: 'Business ID',
+    }),    
+    ApiResponse({
+      status: 200,
+      description: 'Categories removed successfully',
+      type: Business,
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Invalid request or categories not associated with business',
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'User is not the owner of the business',
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Business not found',
+    }),
+  );
+}
+
+export const ApiRequestDeleteBusiness = () =>
+  applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({ summary: 'Request business deletion (owner only)' }),    
+    ApiResponse({
+      status: 200,
+      description: 'Business deletion requested successfully',
+      type: ApiResponseDto,
+    }),
+    ApiResponse({ status: 403, description: 'Forbidden' }),
+    ApiResponse({ status: 404, description: 'Business not found' }),
+  );
+
+export const ApiDeleteBusiness = () =>
+  applyDecorators(
+    ApiBearerAuth(),
+    ApiOperation({ summary: 'Delete business (admin only)' }),    
+    ApiResponse({
+      status: 204,
+      description: 'Business deleted successfully',
+    }),
+    ApiResponse({ status: 403, description: 'Forbidden' }),
+    ApiResponse({ status: 404, description: 'Business not found' }),
+  );
+
 export function ApiAddEmployee() {
   const utils = new SwaggerResponseUtils();
   return applyDecorators(

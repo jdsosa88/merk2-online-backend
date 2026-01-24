@@ -4,7 +4,9 @@ import {
   BadRequestException,
   ConflictException,
   InternalServerErrorException,
-  UnauthorizedException
+  UnauthorizedException,
+  Inject,
+  forwardRef
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -19,7 +21,7 @@ import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
 export class ProductsService {
   constructor(
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
-    private readonly businessService: BusinessService,
+    @Inject(forwardRef(() => BusinessService)) private readonly businessService: BusinessService,
     private readonly categoriesService: CategoriesService,
   ) { }
 
@@ -135,7 +137,7 @@ export class ProductsService {
     type?: ProductType,
     includeInactive: boolean = false,
     page: number = 1,
-    perPage: number = 20
+    perPage: number = 25
   ): Promise<PaginatedListDto<Product>> {
     const query: any = {};
 
@@ -325,6 +327,18 @@ export class ProductsService {
     await this.businessService.removeProduct(deletedProduct.business.toString(), deletedProduct._id);
 
     return deletedProduct;
+  }
+
+  async removeMany(productIds: Types.ObjectId[]): Promise<{ totalDeleted: number }> {
+    try {
+      const deleteResult = await this.productModel.deleteMany(
+        { _id: { $in: productIds } },
+      );
+      return { totalDeleted: deleteResult.deletedCount };
+    } catch (error) {
+      return { totalDeleted: 0 };
+    }
+
   }
 
   async getBusinessProducts(businessId: string, type?: ProductType): Promise<Product[]> {
