@@ -4,11 +4,9 @@ import {
   ForbiddenException,
   BadRequestException,
   ConflictException,
-  Inject,
-  forwardRef
-} from '@nestjs/common';
+  Inject} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Business, BusinessDocument } from './schemas/business.schema';
+import { Business } from './schemas/business.schema';
 import { BusinessStatus, BusinessStatusType } from './types/business.type';
 import { Model, Types } from 'mongoose';
 import { CreateBusinessDto } from './dto/create-business.dto';
@@ -21,8 +19,8 @@ import { CategoriesService } from '../categories/categories.service';
 import { ListBusinessQueryDto } from './dto/list-business-query.dto';
 import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
 import { createDiacriticInsensitiveRegex } from 'src/common/utils/text-regex';
-import { ProductsService } from '../products/products.service';
 import { EmploymentRequest } from './schemas/employment-request.schema';
+import { ProductRepository } from '../products/repositories/product.repository';
 
 type BusinessUpdateData = {
   id: string,
@@ -44,7 +42,8 @@ export class BusinessService {
     @InjectModel(EmploymentRequest.name) private employmentRequestModel: Model<EmploymentRequest>,
     private readonly usersService: UsersService,
     private readonly categoriesService: CategoriesService,
-    @Inject(forwardRef(() => ProductsService)) private readonly productsService: ProductsService,
+    @Inject('ProductRepository') private readonly productRepository: ProductRepository,
+
   ) { }
 
   async requestCreateBusiness(
@@ -112,10 +111,7 @@ export class BusinessService {
       if (!business) {
         throw new NotFoundException('Business not found');
       }
-      console.log(business.products);
 
-
-      // Verificar que el usuario sea el dueño      
       const isOwner = userId === business.owner.toString();
       if (!isOwner && userRole !== Role.ADMIN) throw new ForbiddenException('You are not an ADMIN or the owner of this business');
 
@@ -140,14 +136,12 @@ export class BusinessService {
         categoriesToRemove.includes(product.category.toString())
       ).map((product: any) => product._id);
 
-      await this.productsService.removeMany(productsToRemove);
+     const deletedCategoriesTotal =  await this.productRepository.deleteManyByIds(productsToRemove);
 
       const updatedProducts = business.products.filter((product: any) =>
         !categoriesToRemove.includes(product.category.toString())
       ).map((product: any) => product._id);
-      console.log({ updatedProducts, productsToRemove });
-
-
+      
       // Actualizar el negocio
       const updatedBusiness = await this.businessModel.findByIdAndUpdate(
         _id,
@@ -185,9 +179,7 @@ export class BusinessService {
     return business;
   }
 
-  async deleteBusiness(
-    businessId: string    
-  ): Promise<void> {
+  async deleteBusiness( businessId: string ): Promise<void> {
     try {
       const business = await this.businessModel
         .findById(businessId)
@@ -199,22 +191,17 @@ export class BusinessService {
         throw new NotFoundException('Business not found');
       }
 
-      // 1. Eliminar todos los productos del negocio
       if (business.products && business.products.length > 0) {
-        await this.productsService.removeMany(business.products);
+        await this.productRepository.deleteManyByIds(business.products);
       }
 
-      // 2. Manejar dueño del negocio
       await this.handleOwnerAfterBusinessDeletion(business.owner, business._id);
 
-      // 3. Manejar empleados del negocio
       if (business.employees) {
-        // Manejar managers
         if (business.employees.managers && business.employees.managers.length > 0) {
           await this.handleManagersAfterBusinessDeletion(business.employees.managers);
         }
 
-        // Manejar messengers
         if (business.employees.messengers && business.employees.messengers.length > 0) {
           await this.handleMessengersAfterBusinessDeletion(
             business.employees.messengers,
@@ -222,7 +209,6 @@ export class BusinessService {
           );
         }
 
-        // Eliminar solicitudes de empleo pendientes
         if (business.employees.pendingEmployees && business.employees.pendingEmployees.length > 0) {
           await this.employmentRequestModel.deleteMany({
             _id: { $in: business.employees.pendingEmployees }
@@ -230,10 +216,9 @@ export class BusinessService {
         }
       }
 
-      // 4. Eliminar el negocio
       await this.businessModel.findByIdAndDelete(businessId);
 
-    } catch (error) {      
+    } catch (error) {
       console.error(`Error deleting business ${businessId}:`, error);
       throw error;
     }

@@ -8,6 +8,7 @@ import { BusinessModule } from '../business/business.module';
 import { ProductsService } from './products.service';
 import { CategoriesModule } from '../categories/categories.module';
 import { UsersModule } from '../users/users.module';
+import { ProductMongoRepository } from './repositories/product.repository';
 
 @Module({
   imports: [
@@ -18,8 +19,15 @@ import { UsersModule } from '../users/users.module';
     forwardRef(() => CategoriesModule),
   ],
   controllers: [ProductsController],
-  providers: [ProductsService],
-  exports: [ProductsService],
+  providers: [
+    ProductsService,
+    ProductMongoRepository,
+    {
+      provide: 'ProductRepository',
+      useExisting: ProductMongoRepository,
+    }
+  ],
+  exports: [ProductsService, 'ProductRepository'],
 
 })
 export class ProductsModule { }
