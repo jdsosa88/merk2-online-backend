@@ -11,6 +11,7 @@ import { CategoriesModule } from './modules/categories/categories.module';
 import configuration from './config/configuration';
 import { envValidationSchema } from './config/schemas/env.schema';
 import { HealthModule } from './modules/health/health.module';
+import { OrdersModule } from './modules/orders/orders.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { HealthModule } from './modules/health/health.module';
     CaslModule,
     BusinessModule,
     CategoriesModule,
+    OrdersModule,
     HealthModule,
   ],
 })

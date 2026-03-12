@@ -65,3 +65,6 @@ yarn.lock
 
 # server
 ecosystem.config.js
+
+# others
+*.diff
