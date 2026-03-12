@@ -16,6 +16,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { BusinessService } from '../business/business.service';
 import { CategoriesService } from '../categories/categories.service';
 import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
+import { MoneyUtils } from 'src/common/utils/money.utils';
 
 @Injectable()
 export class ProductsService {
@@ -58,8 +59,6 @@ export class ProductsService {
         throw new BadRequestException('Category not found');
       }
 
-
-
       if (createProductDto.type === ProductType.SIMPLE) {
         if (createProductDto.addons && createProductDto.addons.length > 0) {
           const addonProducts = await this.productModel.find({
@@ -94,16 +93,18 @@ export class ProductsService {
         }
       }
 
+      const productData = CreateProductDto.toCents(createProductDto);
+
       const newProduct = new this.productModel({
-        ...createProductDto,
-        sku: createProductDto.sku.toUpperCase(),
-        business: new Types.ObjectId(createProductDto.business),
-        category: new Types.ObjectId(createProductDto.category),
-        parentProduct: createProductDto.parentProduct
-          ? new Types.ObjectId(createProductDto.parentProduct)
+        ...productData,
+        sku: productData.sku.toUpperCase(),
+        business: new Types.ObjectId(productData.business),
+        category: new Types.ObjectId(productData.category),
+        parentProduct: productData.parentProduct
+          ? new Types.ObjectId(productData.parentProduct)
           : undefined,
-        addons: createProductDto.addons
-          ? createProductDto.addons.map(id => new Types.ObjectId(id))
+        addons: productData.addons
+          ? productData.addons.map((id: string) => new Types.ObjectId(id))
           : [],
       });
 
@@ -118,7 +119,7 @@ export class ProductsService {
 
       await this.businessService.addProduct(createProductDto.business, savedProduct._id);
       return savedProduct;
-    } catch (error) {
+    } catch (error) {      
       if (
         error instanceof ConflictException
         || error instanceof UnauthorizedException
@@ -212,6 +213,13 @@ export class ProductsService {
     return product;
   }
 
+  async findProductsByIds(productIds: string[]): Promise<Product[]> {
+    const ids = productIds.map(id => new Types.ObjectId(id));
+    return this.productModel.find({ _id: { $in: ids } })
+      .populate('business', 'name status owner employees')
+      .exec();
+  }
+
   async update(id: string, updateProductDto: UpdateProductDto): Promise<Product> {
     const _id = new Types.ObjectId(id);
     const product = await this.productModel.findById(_id);
@@ -260,42 +268,53 @@ export class ProductsService {
     if (updateProductDto.parentProduct !== undefined && product.type === ProductType.ADDON) {
       product.parentProduct = await this.updateParentProduct(product, updateProductDto.parentProduct);
     }
-
-    product.name = updateProductDto.name ? updateProductDto.name : product.name;
-    product.description = updateProductDto.description
-      ? updateProductDto.description
+    const productDto = UpdateProductDto.toCents(updateProductDto);
+    product.name = productDto.name ? productDto.name : product.name;
+    product.description = productDto.description
+      ? productDto.description
       : product.description;
-    product.brand = updateProductDto.brand ? updateProductDto.brand : product.brand;
-    product.price = updateProductDto.price ? updateProductDto.price : product.price;
-    product.images = updateProductDto.images ? updateProductDto.images : product.images;
-    product.discountValue = updateProductDto.discountValue
-      ? updateProductDto.discountValue
-      : product.discountValue;
-    product.discountPercent = updateProductDto.discountPercent
-      ? updateProductDto.discountPercent
-      : product.discountPercent;
-    product.warranty = updateProductDto.warranty ? updateProductDto.warranty : product.warranty;
-    product.size = updateProductDto.size ? updateProductDto.size : product.size;
-    product.colors = updateProductDto.colors ? updateProductDto.colors : product.colors;
-    product.weight = updateProductDto.weight ? updateProductDto.weight : product.weight;
-    product.stock = updateProductDto.stock ? updateProductDto.stock : product.stock;
-    product.isAvailable = updateProductDto.isAvailable !== undefined
-      ? updateProductDto.isAvailable
+    product.brand = productDto.brand ? productDto.brand : product.brand;
+    product.images = productDto.images ? productDto.images : product.images;
+    product.price = productDto.price ? productDto.price : product.price;
+    product.discountValue = productDto.discountValue
+      ? productDto.discountValue
+      : productDto.discountPercent && product.price > 0
+        ? MoneyUtils.calculatePercentage(product.price, productDto.discountPercent)
+        : product.discountValue;
+    product.discountPercent = productDto.discountPercent
+      ? productDto.discountPercent
+      : productDto.discountValue && product.price > 0
+        ? MoneyUtils.calculatePercentageOfValue(productDto.discountValue, product.price)
+        : product.discountPercent;
+    product.warranty = productDto.warranty ? productDto.warranty : product.warranty;
+    product.size = productDto.size ? productDto.size : product.size;
+    product.colors = productDto.colors ? productDto.colors : product.colors;
+    product.weight = productDto.weight ? productDto.weight : product.weight;
+    product.stock = productDto.stock ? productDto.stock : product.stock;
+    product.isAvailable = productDto.isAvailable !== undefined
+      ? productDto.isAvailable
       : product.isAvailable;
-    product.sku = updateProductDto.sku ? updateProductDto.sku : product.sku;
-    product.category = updateProductDto.category
-      ? new Types.ObjectId(updateProductDto.category)
+    product.sku = productDto.sku ? productDto.sku : product.sku;
+    product.category = productDto.category
+      ? new Types.ObjectId(productDto.category)
       : product.category;
-    product.averageRating = updateProductDto.averageRating
-      ? updateProductDto.averageRating
+    product.averageRating = productDto.averageRating
+      ? productDto.averageRating
       : product.averageRating;
-    product.isActive = updateProductDto.isActive !== undefined
-      ? updateProductDto.isActive : product.isActive;
-    product.timesOrdered = updateProductDto.timesOrdered
-      ? updateProductDto.timesOrdered
+    product.isActive = productDto.isActive !== undefined
+      ? productDto.isActive : product.isActive;
+    product.timesOrdered = productDto.timesOrdered
+      ? productDto.timesOrdered
       : product.timesOrdered;
 
     return product.save();
+  }
+
+  private calculateDiscountPercent(discountValue: number | undefined, price: number | undefined) {
+    if (discountValue !== undefined && discountValue !== null && price !== undefined && price !== null && price > 0) {
+      return MoneyUtils.calculatePercentageOfValue(discountValue, price);
+    }
+    return 0;
   }
 
   async remove(id: string): Promise<Product> {

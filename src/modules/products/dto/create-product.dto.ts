@@ -1,12 +1,13 @@
-import { 
-  IsString, IsNumber, IsOptional, IsArray, IsBoolean, IsEnum, 
-  IsMongoId, MinLength, MaxLength, Min, Max, ArrayMinSize, 
-  ValidateNested, ArrayMaxSize, IsNotEmpty 
+import {
+  IsString, IsNumber, IsOptional, IsArray, IsBoolean, IsEnum,
+  IsMongoId, MinLength, MaxLength, Min, Max, ArrayMinSize,
+  ValidateNested, ArrayMaxSize, IsNotEmpty
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { ImageDto } from 'src/common/dto/image.dto';
 import { ProductType, ProductColor } from '../schemas/product.schema';
+import { MoneyUtils } from 'src/common/utils/money.utils';
 
 export class CreateProductDto {
   @ApiProperty({ minLength: 2, maxLength: 150, example: 'Smartphone XYZ' })
@@ -47,7 +48,7 @@ export class CreateProductDto {
   @Type(() => ImageDto)
   images?: ImageDto[];
 
-  @ApiPropertyOptional({ example: 20 })
+  @ApiPropertyOptional({ example: 2.00 })
   @IsOptional()
   @IsNumber()
   @Min(0)
@@ -121,4 +122,24 @@ export class CreateProductDto {
   @IsMongoId()
   @IsNotEmpty()
   category: string;
+
+  static toCents(dto: CreateProductDto): CreateProductDto {
+    return {
+      ...dto,
+      price: MoneyUtils.decimalToCents(dto.price),
+      discountValue: dto.discountValue
+        ? MoneyUtils.decimalToCents(dto.discountValue)
+        : dto.discountPercent && dto.price > 0
+          ? MoneyUtils.calculatePercentage(MoneyUtils.decimalToCents(dto.price), dto.discountPercent)
+          : 0,
+      discountPercent: dto.discountPercent
+        ? Math.round(dto.discountPercent)
+        : dto.discountValue && dto.price > 0
+          ? MoneyUtils.calculatePercentageOfValue(
+            MoneyUtils.decimalToCents(dto.discountValue),
+            MoneyUtils.decimalToCents(dto.price)
+          )
+          : 0,
+    };
+  }
 }

@@ -93,7 +93,7 @@ export class Product {
       const basePrice = this.price || 0;
       const discountVal = this.discountValue || 0;
       const discountPerc = this.discountPercent || 0;
-      const discountFromPercent = (basePrice * discountPerc) / 100;
+      const discountFromPercent = Math.round((basePrice * discountPerc) / 100);
       const totalDiscount = discountVal + discountFromPercent;
       return Math.max(0, basePrice - totalDiscount);
     }
@@ -192,13 +192,22 @@ export class Product {
 
 export const ProductSchema = SchemaFactory.createForClass(Product);
 
+// Helper para convertir centavos a decimales en las respuestas
+ProductSchema.methods.toJSON = function() {
+  const obj = this.toObject();
+  
+  obj.price = this.price / 100;
+  obj.discountValue = this.discountValue ? this.discountValue / 100 : 0;
+  obj.finalPrice = this.finalPrice / 100;
+  
+  return obj;
+};
+
+// Pre-save hook para calcular finalPrice en centavos
 ProductSchema.pre('save', function(next) {
   const basePrice = this.price || 0;
   const discountVal = this.discountValue || 0;
-  const discountPerc = this.discountPercent || 0;
-  const discountFromPercent = (basePrice * discountPerc) / 100;
-  const totalDiscount = discountVal + discountFromPercent;
-  this.finalPrice = Math.max(0, basePrice - totalDiscount);
+    
+  this.finalPrice = Math.max(0, basePrice - discountVal);
   next();
 });
-
