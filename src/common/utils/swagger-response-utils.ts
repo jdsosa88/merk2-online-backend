@@ -567,4 +567,95 @@ export class SwaggerResponseUtils {
     return this.getNotFoundError('App configuration not found');
   }
 
+  // Métodos específicos para orders
+  getResponseWithOrder(additionalData: any = {}): any {
+  const {message, ...orderData} = additionalData;
+  const orderExample = {
+    _id: '60d5f9f8f8b7a12c3c4d5e6f',
+    customer: '60d5f9f8f8b7a12c3c4d5e6f',
+    business: '60d5f9f8f8b7a12c3c4d5e70',
+    items: [
+      {
+        product: '60d5f9f8f8b7a12c3c4d5e71',
+        quantity: 2,
+        pricePerUnit: 29.99,
+        totalPrice: 59.98,
+        productName: 'Product A',
+        productSku: 'PROD-A-001'
+      }
+    ],
+    subtotal: 59.98,
+    deliveryCharge: 5.00,
+    additionalCharges: [
+      {
+        type: 'tax',
+        amount: 6.00,
+        description: '10% sales tax'
+      }
+    ],
+    total: 70.98,
+    status: 'requested',
+    hasPendingCharges: false,
+    createdAt: '2024-12-01T10:30:00.000Z',
+    updatedAt: '2024-12-01T10:30:00.000Z',
+    ...orderData
+  };
+
+  return {
+    timestamp: new Date().toISOString(),
+    message: message || 'Success',
+    data: orderExample
+  };
+}
+
+getResponseWithOrdersList(additionalData: any = {}): any {
+  const ordersListExample = {
+    items: [
+      {
+        _id: '60d5f9f8f8b7a12c3c4d5e6f',
+        customer: { _id: '60d5f9f8f8b7a12c3c4d5e6f', firstName: 'John', lastName: 'Doe', email: 'john@example.com' },
+        business: { _id: '60d5f9f8f8b7a12c3c4d5e70', name: 'Business A' },
+        items: [],
+        subtotal: 59.98,
+        deliveryCharge: 5.00,
+        total: 70.98,
+        status: 'requested',
+        hasPendingCharges: false,
+        createdAt: '2024-12-01T10:30:00.000Z'
+      }
+    ],
+    total: 1,
+    page: 1,
+    perPage: 25,
+    totalPages: 1,
+    ...additionalData
+  };
+
+  return {
+    timestamp: new Date().toISOString(),
+    message: additionalData.message || 'Success',
+    data: ordersListExample
+  };
+}
+
+getOrderInsufficientStockError(outOfStockItems: any[]): any {
+  return {
+    timestamp: new Date().toISOString(),
+    statusCode: 400,
+    error: 'Bad Request',
+    message: 'Insufficient stock for some products',
+    data: outOfStockItems
+  };
+}
+
+getOrderNotFoundError(): any {
+  return {
+    timestamp: new Date().toISOString(),
+    statusCode: 404,
+    error: 'Not Found',
+    message: 'Order not found',
+    data: null
+  };
+}
+
 }
