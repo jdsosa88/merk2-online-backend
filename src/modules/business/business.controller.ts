@@ -23,7 +23,7 @@ import { UpdateBusinessByOwnerDto } from './dto/update-business.dto';
 import { UpdateBusinessPolicy } from './policies/update-business.policy';
 import { ReadBusinessPolicy } from './policies/read-business.policy';
 import { ApiResponseDto } from 'src/common/dto/api-response.dto';
-import { ApiAddEmployee, ApiDeleteBusiness, ApiGetBusiness, ApiListBusiness, ApiRemoveBusinessCategories, ApiRequestCreateBusiness, ApiRequestDeleteBusiness, ApiRespondEmploymentRequest, ApiUpdateBusinessByOwner } from './decorators/swagger-business.decorator';
+import { ApiAddEmployee, ApiDeleteBusiness, ApiGetBusiness, ApiGetBusinessesByOwner, ApiListBusiness, ApiRemoveBusinessCategories, ApiRequestCreateBusiness, ApiRequestDeleteBusiness, ApiRespondEmploymentRequest, ApiUpdateBusinessByOwner } from './decorators/swagger-business.decorator';
 import { IdDto } from 'src/common/dto/id.dto';
 import { AddEmployeeDto } from './dto/add-employee.dto';
 import { EmployeeService } from './employee.service';
@@ -87,7 +87,7 @@ export class BusinessController {
     @Body() removeCategoriesDto: RemoveCategoriesDto,
     @AuthUser() user: User,
   ): Promise<ApiResponseDto<Business>> {
-    
+
     const updatedBusiness = await this.businessService.removeCategories({
       businessId,
       categoryIds: removeCategoriesDto.categories,
@@ -109,6 +109,16 @@ export class BusinessController {
   ): Promise<ApiResponseDto<Business>> {
     const business = await this.businessService.findById(idDto.id);
     return new ApiResponseDto('Business retrieved successfully', business);
+  }
+
+  @Get('by-owner')
+  @CheckPolicies(new ReadBusinessPolicy())
+  @ApiGetBusinessesByOwner()
+  async getMyBusinesses(
+    @AuthUser('id') userId: string,
+  ): Promise<ApiResponseDto<Business[]>> {
+    const businesses = await this.businessService.findBusinessesByOwner(userId);
+    return new ApiResponseDto('Businesses retrieved successfully', businesses);
   }
 
   @Get('list')

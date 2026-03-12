@@ -6,13 +6,13 @@ import {
   ConflictException,
   Inject} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Business } from './schemas/business.schema';
+import { Business, BusinessDocument } from './schemas/business.schema';
 import { BusinessStatus, BusinessStatusType } from './types/business.type';
 import { Model, Types } from 'mongoose';
 import { CreateBusinessDto } from './dto/create-business.dto';
 import { UpdateBusinessByAdminDto, UpdateBusinessByOwnerDto } from './dto/update-business.dto';
 import { UsersService } from '../users/users.service';
-import { Role } from '../users/types/users.type';
+import { Role, UserRole } from '../users/types/users.type';
 import { UpdateUserAllDto } from '../users/dto/update-user.dto';
 import { Provider } from '../users/schemas/provider.schema';
 import { CategoriesService } from '../categories/categories.service';
@@ -289,6 +289,26 @@ export class BusinessService {
     if (!business) throw new NotFoundException('Business not found');
     return business;
   }
+
+  async findBusinessDocumentById(id: string): Promise<BusinessDocument> {
+    const business: BusinessDocument | null = await this.businessModel.findById(id);
+    if (!business) throw new NotFoundException('Business not found');
+    return business;
+  }
+  
+  async findBusinessesByOwnerAsAdmin(ownerId: string, userRole: UserRole): Promise<Business[]> {
+    if(userRole !== 'ADMIN') throw new ForbiddenException(`You have not access to this endpoint as ${userRole}`);
+    return await this.findBusinessesByOwner(ownerId);
+  }
+
+  async findBusinessesByOwner(ownerId: string): Promise<Business[]> {
+  const ownerObjectId = new Types.ObjectId(ownerId);
+  return this.businessModel
+    .find({ owner: ownerObjectId })
+    .populate('categories', 'name')
+    .populate('owner', 'firstName lastName email')
+    .exec();
+}
 
   async findAllPaginated(query: ListBusinessQueryDto): Promise<PaginatedListDto<Business>> {
     try {

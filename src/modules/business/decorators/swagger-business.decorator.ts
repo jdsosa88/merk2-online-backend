@@ -1,5 +1,5 @@
 import { applyDecorators } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiQuery } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiQuery, getSchemaPath } from "@nestjs/swagger";
 import { ApiResponseDto } from "src/common/dto/api-response.dto";
 import { ErrorResponseDto } from "src/common/dto/error-response.dto";
 import { Business } from "../schemas/business.schema";
@@ -128,6 +128,89 @@ export function ApiGetBusiness() {
       description: 'Business not found',
       type: ErrorResponseDto,
       example: utils.getBusinessNotFoundError()
+    }),
+    ApiResponse({
+      status: 500,
+      description: 'Internal server error',
+      type: ErrorResponseDto,
+      example: utils.getInternalServerError()
+    }),
+  );
+}
+
+export function ApiGetBusinessesByOwnerAsAdmin() {
+  const utils = new SwaggerResponseUtils();
+  return applyDecorators(
+    ApiOperation({ summary: 'Get all businesses owned by the authenticated user' }),
+    ApiBearerAuth('JWT'),
+    ApiQuery({type: String, name: 'ownerId', example: "69554d877f1dd0e6bdawq3r1"}),
+    ApiResponse({
+      status: 200,
+      description: 'List of businesses owned by the user',
+      schema: {
+        type: 'object',
+        properties: {
+          timestamp: { type: 'string', example: new Date().toISOString() },
+          message: { type: 'string', example: 'Businesses retrieved successfully' },
+          data: {
+            type: 'array',
+            items: { $ref: getSchemaPath(Business) }
+          }
+        }
+      }
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized - Invalid or missing JWT token',
+      type: ErrorResponseDto,
+      example: utils.getInvalidTokenError()
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Insufficient permissions',
+      type: ErrorResponseDto,
+      example: utils.getInsufficientPermissionsError()
+    }),
+    ApiResponse({
+      status: 500,
+      description: 'Internal server error',
+      type: ErrorResponseDto,
+      example: utils.getInternalServerError()
+    }),
+  );
+}
+
+export function ApiGetBusinessesByOwner() {
+  const utils = new SwaggerResponseUtils();
+  return applyDecorators(
+    ApiOperation({ summary: 'Get all businesses owned by the authenticated user' }),
+    ApiBearerAuth('JWT'),
+    ApiResponse({
+      status: 200,
+      description: 'List of businesses owned by the user',
+      schema: {
+        type: 'object',
+        properties: {
+          timestamp: { type: 'string', example: new Date().toISOString() },
+          message: { type: 'string', example: 'Businesses retrieved successfully' },
+          data: {
+            type: 'array',
+            items: { $ref: getSchemaPath(Business) }
+          }
+        }
+      }
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized - Invalid or missing JWT token',
+      type: ErrorResponseDto,
+      example: utils.getInvalidTokenError()
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Insufficient permissions',
+      type: ErrorResponseDto,
+      example: utils.getInsufficientPermissionsError()
     }),
     ApiResponse({
       status: 500,

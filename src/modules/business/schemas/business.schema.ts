@@ -2,16 +2,16 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { Geolocation } from 'src/common/schemas/geolocation.schema';
 import { Image } from 'src/common/schemas/image.schema';
-import { BusinessStatus, BusinessStatusType } from '../types/business.type';
+import { BusinessStatus, BusinessStatusType, MessengerAssigmentType } from '../types/business.type';
 
 export type BusinessDocument = HydratedDocument<Business>;
 
 @Schema({ _id: false })
 class Employees {
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [Types.ObjectId] })
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
   managers: Types.ObjectId[];
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [Types.ObjectId] })
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
   messengers: Types.ObjectId[];
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'EmploymentRequest' }], default: [] })
@@ -43,10 +43,10 @@ export class Business {
   @Prop({ type: Image, required: false })
   portalPic?: Image;
 
-  @Prop({ type: [String], required: false, default: [String] })
+  @Prop({ type: [String], required: false, default: [] })
   phones: string[];
 
-  @Prop({ type: [Day], required: true, default: [Day] })
+  @Prop({ type: [Day], required: true, default: [] })
   week: Day[];
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Category' }], default: [] })
@@ -72,6 +72,16 @@ export class Business {
     default: BusinessStatus.REQUESTED,
   })
   status: BusinessStatusType;
+
+   @Prop({
+    required: true,
+    enum: [
+      MessengerAssigmentType.AUTOMATIC,
+      MessengerAssigmentType.MANUAL,      
+    ],
+    default: MessengerAssigmentType.AUTOMATIC,
+  })
+  messengerAssigmentType: MessengerAssigmentType;
 }
 
 export const BusinessSchema = SchemaFactory.createForClass(Business);

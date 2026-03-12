@@ -5,4 +5,9 @@ export enum BusinessStatus {
   DISABLED = 'disabled',
 }
 
+export enum MessengerAssigmentType {
+  AUTOMATIC = 'automatic',
+  MANUAL = 'manual',
+};
+
 export type BusinessStatusType = BusinessStatus;

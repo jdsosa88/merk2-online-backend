@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsEnum,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -12,6 +13,7 @@ import { GeolocationDto } from 'src/common/dto/geolocation.dto';
 import { DayDto } from './day.dto';
 import { ImageDto } from 'src/common/dto/image.dto';
 import { IsValidImage } from 'src/common/decorators/image.decorator';
+import { MessengerAssigmentType } from '../types/business.type';
 
 export class CreateBusinessDto {
   @ApiProperty({
@@ -77,4 +79,13 @@ export class CreateBusinessDto {
   @Type(() => DayDto)
   @IsNotEmpty()
   week: DayDto[];
+
+    @ApiPropertyOptional({
+      enum: MessengerAssigmentType,
+      enumName: 'MessengerAssigmentType',
+      description: 'The messenger assigment type for the business'
+    })
+    @IsOptional()
+    @IsEnum(MessengerAssigmentType)
+    messengerAssigmentType?: MessengerAssigmentType;
 }
