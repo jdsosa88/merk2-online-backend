@@ -7,6 +7,8 @@ import { EmploymentRequest } from '../business/schemas/employment-request.schema
 import { Product } from '../products/schemas/product.schema';
 import { Category } from '../categories/schemas/category.schema';
 import { AppConfig } from '../health/schemas/app-config.schema';
+import { Order } from '../orders/schemas/order.schema';
+import { OrderStatus } from '../orders/types/orders.type';
 
 /**
  * Defines the possible actions that can be performed on resources
@@ -29,9 +31,10 @@ export type Subjects = InferSubjects<
   | typeof Category
   | typeof Product
   | typeof AppConfig
-> 
-| 'Health'
-|'all';
+  | typeof Order
+>
+  | 'Health'
+  | 'all';
 
 export type AppAbility = MongoAbility<[Action, Subjects]>;
 
@@ -52,6 +55,7 @@ export class CaslAbilityFactory {
     const { can, cannot, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
     //CREATE
     cannot(Action.CREATE, User);
+    cannot(Action.CREATE, Order);
 
     //READ
     can(Action.READ, Category);
@@ -81,6 +85,7 @@ export class CaslAbilityFactory {
         cannot(Action.UPDATE, User, ['_id']);
         cannot(Action.UPDATE, User, ['isActive', 'role'], { _id: user._id });
         cannot(Action.CREATE, Business, { owner: user._id });
+        cannot(Action.CREATE, Order);
         break;
 
       case Role.PROVIDER:
@@ -90,16 +95,28 @@ export class CaslAbilityFactory {
         can(Action.CREATE, EmploymentRequest, { invitedBy: user._id });
         can(Action.UPDATE, EmploymentRequest, ['status'], { invitedBy: user._id });
         can(Action.MANAGE, Product);
-        can(Action.REQUEST_DELETE, Business, {owner: user._id});
+        can(Action.REQUEST_DELETE, Business, { owner: user._id });
+        can(Action.CREATE, Order);
+        can(Action.READ, Order);
+        can(Action.UPDATE, Order, ['status', 'assignedMessenger', 'notes', 'estimatedDeliveryTime']);
+        can(Action.LIST, Order);
         break;
 
       case Role.MANAGER:
         can(Action.READ, User);
         can(Action.MANAGE, Product);
+        can(Action.CREATE, Order);
+        can(Action.READ, Order);
+        can(Action.UPDATE, Order, ['status', 'notes', 'estimatedDeliveryTime']);
+        can(Action.LIST, Order);
         break;
 
       case Role.MESSENGER:
         can(Action.READ, User);
+        can(Action.CREATE, Order);
+        can(Action.READ, Order, { assignedMessenger: user._id });
+        can(Action.UPDATE, Order, ['status', 'trackingNumber', 'deliveryAddress']);
+        can(Action.LIST, Order);
         break;
 
       case Role.CUSTOMER:
@@ -107,6 +124,20 @@ export class CaslAbilityFactory {
         can(Action.CREATE, Business, { owner: user._id });
         can(Action.UPDATE, Business, { owner: user._id });
         can(Action.UPDATE, EmploymentRequest, ['status'], { user: user._id });
+        can(Action.CREATE, Order);
+        can(Action.READ, Order, { customer: user._id });
+        can(Action.UPDATE, Order, ['status', 'cancellationReason'],
+          {
+            customer: user._id,
+            status: {
+              $in: [
+                OrderStatus.REQUESTED,
+                OrderStatus.IN_PREPARATION,
+                OrderStatus.READY_FOR_DELIVERY
+              ]
+            }
+          });
+        can(Action.LIST, Order, { customer: user._id });
         break;
 
       default:
@@ -119,6 +150,4 @@ export class CaslAbilityFactory {
         item.constructor as ExtractSubjectType<Subjects>
     });
   }
-
-
 }
