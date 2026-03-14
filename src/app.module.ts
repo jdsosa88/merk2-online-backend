@@ -12,6 +12,8 @@ import configuration from './config/configuration';
 import { envValidationSchema } from './config/schemas/env.schema';
 import { HealthModule } from './modules/health/health.module';
 import { OrdersModule } from './modules/orders/orders.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -39,6 +41,10 @@ import { OrdersModule } from './modules/orders/orders.module';
         transport: config.get('mailer.transport'),
         defaults: config.get('mailer.defaults'),
       }),
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'),
+      serveRoot: '/uploads',
     }),
     UsersModule,
     AuthModule,
