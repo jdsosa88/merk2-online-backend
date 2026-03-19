@@ -22,6 +22,8 @@ import { GoogleAuthService } from './google-auth.service';
 import { ICreateUser } from '../users/types/users.interface';
 import { Role } from '../users/types/users.type';
 import { generateRandomPassword } from 'src/common/utils/random-utils';
+import { Image } from '../images/schemas/image.schema';
+import { ImagesService } from '../images/images.service';
 
 
 @Injectable()
@@ -34,6 +36,7 @@ export class AuthService {
     private readonly verificationCodeService: VerificationCodeService,
     private readonly mailerService: MailerService,
     private googleAuthService: GoogleAuthService,
+    private readonly imagesService: ImagesService
   ) { }
 
   async login(authParams: AtuthParams<UserLoginDto>): Promise<LoginResponseDto> {
@@ -152,6 +155,14 @@ export class AuthService {
       let user = await this.usersService.findByEmail(googleUser.email);
 
       if (!user) {
+        let image: Image | undefined;
+        if (googleUser?.picture) {
+          image = await this.imagesService.createFromUrl({
+            url: googleUser.picture,
+            alt: 'Google avatar'
+          });
+        }
+
         const newUserData: ICreateUser = {
           firstName: googleUser.firstName,
           lastName: googleUser.lastName,
@@ -161,9 +172,8 @@ export class AuthService {
           isPhoneVerified: false,
           password: generateRandomPassword(),
           role: Role.CUSTOMER,
-          avatar: googleUser?.picture ? { url: googleUser.picture} : undefined,
+          avatar: image ? image._id : undefined,
         };
-        console.log({ newUserData });
 
         user = await this.usersService.createGoogleUser(newUserData);
       } else if (!user.googleId) {

@@ -12,26 +12,27 @@ import { RefreshTokenService } from './refresh-token.service';
 import { VerificationCodeModule } from '../verification-code/verification-code.module';
 import { CaslModule } from 'src/modules/casl/casl.module';
 import { GoogleAuthService } from './google-auth.service';
+import { ImagesModule } from '../images/images.module';
 
 @Module({
   imports: [
-    // ConfigModule ya no necesita importarse aquí (es global)
     MongooseModule.forFeature([
       { name: RefreshToken.name, schema: RefreshTokenSchema },
     ]),
     PassportModule,
-    JwtModule.registerAsync({      
+    JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('auth.jwt.accessSecret'),
-        signOptions: { 
-          expiresIn: config.get<string>('auth.jwt.accessExpiration') 
+        signOptions: {
+          expiresIn: config.get<string>('auth.jwt.accessExpiration')
         },
       }),
     }),
     CaslModule,
     UsersModule,
     VerificationCodeModule,
+    ImagesModule
   ],
   providers: [AuthService, RefreshTokenService, GoogleAuthService, JwtStrategy],
   controllers: [AuthController]
