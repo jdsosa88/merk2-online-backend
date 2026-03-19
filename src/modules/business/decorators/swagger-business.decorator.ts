@@ -1,5 +1,5 @@
 import { applyDecorators } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiQuery, getSchemaPath } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiQuery, getSchemaPath, ApiConsumes, ApiBody } from "@nestjs/swagger";
 import { ApiResponseDto } from "src/common/dto/api-response.dto";
 import { ErrorResponseDto } from "src/common/dto/error-response.dto";
 import { Business } from "../schemas/business.schema";
@@ -505,6 +505,130 @@ export function ApiListBusiness() {
       status: 200,
       description: 'Returns a paginated list of businesses',
       type: PaginatedListDto<Business>,
+    }),
+  );
+}
+
+export function ApiUploadBusinessImages() {
+  const utils = new SwaggerResponseUtils();
+  return applyDecorators(
+    ApiOperation({ summary: 'Upload business pictures (pic and/or portalPic)' }),
+    ApiBearerAuth('JWT'),
+    ApiConsumes('multipart/form-data'),
+    ApiBody({
+      schema: {
+        type: 'object',
+        properties: {
+          pic: {
+            type: 'string',
+            format: 'binary',
+            description: 'Business main picture (max 1 file)',
+          },
+          portalPic: {
+            type: 'string',
+            format: 'binary',
+            description: 'Business portal picture (max 1 file)',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Images uploaded successfully',
+      type: ApiResponseDto<Business>,
+      example: utils.getResponseWithBusinessResponse({ message: 'Business images updated' }),
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Bad request - No valid images or business not found',
+      type: ErrorResponseDto,
+      examples: {
+        noImages: { summary: 'No images', value: utils.getBadRequestError('There are not valid images data to update') },
+        businessNotFound: { summary: 'Business not found', value: utils.getBusinessNotFoundError() },
+      },
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized - Invalid or missing JWT token',
+      type: ErrorResponseDto,
+      example: utils.getInvalidTokenError(),
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Only owner or admin can update images',
+      type: ErrorResponseDto,
+      example: utils.getForbiddenError('Only business owner or admin can upload images'),
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Business not found',
+      type: ErrorResponseDto,
+      example: utils.getBusinessNotFoundError(),
+    }),
+    ApiResponse({
+      status: 500,
+      description: 'Internal server error',
+      type: ErrorResponseDto,
+      example: utils.getInternalServerError(),
+    }),
+  );
+}
+
+export function ApiDeleteBusinessImages() {
+  const utils = new SwaggerResponseUtils();
+  return applyDecorators(
+    ApiOperation({ summary: 'Delete business pictures (pic, portalPic or both)' }),
+    ApiBearerAuth('JWT'),
+    ApiQuery({
+      name: 'id',
+      required: true,
+      type: String,
+      description: 'Business ID',
+    }),
+    ApiQuery({
+      name: 'imageToDelete',
+      required: true,
+      enum: ['pic', 'portalPic', 'both'],
+      description: 'Which image(s) to delete',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Images deleted successfully',
+      type: ApiResponseDto<Business>,
+      example: utils.getResponseWithBusinessResponse({ message: 'Business images deleted successfully' }),
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Bad request - Invalid image type or no image to delete',
+      type: ErrorResponseDto,
+      examples: {
+        invalidType: { summary: 'Invalid type', value: utils.getBadRequestError('Invalid imageToDelete value') },
+        noImage: { summary: 'No image', value: utils.getBadRequestError('No image to delete for the specified type') },
+      },
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized - Invalid or missing JWT token',
+      type: ErrorResponseDto,
+      example: utils.getInvalidTokenError(),
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Only owner or admin can delete images',
+      type: ErrorResponseDto,
+      example: utils.getForbiddenError('Only business owner or admin can delete images'),
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Business not found',
+      type: ErrorResponseDto,
+      example: utils.getBusinessNotFoundError(),
+    }),
+    ApiResponse({
+      status: 500,
+      description: 'Internal server error',
+      type: ErrorResponseDto,
+      example: utils.getInternalServerError(),
     }),
   );
 }

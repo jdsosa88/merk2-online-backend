@@ -11,8 +11,6 @@ import {
 } from 'class-validator';
 import { GeolocationDto } from 'src/common/dto/geolocation.dto';
 import { DayDto } from './day.dto';
-import { ImageDto } from 'src/common/dto/image.dto';
-import { IsValidImage } from 'src/common/decorators/image.decorator';
 import { BusinessStatus } from '../types/business.type';
 
 export class UpdateBusinessByOwnerDto {
@@ -45,21 +43,7 @@ export class UpdateBusinessByOwnerDto {
   @ValidateNested()
   @Type(() => GeolocationDto)
   geolocation?: GeolocationDto;
-
-  @ApiPropertyOptional({ type: () => ImageDto })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => ImageDto)
-  @IsValidImage()
-  pick?: ImageDto;
-
-  @ApiPropertyOptional({ type: () => ImageDto })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => ImageDto)
-  @IsValidImage()
-  portalPick?: ImageDto;
-
+ 
   @ApiPropertyOptional({
     type: [String],
     description: 'List of phone numbers for the business',

@@ -1,8 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { Geolocation } from 'src/common/schemas/geolocation.schema';
-import { Image } from 'src/common/schemas/image.schema';
-import { BusinessStatus, BusinessStatusType, MessengerAssigmentType } from '../types/business.type';
+import { BusinessStatus, MessengerAssigmentType } from '../types/business.type';
 
 export type BusinessDocument = HydratedDocument<Business>;
 
@@ -37,11 +36,11 @@ export class Business {
   @Prop({ type: Geolocation, required: false })
   geolocation?: Geolocation;
 
-  @Prop({ type: Image, required: false })
-  pic?: Image;
+  @Prop({ type: Types.ObjectId, ref: 'Image', required: false })
+  pic?: Types.ObjectId;
 
-  @Prop({ type: Image, required: false })
-  portalPic?: Image;
+  @Prop({ type: Types.ObjectId, ref: 'Image', required: false })
+  portalPic?: Types.ObjectId;
 
   @Prop({ type: [String], required: false, default: [] })
   phones: string[];
@@ -71,13 +70,13 @@ export class Business {
     ],
     default: BusinessStatus.REQUESTED,
   })
-  status: BusinessStatusType;
+  status: BusinessStatus;
 
-   @Prop({
+  @Prop({
     required: true,
     enum: [
       MessengerAssigmentType.AUTOMATIC,
-      MessengerAssigmentType.MANUAL,      
+      MessengerAssigmentType.MANUAL,
     ],
     default: MessengerAssigmentType.AUTOMATIC,
   })

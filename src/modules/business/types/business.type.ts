@@ -10,4 +10,15 @@ export enum MessengerAssigmentType {
   MANUAL = 'manual',
 };
 
-export type BusinessStatusType = BusinessStatus;
+export interface UploadImageParams {
+  businessId: string;
+  picFiles?: Express.Multer.File[];
+  portalPicFiles?: Express.Multer.File[];
+}
+
+export type ImageToDeleteType = "pic" | "portalPic" | "both";
+
+export interface DeleteImageParams {
+  businessId: string;
+  imageToDelete: ImageToDeleteType;
+}

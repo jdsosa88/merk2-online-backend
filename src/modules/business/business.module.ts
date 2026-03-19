@@ -11,6 +11,7 @@ import { EmploymentRequest, EmploymentRequestSchema } from './schemas/employment
 import { EmployeeService } from './employee.service';
 import { EmploymentRequestService } from './employment-request.service';
 import { CategoriesModule } from '../categories/categories.module';
+import { ImagesModule } from '../images/images.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { CategoriesModule } from '../categories/categories.module';
     forwardRef(() => UsersModule),
     forwardRef(() => CategoriesModule),
     forwardRef(() => ProductsModule),
+    ImagesModule,
   ],
   controllers: [BusinessController, AdminBusinessController],
   providers: [BusinessService, EmployeeService, EmploymentRequestService],

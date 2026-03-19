@@ -4,10 +4,11 @@ import {
   ForbiddenException,
   BadRequestException,
   ConflictException,
-  Inject} from '@nestjs/common';
+  Inject
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Business, BusinessDocument } from './schemas/business.schema';
-import { BusinessStatus, BusinessStatusType } from './types/business.type';
+import { BusinessStatus, DeleteImageParams, UploadImageParams } from './types/business.type';
 import { Model, Types } from 'mongoose';
 import { CreateBusinessDto } from './dto/create-business.dto';
 import { UpdateBusinessByAdminDto, UpdateBusinessByOwnerDto } from './dto/update-business.dto';
@@ -21,6 +22,7 @@ import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
 import { createDiacriticInsensitiveRegex } from 'src/common/utils/text-regex';
 import { EmploymentRequest } from './schemas/employment-request.schema';
 import { ProductRepository } from '../products/repositories/product.repository';
+import { ImagesService } from '../images/images.service';
 
 type BusinessUpdateData = {
   id: string,
@@ -43,6 +45,7 @@ export class BusinessService {
     private readonly usersService: UsersService,
     private readonly categoriesService: CategoriesService,
     @Inject('ProductRepository') private readonly productRepository: ProductRepository,
+    private readonly imagesService: ImagesService,
 
   ) { }
 
@@ -136,12 +139,12 @@ export class BusinessService {
         categoriesToRemove.includes(product.category.toString())
       ).map((product: any) => product._id);
 
-     const deletedCategoriesTotal =  await this.productRepository.deleteManyByIds(productsToRemove);
+      const deletedCategoriesTotal = await this.productRepository.deleteManyByIds(productsToRemove);
 
       const updatedProducts = business.products.filter((product: any) =>
         !categoriesToRemove.includes(product.category.toString())
       ).map((product: any) => product._id);
-      
+
       // Actualizar el negocio
       const updatedBusiness = await this.businessModel.findByIdAndUpdate(
         _id,
@@ -179,7 +182,7 @@ export class BusinessService {
     return business;
   }
 
-  async deleteBusiness( businessId: string ): Promise<void> {
+  async deleteBusiness(businessId: string): Promise<void> {
     try {
       const business = await this.businessModel
         .findById(businessId)
@@ -285,7 +288,7 @@ export class BusinessService {
   }
 
   async findById(id: string): Promise<Business> {
-    const business = await this.businessModel.findById(id);
+    const business = await this.businessModel.findById(id).populate('pic').populate('portalPic');
     if (!business) throw new NotFoundException('Business not found');
     return business;
   }
@@ -295,20 +298,20 @@ export class BusinessService {
     if (!business) throw new NotFoundException('Business not found');
     return business;
   }
-  
+
   async findBusinessesByOwnerAsAdmin(ownerId: string, userRole: UserRole): Promise<Business[]> {
-    if(userRole !== 'ADMIN') throw new ForbiddenException(`You have not access to this endpoint as ${userRole}`);
+    if (userRole !== 'ADMIN') throw new ForbiddenException(`You have not access to this endpoint as ${userRole}`);
     return await this.findBusinessesByOwner(ownerId);
   }
 
   async findBusinessesByOwner(ownerId: string): Promise<Business[]> {
-  const ownerObjectId = new Types.ObjectId(ownerId);
-  return this.businessModel
-    .find({ owner: ownerObjectId })
-    .populate('categories', 'name')
-    .populate('owner', 'firstName lastName email')
-    .exec();
-}
+    const ownerObjectId = new Types.ObjectId(ownerId);
+    return this.businessModel
+      .find({ owner: ownerObjectId })
+      .populate('categories', 'name')
+      .populate('owner', 'firstName lastName email')
+      .exec();
+  }
 
   async findAllPaginated(query: ListBusinessQueryDto): Promise<PaginatedListDto<Business>> {
     try {
@@ -436,7 +439,7 @@ export class BusinessService {
     }
   }
 
-  private validateBusinessStatustoOwner(businessStatus: BusinessStatusType): void {
+  private validateBusinessStatustoOwner(businessStatus: BusinessStatus): void {
     if (businessStatus !== BusinessStatus.ACCEPTED) {
       throw new ForbiddenException('Your business have not accepted status yet');
     }
@@ -461,4 +464,90 @@ export class BusinessService {
 
     return updateDtoData;
   }
+
+  async uploadBusinessImages(params: UploadImageParams): Promise<Business> {
+    try {
+      return await this.uploadImages(params);
+    } catch (error) {
+      await this.deletePreviousUploadedImageFiles(params.picFiles);
+      await this.deletePreviousUploadedImageFiles(params.portalPicFiles);
+      throw error;
+    }
+  }
+
+  private async uploadImages(params: UploadImageParams): Promise<Business> {
+    const { businessId, picFiles, portalPicFiles } = params;
+    const updateData: any = {};
+    const business = await this.findById(businessId);
+
+    if (picFiles && picFiles.length > 0) {
+      if (business.pic?._id) {
+        await this.imagesService.delete(business.pic?._id.toString());
+      }
+      const picFile = picFiles[0];
+      const image = await this.imagesService.createFromFile(picFile, `Business ${businessId} pic`);
+      updateData.pic = image._id;
+    }
+
+    if (portalPicFiles && portalPicFiles.length > 0) {
+      if (business.portalPic?._id) {
+        await this.imagesService.delete(business.portalPic?._id.toString());
+      }
+      const portalPicFile = portalPicFiles[0];
+      const image = await this.imagesService.createFromFile(portalPicFile, `Business ${businessId} portal pic`);
+      updateData.portalPic = image._id;
+    }
+
+    if (!updateData.pic && !updateData.portalPic) {
+      throw new BadRequestException("There are not valid images data to update");
+    }
+    const updatedBusiness = await this.businessModel.findByIdAndUpdate(
+      new Types.ObjectId(businessId),
+      updateData,
+      { new: true }
+    )
+      .populate('pic')
+      .populate('portalPic')
+      .exec();
+
+    if (!updatedBusiness) throw new BadRequestException("Failed upadate operation");
+    return updatedBusiness;
+  }
+
+  private async deletePreviousUploadedImageFiles(files: Express.Multer.File[] | undefined): Promise<void> {
+    if (files) {
+      for (let i = 0; i < files.length; i++) {
+        this.imagesService.deleteImageFile(files[i].filename);
+      }
+    }
+  }
+
+  async deleteBusinessImage(params: DeleteImageParams): Promise<Business> {
+    const { businessId, imageToDelete } = params;
+    const business = await this.findBusinessDocumentById(businessId);
+    const businessUpdateData: any = {};
+
+    if ((imageToDelete === 'pic' || imageToDelete === 'both') && business.pic) {
+      await this.imagesService.delete(business.pic.toString());
+      businessUpdateData.pic = null;
+    }
+
+    if ((imageToDelete === 'portalPic' || imageToDelete === 'both') && business.portalPic) {
+      await this.imagesService.delete(business.portalPic.toString());
+      businessUpdateData.portalPic = null;
+    }
+
+    if (businessUpdateData.pic !== null && businessUpdateData.portalPic !== null) {
+      return business;
+    }
+    
+    const updatedBusiness = await this.businessModel.findByIdAndUpdate(
+      business._id,
+      businessUpdateData,
+      {new: true},
+    ).populate('pic').populate('portalPic').exec();
+     if (!updatedBusiness) throw new BadRequestException("Errors occurred deleting business images.");
+     return updatedBusiness;
+  }
+
 }

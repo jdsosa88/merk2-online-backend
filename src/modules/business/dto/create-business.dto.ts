@@ -11,8 +11,6 @@ import {
 } from 'class-validator';
 import { GeolocationDto } from 'src/common/dto/geolocation.dto';
 import { DayDto } from './day.dto';
-import { ImageDto } from 'src/common/dto/image.dto';
-import { IsValidImage } from 'src/common/decorators/image.decorator';
 import { MessengerAssigmentType } from '../types/business.type';
 
 export class CreateBusinessDto {
@@ -45,20 +43,6 @@ export class CreateBusinessDto {
   @ValidateNested()
   @Type(() => GeolocationDto)
   readonly geolocation?: GeolocationDto;
-
-  @ApiPropertyOptional({ type: () => ImageDto })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => ImageDto)
-  @IsValidImage()
-  readonly pick?: ImageDto;
-
-  @ApiPropertyOptional({ type: () => ImageDto })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => ImageDto)
-  @IsValidImage()
-  readonly portalPick?: ImageDto;
 
   @ApiPropertyOptional({
     type: [String],

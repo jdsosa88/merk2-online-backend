@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { IsOptional, IsString, IsEnum, IsArray, IsNotEmpty } from "class-validator";
 import { PaginationListParamsDto } from "src/common/dto/pagination-list-params.dto";
-import { BusinessStatus, BusinessStatusType } from "../types/business.type";
+import { BusinessStatus } from "../types/business.type";
 import { Type } from "class-transformer";
 
 export class ListBusinessQueryDto extends PaginationListParamsDto {

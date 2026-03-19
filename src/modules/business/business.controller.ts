@@ -7,8 +7,8 @@ import {
   Patch,
   Query,
   Delete,
-  HttpCode,
-  HttpStatus
+  UploadedFiles,
+  UseInterceptors
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { PoliciesGuard } from 'src/common/guards/policies.guard';
@@ -20,10 +20,10 @@ import { Business } from './schemas/business.schema';
 import { AuthUser } from 'src/common/decorators/user.decorator';
 import { Types } from 'mongoose';
 import { UpdateBusinessByOwnerDto } from './dto/update-business.dto';
-import { UpdateBusinessPolicy } from './policies/update-business.policy';
+import { UpdateBusinessImagePolicy, UpdateBusinessPolicy } from './policies/update-business.policy';
 import { ReadBusinessPolicy } from './policies/read-business.policy';
 import { ApiResponseDto } from 'src/common/dto/api-response.dto';
-import { ApiAddEmployee, ApiDeleteBusiness, ApiGetBusiness, ApiGetBusinessesByOwner, ApiListBusiness, ApiRemoveBusinessCategories, ApiRequestCreateBusiness, ApiRequestDeleteBusiness, ApiRespondEmploymentRequest, ApiUpdateBusinessByOwner } from './decorators/swagger-business.decorator';
+import { ApiAddEmployee, ApiDeleteBusinessImages, ApiGetBusiness, ApiGetBusinessesByOwner, ApiListBusiness, ApiRemoveBusinessCategories, ApiRequestCreateBusiness, ApiRequestDeleteBusiness, ApiRespondEmploymentRequest, ApiUpdateBusinessByOwner, ApiUploadBusinessImages } from './decorators/swagger-business.decorator';
 import { IdDto } from 'src/common/dto/id.dto';
 import { AddEmployeeDto } from './dto/add-employee.dto';
 import { EmployeeService } from './employee.service';
@@ -37,8 +37,10 @@ import { ListBusinessQueryDto } from './dto/list-business-query.dto';
 import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
 import { RemoveCategoriesDto } from './dto/remove-categories.dto';
 import { RemoveBusinessCategoriesPolicyHandler } from './policies/remove-business-categories.policy';
-import { DeleteBusinessPolicy } from './policies/delete-business.policy';
 import { RequestDeleteBusinessPolicy } from './policies/request-delete-business.policy';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { FileService } from 'src/common/services/file.service';
+import { ImageToDeleteType } from './types/business.type';
 
 @UseGuards(JwtAuthGuard, PoliciesGuard)
 @Controller('businesses')
@@ -171,4 +173,43 @@ export class BusinessController {
     const message = `Employment request ${isAccepted ? 'accepted' : 'rejected'}`;
     return new ApiResponseDto(message, result);
   }
+
+
+  @Post('upload-images')
+  @CheckPolicies(new UpdateBusinessImagePolicy())
+  @UseInterceptors(FileFieldsInterceptor([
+    { name: 'pic', maxCount: 1 },
+    { name: 'portalPic', maxCount: 1 },
+  ], {
+    storage: FileService.getDiskStorage(),
+    limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter: FileService.imageFileFilter,
+  }))
+  @ApiUploadBusinessImages()
+  async uploadBusinessImages(
+    @Query() idDto: IdDto,
+    @UploadedFiles() files: { pic?: Express.Multer.File[]; portalPic?: Express.Multer.File[] },
+  ): Promise<ApiResponseDto<Business>> {
+    const businessWithImages = await this.businessService.uploadBusinessImages({
+      businessId: idDto.id,
+      picFiles: files ? files.pic : undefined,
+      portalPicFiles: files ? files.portalPic : undefined,
+    });
+    return new ApiResponseDto("Business updated successfully", businessWithImages);
+  }
+
+  @Delete('delete-images')
+  @CheckPolicies(new UpdateBusinessImagePolicy())
+  @ApiDeleteBusinessImages()
+  async deleteBusinessImages(
+    @Query('id') businessId: string,
+    @Query('imageToDelete') imageToDelete: ImageToDeleteType,
+  ): Promise<ApiResponseDto<Business>> {
+    const updatedBusiness = await this.businessService.deleteBusinessImage({
+      businessId,
+      imageToDelete,
+    });
+    return new ApiResponseDto("Business images deleted successfully", updatedBusiness);
+  }
+
 }
