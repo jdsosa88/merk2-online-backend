@@ -1,9 +1,10 @@
 import { applyDecorators } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiQuery } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiQuery, ApiConsumes, ApiBody } from "@nestjs/swagger";
 import { ApiResponseDto } from "src/common/dto/api-response.dto";
 import { ErrorResponseDto } from "src/common/dto/error-response.dto";
-import { ProductType } from "../schemas/product.schema";
+import { Product, ProductType } from "../schemas/product.schema";
 import { SwaggerResponseUtils } from "src/common/utils/swagger-response-utils";
+import { DeleteImagesDto } from "../dto/delete-images.dto";
 
 export function ApiCreateProduct() {
   const utils = new SwaggerResponseUtils();
@@ -535,6 +536,120 @@ export function ApiIncrementTimesOrdered() {
       description: 'Internal server error',
       type: ErrorResponseDto,
       example: utils.getInternalServerError()
+    }),
+  );
+}
+
+export function ApiUploadProductImages() {
+  const utils = new SwaggerResponseUtils();
+  return applyDecorators(
+    ApiOperation({ summary: 'Upload product images (max 10 files)' }),
+    ApiBearerAuth('JWT'),
+    ApiConsumes('multipart/form-data'),
+    ApiBody({
+      schema: {
+        type: 'object',
+        properties: {
+          images: {
+            type: 'array',
+            items: { type: 'string', format: 'binary' },
+            description: 'Image files (max 10)',
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Images uploaded successfully',
+      type: ApiResponseDto<Product>,
+      example: utils.getExampleResponseWithProduct({ message: 'Images uploaded successfully' }),
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Bad request - No images or limit exceeded',
+      type: ErrorResponseDto,
+      examples: {
+        noImages: { summary: 'No images', value: utils.getBadRequestError('You must add at least one image') },
+        limitExceeded: { summary: 'Limit exceeded', value: utils.getBadRequestError('You have exceeded the maximum number of images allowed per product') },
+      },
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized - Invalid or missing JWT token',
+      type: ErrorResponseDto,
+      example: utils.getInvalidTokenError(),
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Only owner, manager or admin can upload images',
+      type: ErrorResponseDto,
+      example: utils.getForbiddenError('Only business owner, manager or system admin can access this endpoint'),
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Product not found',
+      type: ErrorResponseDto,
+      example: utils.getProductNotFoundError('<id>'),
+    }),
+    ApiResponse({
+      status: 500,
+      description: 'Internal server error',
+      type: ErrorResponseDto,
+      example: utils.getInternalServerError(),
+    }),
+  );
+}
+
+export function ApiDeleteProductImages() {
+  const utils = new SwaggerResponseUtils();
+  return applyDecorators(
+    ApiOperation({ summary: 'Delete specific images from a product' }),
+    ApiBearerAuth('JWT'),
+    ApiQuery({
+      name: 'id',
+      required: true,
+      type: String,
+      description: 'Product ID',
+    }),
+    ApiBody({
+      type: DeleteImagesDto,
+      description: 'Array of image IDs to delete',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Images deleted successfully',
+      type: ApiResponseDto<Product>,
+      example: utils.getExampleResponseWithProduct({ message: 'Images deleted successfully' }),
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Bad request - No valid image IDs',
+      type: ErrorResponseDto,
+      example: utils.getBadRequestError('No valid image IDs provided'),
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized - Invalid or missing JWT token',
+      type: ErrorResponseDto,
+      example: utils.getInvalidTokenError(),
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Only owner, manager or admin can delete images',
+      type: ErrorResponseDto,
+      example: utils.getForbiddenError('Only business owner, manager or system admin can access this endpoint'),
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Product not found',
+      type: ErrorResponseDto,
+      example: utils.getProductNotFoundError('<id>'),
+    }),
+    ApiResponse({
+      status: 500,
+      description: 'Internal server error',
+      type: ErrorResponseDto,
+      example: utils.getInternalServerError(),
     }),
   );
 }

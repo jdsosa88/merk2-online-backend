@@ -6,7 +6,8 @@ import {
   InternalServerErrorException,
   UnauthorizedException,
   Inject,
-  forwardRef
+  forwardRef,
+  ForbiddenException
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -17,6 +18,10 @@ import { BusinessService } from '../business/business.service';
 import { CategoriesService } from '../categories/categories.service';
 import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
 import { MoneyUtils } from 'src/common/utils/money.utils';
+import { Business } from '../business/schemas/business.schema';
+import { User } from '../users/schemas/user.schema';
+import { ImagesService } from '../images/images.service';
+import { AddProductImagesParams, DeleteProductImagesParams } from './types/product.types';
 
 @Injectable()
 export class ProductsService {
@@ -24,6 +29,7 @@ export class ProductsService {
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
     @Inject(forwardRef(() => BusinessService)) private readonly businessService: BusinessService,
     private readonly categoriesService: CategoriesService,
+    private readonly imagesService: ImagesService,
   ) { }
 
   async create(createProductDto: CreateProductDto, userId: string): Promise<Product> {
@@ -119,7 +125,7 @@ export class ProductsService {
 
       await this.businessService.addProduct(createProductDto.business, savedProduct._id);
       return savedProduct;
-    } catch (error) {      
+    } catch (error) {
       if (
         error instanceof ConflictException
         || error instanceof UnauthorizedException
@@ -189,6 +195,7 @@ export class ProductsService {
       .populate('category', 'name _id level')
       .populate('addons', 'name price finalPrice sku isAvailable description images')
       .populate('parentProduct', 'name price finalPrice sku business')
+      .populate('images')
       .exec();
 
     if (!product) {
@@ -216,7 +223,7 @@ export class ProductsService {
   async findProductsByIds(productIds: string[]): Promise<Product[]> {
     const ids = productIds.map(id => new Types.ObjectId(id));
     return this.productModel.find({ _id: { $in: ids } })
-      .populate('business', 'name status owner employees')
+      .populate('business', 'name status owner employees images')
       .exec();
   }
 
@@ -274,7 +281,6 @@ export class ProductsService {
       ? productDto.description
       : product.description;
     product.brand = productDto.brand ? productDto.brand : product.brand;
-    product.images = productDto.images ? productDto.images : product.images;
     product.price = productDto.price ? productDto.price : product.price;
     product.discountValue = productDto.discountValue
       ? productDto.discountValue
@@ -590,4 +596,85 @@ export class ProductsService {
 
     return newParent;
   }
+
+  async addProductImages(params: AddProductImagesParams): Promise<Product> {
+    try {
+      const validatedProduct = await this.getValidatedProduct(params.productId, params.user);
+      return await this.addImages(validatedProduct, params.images);
+    } catch (error) {
+      for (let i = 0; i < params.images.length; i++) {
+        const image = params.images[i];
+        this.imagesService.deleteImageFile(image.filename);
+      }
+      throw error;
+    }
+  }
+
+  async deleteProductImages(params: DeleteProductImagesParams): Promise<Product> {
+    const validatedProduct = await this.getValidatedProduct(params.productId, params.user);
+    const productImages = validatedProduct.images.map((image: Types.ObjectId) => image.toString());
+    const validImageIdsToDelete = params.imageIds.filter(
+      (image: string) => productImages.includes(image));
+
+    const deletedImages = await Promise.all(
+      validImageIdsToDelete.map((id: string, index: number) => {
+        this.imagesService.delete(id);
+        return index;
+      })
+    );
+
+    if (deletedImages.length !== validImageIdsToDelete.length) {
+      throw new BadRequestException("Errors occurred deleting product images");
+    }
+
+    const remainingImages = validatedProduct.images.filter(
+      (image: Types.ObjectId) => validImageIdsToDelete.includes(image.toString()) === false
+    );
+
+    validatedProduct.images = remainingImages;
+    await validatedProduct.save();
+    await validatedProduct.populate('images');
+    return validatedProduct;
+  }
+
+  private async getValidatedProduct(productId: string, user: User): Promise<ProductDocument> {
+    const _id = new Types.ObjectId(productId);
+    const product = await this.productModel.findById(_id).populate('business');
+    if (!product) throw new NotFoundException('Product not found');
+    const business = product.business ? ((product as any).business as Business) : undefined;
+    const isAdmin = user.role === 'ADMIN' ? true : false;
+    const isOwner = business?.owner.toString() === user._id.toString() ? true : false;
+    const businessManager = business?.employees?.managers?.filter((manager) => manager.toString() === user._id.toString());
+    const isBusinessManager = businessManager && businessManager.length > 0 ? true : false;
+    if (!isAdmin && !isOwner && !isBusinessManager) {
+      throw new ForbiddenException(
+        'Only business owner, manager or system admin can access this endpoint'
+      );
+    }
+    return product;
+  }
+
+  private async addImages(product: ProductDocument, images: Express.Multer.File[]): Promise<Product> {
+    if (!images || images.length === 0) {
+      throw new BadRequestException("You must add at least one image");
+    }
+
+    const totalBusinessProducts = product.images.length;
+    const newImagesCount = images ? images.length : 0;
+    if (totalBusinessProducts + newImagesCount > 10) {
+      throw new BadRequestException(
+        'You have exceeded the maximum number of images allowed per product. The image limit per product is 10.'
+      );
+    }
+
+    const imageIds = await Promise.all(
+      images.map(file =>
+        this.imagesService.createFromFile(file, `Product image`).then(img => img._id)
+      )
+    );
+    product.images.push(...imageIds);
+    await product.save();
+    return product.populate('images');
+  }
+
 }

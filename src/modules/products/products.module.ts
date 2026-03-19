@@ -9,6 +9,7 @@ import { ProductsService } from './products.service';
 import { CategoriesModule } from '../categories/categories.module';
 import { UsersModule } from '../users/users.module';
 import { ProductMongoRepository } from './repositories/product.repository';
+import { ImagesModule } from '../images/images.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ProductMongoRepository } from './repositories/product.repository';
     forwardRef(() => UsersModule),
     forwardRef(() => BusinessModule),
     forwardRef(() => CategoriesModule),
+    ImagesModule,
   ],
   controllers: [ProductsController],
   providers: [

@@ -1,10 +1,10 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Body, 
-  Patch, 
-  Delete, 
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Delete,
   Query,
   ParseBoolPipe,
   DefaultValuePipe,
@@ -12,7 +12,9 @@ import {
   ParseEnumPipe,
   HttpCode,
   HttpStatus,
-  UseGuards
+  UseGuards,
+  UseInterceptors,
+  UploadedFiles
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -33,21 +35,28 @@ import {
   ApiDeleteProduct,
   ApiUpdateProductStock,
   ApiAddProductReview,
-  ApiIncrementTimesOrdered
+  ApiIncrementTimesOrdered,
+  ApiDeleteProductImages,
+  ApiUploadProductImages
 } from './decorators/swagger-products.decorator';
 import { ApiResponseDto } from 'src/common/dto/api-response.dto';
 import { Product } from './schemas/product.schema';
 import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { FileService } from 'src/common/services/file.service';
+import { IdDto } from 'src/common/dto/id.dto';
+import { User } from '../users/schemas/user.schema';
+import { DeleteImagesDto } from './dto/delete-images.dto';
 
 @UseGuards(JwtAuthGuard, PoliciesGuard)
 @Controller('products')
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(private readonly productsService: ProductsService) { }
 
   @Post()
   @ApiCreateProduct()
   async create(
-    @AuthUser('id') userId: string, 
+    @AuthUser('id') userId: string,
     @Body() createProductDto: CreateProductDto
   ): Promise<ApiResponseDto<Product>> {
     const product = await this.productsService.create(createProductDto, userId);
@@ -80,12 +89,12 @@ export class ProductsController {
     @Query('inStockOnly', new DefaultValuePipe(false), ParseBoolPipe) inStockOnly?: boolean
   ): Promise<ApiResponseDto<Product[]>> {
     const products = await this.productsService.searchProducts(
-      searchTerm, 
-      businessId, 
+      searchTerm,
+      businessId,
       categoryId,
-      type, 
-      minPrice, 
-      maxPrice, 
+      type,
+      minPrice,
+      maxPrice,
       inStockOnly
     );
     return new ApiResponseDto("Products search completed", products);
@@ -128,7 +137,7 @@ export class ProductsController {
   @Patch()
   @ApiUpdateProduct()
   async update(
-    @Query('id') id: string, 
+    @Query('id') id: string,
     @Body() updateProductDto: UpdateProductDto
   ): Promise<ApiResponseDto<Product>> {
     const product = await this.productsService.update(id, updateProductDto);
@@ -172,4 +181,43 @@ export class ProductsController {
     const product = await this.productsService.incrementTimesOrdered(id);
     return new ApiResponseDto("Times ordered incremented", product);
   }
+
+  @Post('/upload-images')
+  @ApiUploadProductImages()
+  @UseInterceptors(FilesInterceptor('images', 10, {
+    storage: FileService.getDiskStorage(),
+    limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter: FileService.imageFileFilter,
+  }))
+  async uploadProductImages(
+    @Query() idDto: IdDto,
+    @UploadedFiles() images: Express.Multer.File[],
+    @AuthUser() user: User,
+  ): Promise<ApiResponseDto<Product>> {
+    
+    const updatedProduct = await this.productsService.addProductImages({
+      productId: idDto.id,
+      user: user,
+      images: images,
+    });
+
+    return new ApiResponseDto('Images uploaded successfully', updatedProduct);
+  }
+
+  @Delete('delete-images')
+  @ApiDeleteProductImages()
+  async deleteProductImages(
+    @Query() idDto: IdDto,
+    @Body() deleteImagesDto: DeleteImagesDto,
+    @AuthUser() user: User,
+  ): Promise<ApiResponseDto<Product>>{
+    const updatedProduct = await this.productsService.deleteProductImages({
+      productId: idDto.id,
+      user,
+      imageIds: deleteImagesDto.images,
+    });
+
+    return new ApiResponseDto('Images deleted successfully', updatedProduct);
+  }
+
 }

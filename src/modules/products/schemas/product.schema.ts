@@ -25,21 +25,10 @@ export class Product {
   @Prop({ type: Types.ObjectId, default: () => new Types.ObjectId() })
   _id: Types.ObjectId;
 
-  @Prop({ 
-    type: String, 
-    required: true, 
-    trim: true, 
-    minlength: 2, 
-    maxlength: 150 
-  })
+  @Prop({ type: String, required: true, trim: true, minlength: 2, maxlength: 150 })
   name: string;
 
-  @Prop({ 
-    type: String, 
-    trim: true, 
-    maxlength: 250,
-    default: ''
-  })
+  @Prop({ type: String, trim: true, maxlength: 250, default: '' })
   description?: string;
 
   @Prop({
@@ -50,46 +39,25 @@ export class Product {
   })
   type: ProductType;
 
-  @Prop({ 
-    type: String, 
-    trim: true, 
-    maxlength: 50,
-    default: ''
-  })
+  @Prop({ type: String, trim: true, maxlength: 50, default: '' })
   brand?: string;
 
-  @Prop({ 
-    type: Number, 
-    required: true,
-    min: 0
-  })
+  @Prop({ type: Number, required: true, min: 0 })
   price: number;
 
-  @Prop({ 
-    type: [Image], 
-    default: []
-  })
-  images: Image[];
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Image' }], default: [] })
+  images: Types.ObjectId[];
 
-  @Prop({ 
-    type: Number, 
-    min: 0,
-    default: 0
-  })
+  @Prop({ type: Number, min: 0, default: 0 })
   discountValue?: number;
 
-  @Prop({ 
-    type: Number, 
-    min: 0,
-    max: 100,
-    default: 0
-  })
+  @Prop({ type: Number, min: 0, max: 100, default: 0 })
   discountPercent?: number;
 
-  @Prop({ 
-    type: Number, 
+  @Prop({
+    type: Number,
     min: 0,
-    default: function() {
+    default: function () {
       const basePrice = this.price || 0;
       const discountVal = this.discountValue || 0;
       const discountPerc = this.discountPercent || 0;
@@ -100,81 +68,37 @@ export class Product {
   })
   finalPrice: number;
 
-  @Prop({ 
-    type: String, 
-    trim: true,
-    maxlength: 100
-  })
+  @Prop({ type: String, trim: true, maxlength: 100 })
   warranty?: string;
 
-  @Prop({ 
-    type: String, 
-    trim: true,
-    maxlength: 50
-  })
+  @Prop({ type: String, trim: true, maxlength: 50 })
   size?: string;
 
-  @Prop({ 
-    type: [String], 
-    enum: Object.values(ProductColor),
-    default: []
-  })
+  @Prop({ type: [String], enum: Object.values(ProductColor), default: [] })
   colors: ProductColor[];
 
-  @Prop({ 
-    type: String, 
-    trim: true,
-    maxlength: 50
-  })
+  @Prop({ type: String, trim: true, maxlength: 50 })
   weight?: string;
 
-  @Prop({ 
-    type: Number, 
-    min: 0,
-    default: 0
-  })
+  @Prop({ type: Number, min: 0, default: 0 })
   stock: number;
 
-  @Prop({ 
-    type: Boolean, 
-    default: true 
-  })
+  @Prop({ type: Boolean, default: true })
   isAvailable: boolean;
 
-  @Prop({ 
-    type: [{ type: Types.ObjectId, ref: 'Product' }],
-    default: []
-  })
-  addons: Types.ObjectId[]; 
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Product' }], default: [] })
+  addons: Types.ObjectId[];
 
-  @Prop({ 
-    type: Types.ObjectId, 
-    ref: 'Product',
-    required: false
-  })
+  @Prop({ type: Types.ObjectId, ref: 'Product', required: false })
   parentProduct?: Types.ObjectId;
 
-  @Prop({ 
-    type: String, 
-    required: true, 
-    unique: true,
-    trim: true,
-    uppercase: true
-  })
+  @Prop({ type: String, required: true, unique: true, trim: true, uppercase: true })
   sku: string;
 
-  @Prop({ 
-    type: Types.ObjectId, 
-    ref: 'Business', 
-    required: true 
-  })
+  @Prop({ type: Types.ObjectId, ref: 'Business', required: true })
   business: Types.ObjectId;
 
-  @Prop({ 
-    type: Types.ObjectId, 
-    ref: 'Category', 
-    required: true 
-  })
+  @Prop({ type: Types.ObjectId, ref: 'Category', required: true })
   category: Types.ObjectId;
 
   @Prop({ type: Number, default: 0 })
@@ -193,21 +117,21 @@ export class Product {
 export const ProductSchema = SchemaFactory.createForClass(Product);
 
 // Helper para convertir centavos a decimales en las respuestas
-ProductSchema.methods.toJSON = function() {
+ProductSchema.methods.toJSON = function () {
   const obj = this.toObject();
-  
+
   obj.price = this.price / 100;
   obj.discountValue = this.discountValue ? this.discountValue / 100 : 0;
   obj.finalPrice = this.finalPrice / 100;
-  
+
   return obj;
 };
 
 // Pre-save hook para calcular finalPrice en centavos
-ProductSchema.pre('save', function(next) {
+ProductSchema.pre('save', function (next) {
   const basePrice = this.price || 0;
   const discountVal = this.discountValue || 0;
-    
+
   this.finalPrice = Math.max(0, basePrice - discountVal);
   next();
 });

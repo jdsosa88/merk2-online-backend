@@ -40,14 +40,6 @@ export class CreateProductDto {
   @IsNotEmpty()
   price: number;
 
-  @ApiPropertyOptional({ type: [ImageDto], maxItems: 10 })
-  @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(10)
-  @ValidateNested({ each: true })
-  @Type(() => ImageDto)
-  images?: ImageDto[];
-
   @ApiPropertyOptional({ example: 2.00 })
   @IsOptional()
   @IsNumber()
