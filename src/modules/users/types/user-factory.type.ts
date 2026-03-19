@@ -5,14 +5,14 @@ import { ICreateManager, ICreateMessenger, ICreateUser, IUpdateUserDto } from ".
 import { UpdateUserAllDto, UpdateUserDto } from "../dto/update-user.dto";
 import { UserRole } from "./users.type";
 
-export type CreateUserFactoryDto = 
-CreateUserDto 
-| CreateProviderDto 
-| CreateManagerDto 
-| CreateMessengerDto 
-| ICreateUser
-| ICreateManager
-| ICreateMessenger;
+export type CreateUserFactoryDto =
+  CreateUserDto
+  | CreateProviderDto
+  | CreateManagerDto
+  | CreateMessengerDto
+  | ICreateUser
+  | ICreateManager
+  | ICreateMessenger;
 
 export type UpdateUserFactoryDto = UpdateUserDto | UpdateUserAllDto | IUpdateUserDto;
 
@@ -22,7 +22,7 @@ export type CreateUserParams = {
 
 export type UpdateUserParams = {
   updateUserDto: UpdateUserFactoryDto;
-  userId: Types.ObjectId; 
+  userId: Types.ObjectId;
 }
 
 export type ChangeRoleParams = {
@@ -30,7 +30,7 @@ export type ChangeRoleParams = {
   existentUser: User;
 }
 
-export type SchemaData = {   
+export type SchemaData = {
   __t?: string,
   role: UserRole;
 }

@@ -11,6 +11,7 @@ import { UserFactory } from './user.factory';
 import { Manager, ManagerSchema } from './schemas/manager.schema';
 import { Messenger, MessengerSchema } from './schemas/messenger.schema';
 import { BusinessModule } from '../business/business.module';
+import { ImagesModule } from '../images/images.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { BusinessModule } from '../business/business.module';
       }]),
     CaslModule,
     VerificationCodeModule,
+    ImagesModule,
     forwardRef(() => BusinessModule)
   ],
   controllers: [UsersController, AdminUsersController],

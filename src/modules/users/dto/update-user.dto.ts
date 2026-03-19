@@ -4,8 +4,6 @@ import { Types } from "mongoose";
 import { Role, UserRole } from "../types/users.type";
 import { GeolocationDto } from "src/common/dto/geolocation.dto";
 import { Type } from "class-transformer";
-import { ImageDto } from "src/common/dto/image.dto";
-import { IsValidImage } from "src/common/decorators/image.decorator";
 
 export class UpdateUserDto {
   @ApiPropertyOptional({
@@ -96,16 +94,6 @@ export class UpdateUserDto {
   @ValidateNested()
   @Type(() => GeolocationDto)
   geolocation?: GeolocationDto;
-
-  @ApiPropertyOptional({
-    type: () => ImageDto,
-    description: 'User avatar image'
-  })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => ImageDto)
-  @IsValidImage()
-  avatar?: ImageDto;
 }
 
 export class UpdateUserAllDto extends UpdateUserDto {

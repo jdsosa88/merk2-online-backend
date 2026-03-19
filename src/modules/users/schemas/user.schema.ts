@@ -6,7 +6,7 @@ import { Role, UserRole } from "../types/users.type";
 
 export type UserDocument = HydratedDocument<User>;
 
-@Schema({  
+@Schema({
   collection: 'users',
   timestamps: true,
 })
@@ -24,7 +24,7 @@ export class User {
   @Prop({ required: true, unique: true })
   email: string;
 
-  @Prop({type: String, required:false, unique:true, sparse: true})
+  @Prop({ type: String, required: false, unique: true, sparse: true })
   googleId?: string
 
   @Prop({ type: String, required: true, select: false })
@@ -46,11 +46,11 @@ export class User {
   })
   role: UserRole;
 
-  @Prop({ type: Geolocation, required: false})
+  @Prop({ type: Geolocation, required: false })
   geolocation?: Geolocation;
 
-  @Prop({ type: Image, required: false })
-  avatar?: Image;
+  @Prop({ type: Types.ObjectId, ref: 'Image', required: false })
+  avatar?: Types.ObjectId;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

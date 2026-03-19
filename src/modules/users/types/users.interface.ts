@@ -14,7 +14,7 @@ export interface ICreateUser {
   readonly isActive?: boolean;
   readonly isPhoneVerified?: boolean;
   readonly geolocation?: GeolocationDto;
-  readonly avatar?: Image;
+  readonly avatar?: Types.ObjectId;
 }
 
 export interface IUpdateUserDto {
@@ -28,7 +28,7 @@ export interface IUpdateUserDto {
   isActive?: boolean;
   isPhoneVerified?: boolean;
   geolocation?: GeolocationDto;
-  avatar?: Image;
+  avatar?: Types.ObjectId;
 }
 
 export interface ICreateManager extends ICreateUser {

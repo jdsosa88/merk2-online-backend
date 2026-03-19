@@ -11,8 +11,6 @@ import { ChangeRoleParams, CreateUserParams, SchemaData, UpdateUserParams } from
 import { Geolocation } from "src/common/schemas/geolocation.schema";
 import { GeolocationDto } from "src/common/dto/geolocation.dto";
 import { IUpdateUserDto } from "./types/users.interface";
-import { ImageDto } from "src/common/dto/image.dto";
-import { Image } from "src/common/schemas/image.schema";
 import { Role, UserRole } from "./types/users.type";
 
 
@@ -111,7 +109,9 @@ export class UserFactory {
           userId,
           updateUserDto,
           { new: true }
-        ).exec();
+        )
+          .populate('avatar')
+          .exec();
         if (!updatedUser) throw new NotFoundException(`User with id: ${userId} not found`);
         return updatedUser;
 
@@ -120,7 +120,9 @@ export class UserFactory {
           userId,
           updateUserDto,
           { new: true }
-        ).exec();
+        )
+          .populate('avatar')
+          .exec();
         if (!updatedProvider) throw new NotFoundException(`Provider with id: ${userId} not found`);
         return updatedProvider;
 
@@ -129,7 +131,9 @@ export class UserFactory {
           userId,
           updateUserDto,
           { new: true }
-        ).exec();
+        )
+          .populate('avatar')
+          .exec();
         if (!updatedManager) throw new NotFoundException(`Manager with id: ${userId} not found`);
         return updatedManager;
 
@@ -138,7 +142,9 @@ export class UserFactory {
           userId,
           updateUserDto,
           { new: true }
-        ).exec();
+        )
+          .populate('avatar')
+          .exec();
         if (!updatedMessenger) throw new NotFoundException(`Messenger with id: ${userId} not found`);
         return updatedMessenger;
 
@@ -169,14 +175,19 @@ export class UserFactory {
       geolocation: updateUserDto.geolocation
         ? this.getGeolocationFromDto(updateUserDto.geolocation)
         : existentUser.geolocation,
-      avatar: updateUserDto.avatar
-        ? this.getImageFromDto(updateUserDto.avatar)
-        : existentUser.avatar,
       role: updateUserDto.role ? updateUserDto.role : existentUser.role,
       googleId: (updateUserDto as IUpdateUserDto).googleId
         ? (updateUserDto as IUpdateUserDto).googleId
         : existentUser.googleId,
     }
+
+    const userImageUpdateDto = (updateUserDto as IUpdateUserDto).avatar
+      ? (updateUserDto as IUpdateUserDto).avatar
+      : undefined;
+
+    baseUser.avatar = userImageUpdateDto
+      ? userImageUpdateDto
+      : existentUser.avatar;
 
     const discriminator = this.getShemaDiscriminator(updateUserDto.role);
 
@@ -195,16 +206,6 @@ export class UserFactory {
       latitude: geolocationDto.latitude ? geolocationDto.latitude : null,
       longitude: geolocationDto.longitude ? geolocationDto.longitude : null,
     }
-  }
-
-  private getImageFromDto(imageDto: ImageDto): Image | undefined {
-    if (!imageDto) return undefined;
-    return {
-      filename: imageDto.filename,
-      mimeType: imageDto.mimeType,
-      size: imageDto.size,
-      url: imageDto.url,
-    };
   }
 
   private getShemaDiscriminator(role: UserRole | undefined): string | null {

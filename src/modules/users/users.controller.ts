@@ -8,7 +8,9 @@ import {
   Patch,
   Post,
   Query,
-  UseGuards
+  UploadedFile,
+  UseGuards,
+  UseInterceptors
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -32,7 +34,8 @@ import {
   ApiRemove,
   ApiRequestDeleteVerificationCode,
   ApiSetPassword,
-  ApiUpdate
+  ApiUpdate,
+  ApiUploadAvatar
 } from './decorators/swagger-users.decorator';
 import { AuthUser } from 'src/common/decorators/user.decorator';
 import { Types } from 'mongoose';
@@ -43,6 +46,9 @@ import { ListUsersPolicyHandler } from './policies/list-user.policy';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
 import { UpdateUserAllDto } from './dto/update-user.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { FileService } from 'src/common/services/file.service';
+import { ImageDto } from 'src/common/dto/image.dto';
 
 
 @UseGuards(JwtAuthGuard, PoliciesGuard)
@@ -119,8 +125,35 @@ export class UsersController {
   @Patch('change-forgotten-password')
   @CheckPolicies(new UpdateUserPasswordPolicyHandler())
   @ApiChangeForgottenPassword()
-  async changeForgottenPassword(@AuthUser('id') id: string, @Body() resetPasswordDto: ResetPasswordDto): Promise<ApiResponseDto> {
+  async changeForgottenPassword(
+    @AuthUser('id') id: string,
+    @Body() resetPasswordDto: ResetPasswordDto
+  ): Promise<ApiResponseDto> {
     const message = await this.usersService.resetPassword(id, resetPasswordDto);
     return new ApiResponseDto(message);
+  }
+
+  @Post('avatar')
+  @CheckPolicies(new UpdateUserPolicyHandler())
+  @ApiUploadAvatar()
+  @UseInterceptors(FileInterceptor('avatar', {
+    storage: FileService.getDiskStorage(),
+    limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter: FileService.imageFileFilter,
+  }))
+
+  async uploadAvatar(
+    @AuthUser() user: User,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<ApiResponseDto<User>> {
+    const updatedUser = await this.usersService.uploadAvatarImage(user, file);
+    return new ApiResponseDto('Avatar updated successfully', updatedUser);
+  }
+
+  @Delete('avatar')
+  @CheckPolicies(new UpdateUserPolicyHandler())
+  async deleteAvatar(@AuthUser() user: User) {
+    const updatedUser = await this.usersService.deleteAvatarImage(user);
+    return new ApiResponseDto('Avatar deleted successfully', updatedUser);
   }
 }

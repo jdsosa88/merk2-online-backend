@@ -81,17 +81,7 @@ export class CreateUserDto {
   @IsOptional()
   @ValidateNested()
   @Type(() => GeolocationDto)
-  readonly geolocation?: GeolocationDto;
-
-  @ApiPropertyOptional({
-    type: () => ImageDto,
-    description: 'User avatar image'
-  })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => ImageDto)
-  @IsValidImage()
-  readonly avatar?: ImageDto;
+  readonly geolocation?: GeolocationDto;  
 }
 
 export class CreateProviderDto extends CreateUserDto {

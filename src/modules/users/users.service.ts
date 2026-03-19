@@ -2,14 +2,12 @@ import { BadRequestException, Injectable, NotFoundException, } from '@nestjs/com
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from './schemas/user.schema';
 import { Model, Types } from 'mongoose';
-import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { MailerService } from '@nestjs-modules/mailer';
 import { VerificationCodeService } from '../verification-code/verification-code.service';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { ObjectValidationsUtils } from 'src/common/utils/object-validations';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { PaginatedListDto } from '../../common/dto/paginated-list.dto';
 import { ICreateUser } from './types/users.interface';
@@ -20,6 +18,7 @@ import { Messenger } from './schemas/messenger.schema';
 import { CreateUserFactoryDto, UpdateUserFactoryDto } from './types/user-factory.type';
 import { Role } from './types/users.type';
 import { ConfigService } from '@nestjs/config';
+import { ImagesService } from '../images/images.service';
 
 
 @Injectable()
@@ -27,12 +26,10 @@ export class UsersService {
   constructor(
     private userFactory: UserFactory,
     @InjectModel(User.name) private userModel: Model<User>,
-    @InjectModel(Provider.name) private providerModel: Model<Provider>,
-    @InjectModel(Manager.name) private managerModel: Model<Manager>,
-    @InjectModel(Messenger.name) private messengerModel: Model<Messenger>,
     private readonly mailerService: MailerService,
     private readonly verificationCodeService: VerificationCodeService,
     private readonly configService: ConfigService,
+    private readonly imagesService: ImagesService,
   ) { }
 
   async create(createUserDto: CreateUserFactoryDto, role: Role = Role.CUSTOMER): Promise<User> {
@@ -42,8 +39,8 @@ export class UsersService {
       if (role === Role.CUSTOMER) {
         const verificationTimeInHours = this.configService.get<number>('verificationCode.expiresHours') || 3;
         const activationCode = await this.verificationCodeService.createCode(
-          user._id, 
-          'activation', 
+          user._id,
+          'activation',
           verificationTimeInHours
         );
         await this.sendCodeEmail(user.email, 'activation', activationCode.code);
@@ -103,7 +100,7 @@ export class UsersService {
   async findOne(id: string): Promise<User> {
     try {
       const _id = new Types.ObjectId(id);
-      const user: User | null = await this.userModel.findById(_id).exec();
+      const user: User | null = await this.userModel.findById(_id).populate('avatar').exec();
       if (!user) throw new NotFoundException('User not found');
       return user;
     } catch (error) {
@@ -129,7 +126,7 @@ export class UsersService {
     try {
       const verificationTimeInHours = this.configService.get<number>('verificationCode.expiresHours') || 3;
       const deleteCode = await this.verificationCodeService.createCode(
-        userId, 
+        userId,
         'delete',
         verificationTimeInHours
       );
@@ -231,5 +228,43 @@ export class UsersService {
       text: `Your ${codeType} code is: ${code}`,
       html: `<p>Your ${codeType} code is: <b>${code}</b></p>`,
     });
+  }
+
+  async uploadOtherUserAvatarImage(otherUserId: string, file: Express.Multer.File): Promise<User> {
+    const otherUser = await this.findOne(otherUserId);
+    return await this.uploadAvatarImage(otherUser, file);
+  }
+
+  async uploadAvatarImage(user: User, file: Express.Multer.File): Promise<User> {
+    try {
+      if (user.avatar?._id) {
+        await this.imagesService.delete(user.avatar._id.toString());
+      }
+      const image = await this.imagesService.createFromFile(file, `User avatar`);
+      return await this.update(user._id.toString(), { avatar: image._id });
+    } catch (error) {
+      this.imagesService.deleteImageFile(file.filename);
+      throw error;
+    }
+
+  }
+
+  async deleteOtherUserAvatarImage(otherUserId: string): Promise<User> {
+    let otherUser = await this.findOne(otherUserId);
+    return await this.deleteAvatarImage(otherUser);
+  }
+
+  async deleteAvatarImage(user: User): Promise<User> {
+    if (user.avatar?._id) {
+      await this.imagesService.delete(user.avatar._id.toString());
+      const updatedUser =  await this.userModel.findByIdAndUpdate(
+        user._id, 
+        { avatar: null }, 
+        {new: true}
+      ).populate('avatar').exec();
+      if (!updatedUser) throw new BadRequestException("Errors occurred deleting user avatar.");
+      return updatedUser;
+    }
+    return user;
   }
 }

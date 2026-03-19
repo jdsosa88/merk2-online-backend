@@ -1,5 +1,5 @@
 import { applyDecorators } from "@nestjs/common";
-import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiQuery, ApiBody } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiQuery, ApiBody, ApiConsumes } from "@nestjs/swagger";
 import { ApiResponseDto } from "src/common/dto/api-response.dto";
 import { User } from "../schemas/user.schema";
 import { SwaggerResponseUtils } from "src/common/utils/swagger-response-utils";
@@ -642,6 +642,69 @@ export function ApiRemoveOtherUser() {
       description: 'Internal server error',
       type: ErrorResponseDto,
       example: utils.getInternalServerError()
+    }),
+  );
+}
+
+export function ApiUploadAvatar() {
+  return applyDecorators(
+    ApiOperation({ summary: 'Upload user avatar' }),
+    ApiBearerAuth('JWT'),
+    ApiConsumes('multipart/form-data'),
+    ApiBody({
+      schema: {
+        type: 'object',
+        properties: {
+          avatar: { type: 'string', format: 'binary' },
+        },
+      },
+    }),
+    ApiResponse({ status: 200, description: 'Avatar updated', type: ApiResponseDto<User> }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Forbidden' }),
+  );
+}
+
+export function ApiDeleteAvatar() {
+  const utils = new SwaggerResponseUtils();
+  return applyDecorators(
+    ApiOperation({ summary: 'Delete user avatar' }),
+    ApiBearerAuth('JWT'),
+    ApiResponse({
+      status: 200,
+      description: 'Avatar deleted successfully',
+      type: ApiResponseDto<User>,
+      example: utils.getExampleResponseWithUser({ message: 'Avatar deleted successfully' }),
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Bad request - No avatar to delete',
+      type: ErrorResponseDto,
+      example: utils.getBadRequestError('No avatar to delete'),
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized - Invalid or missing JWT token',
+      type: ErrorResponseDto,
+      example: utils.getInvalidTokenError(),
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Insufficient permissions',
+      type: ErrorResponseDto,
+      example: utils.getInsufficientPermissionsError(),
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'User not found',
+      type: ErrorResponseDto,
+      example: utils.getNotFoundError('User not found'),
+    }),
+    ApiResponse({
+      status: 500,
+      description: 'Internal server error',
+      type: ErrorResponseDto,
+      example: utils.getInternalServerError(),
     }),
   );
 }
