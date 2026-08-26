@@ -27,7 +27,7 @@ import {
   ApiListOrders,
   ApiUpdateOrderStatus,
   ApiAssignMessenger,
-  ApiGetBusinessOrders,
+  ApiGetStoreOrders,
 } from './decorators/swagger-orders.decorator';
 import { ListOrdersQueryDto } from './dto/list-orders-query.dto';
 import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
@@ -64,15 +64,15 @@ export class OrdersController {
     return new ApiResponseDto('Orders retrieved successfully', paginatedList);
   }
 
-  @Get('business')
+  @Get('store')
   @CheckPolicies(new ListOrdersPolicyHandler())
-  @ApiGetBusinessOrders()
-  async findBusinessOrders(
+  @ApiGetStoreOrders()
+  async findStoreOrders(
     @AuthUser() user: User,
     @Query() query: ListOrdersQueryDto,
   ): Promise<ApiResponseDto<PaginatedListDto<Order>>> {
-    const paginatedList = await this.ordersService.findOrdersByBusiness(query, user);
-    return new ApiResponseDto('Business orders retrieved successfully', paginatedList);
+    const paginatedList = await this.ordersService.findOrdersByStore(query, user);
+    return new ApiResponseDto('Store orders retrieved successfully', paginatedList);
   }
 
   @Get()

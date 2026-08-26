@@ -10,7 +10,7 @@ export function ApiCheckout() {
   return applyDecorators(
     ApiOperation({ 
       summary: 'Create new orders from checkout',
-      description: 'Creates orders grouping products by business. Validates stock and user permissions.'
+      description: 'Creates orders grouping products by store. Validates stock and user permissions.'
     }),
     ApiBearerAuth('JWT'),
     ApiResponse({
@@ -36,9 +36,9 @@ export function ApiCheckout() {
           summary: 'Pending charges',
           value: utils.getBadRequestError('You have pending charges. Please settle them before placing new orders.')
         },
-        businessNotActive: {
-          summary: 'Business not active',
-          value: utils.getBadRequestError('Business "Business Name" is not active')
+        storeNotActive: {
+          summary: 'Store not active',
+          value: utils.getBadRequestError('Store "Store Name" is not active')
         },
         productNotAvailable: {
           summary: 'Product not available',
@@ -61,9 +61,9 @@ export function ApiCheckout() {
           summary: 'Admin cannot order',
           value: utils.getForbiddenError('Admin users cannot place orders')
         },
-        ownBusiness: {
-          summary: 'Own business',
-          value: utils.getForbiddenError('You cannot place orders to your own business')
+        ownStore: {
+          summary: 'Own store',
+          value: utils.getForbiddenError('You cannot place orders to your own store')
         }
       }
     }),
@@ -109,10 +109,10 @@ export function ApiListOrders() {
       description: 'Comma-separated list of order statuses to filter',
     }),
     ApiQuery({
-      name: 'businessId',
+      name: 'storeId',
       required: false,
       type: String,
-      description: 'Filter by business ID',
+      description: 'Filter by store ID',
     }),
     ApiQuery({
       name: 'customerId',
@@ -177,17 +177,17 @@ export function ApiListOrders() {
   );
 }
 
-export function ApiGetBusinessOrders() {
+export function ApiGetStoreOrders() {
   const utils = new SwaggerResponseUtils();
   return applyDecorators(
     ApiOperation({ 
-      summary: 'Get orders for a specific business',
-      description: 'Returns orders for a business. Requires business owner, manager, or admin permissions.'
+      summary: 'Get orders for a specific store',
+      description: 'Returns orders for a store. Requires store owner, assigned messenger, or admin permissions.'
     }),
     ApiBearerAuth('JWT'),
     ApiResponse({
       status: 200,
-      description: 'Business orders retrieved successfully',
+      description: 'Store orders retrieved successfully',
       type: ApiResponseDto,
       example: utils.getResponseWithOrdersList(),
     }),
@@ -199,15 +199,15 @@ export function ApiGetBusinessOrders() {
     }),
     ApiResponse({
       status: 403,
-      description: 'Forbidden - No access to this business',
+      description: 'Forbidden - No access to this store',
       type: ErrorResponseDto,
-      example: utils.getForbiddenError('You do not have access to this business orders')
+      example: utils.getForbiddenError('You do not have access to this store orders')
     }),
     ApiResponse({
       status: 404,
-      description: 'Business not found',
+      description: 'Store not found',
       type: ErrorResponseDto,
-      example: utils.getBusinessNotFoundError()
+      example: utils.getNotFoundError('Store not found')
     }),
     ApiResponse({
       status: 500,
@@ -316,7 +316,7 @@ export function ApiUpdateOrderStatus() {
       examples: {
         notOwner: {
           summary: 'Not owner/manager',
-          value: utils.getForbiddenError('Only business owner or manager can update order to this status')
+          value: utils.getForbiddenError('Only store owner can update order to this status')
         },
         notMessenger: {
           summary: 'Not messenger',
@@ -344,7 +344,7 @@ export function ApiAssignMessenger() {
   return applyDecorators(
     ApiOperation({ 
       summary: 'Assign messenger to order',
-      description: 'Assigns a messenger to deliver the order. Requires business owner, manager, or admin permissions.'
+      description: 'Assigns a messenger to deliver the order. Requires store owner or admin permissions.'
     }),
     ApiBearerAuth('JWT'),    
     ApiResponse({
@@ -369,7 +369,7 @@ export function ApiAssignMessenger() {
         },
         notAssociated: {
           summary: 'Not associated',
-          value: utils.getBadRequestError('Messenger is not associated with this business')
+          value: utils.getBadRequestError('Messenger is not associated with this store')
         }
       }
     }),
@@ -383,7 +383,7 @@ export function ApiAssignMessenger() {
       status: 403,
       description: 'Forbidden - Cannot assign messenger',
       type: ErrorResponseDto,
-      example: utils.getForbiddenError('Only business owner, manager, or admin can assign messengers')
+      example: utils.getForbiddenError('Only store owner or admin can assign messengers')
     }),
     ApiResponse({
       status: 404,

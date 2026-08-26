@@ -15,6 +15,10 @@ import { OrdersModule } from './modules/orders/orders.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { ImagesModule } from './modules/images/images.module';
+import { SellerApplicationsModule } from './modules/seller-applications/seller-applications.module';
+import { StoresModule } from './modules/stores/stores.module';
+import { ProductsModule } from './modules/products/products.module';
+import { TeamModule } from './modules/team/team.module';
 
 @Module({
   imports: [
@@ -52,6 +56,10 @@ import { ImagesModule } from './modules/images/images.module';
     VerificationCodeModule,
     CaslModule,
     BusinessModule,
+    SellerApplicationsModule,
+    StoresModule,
+    ProductsModule,
+    TeamModule,
     CategoriesModule,
     OrdersModule,
     HealthModule,

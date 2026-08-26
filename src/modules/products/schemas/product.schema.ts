@@ -95,8 +95,8 @@ export class Product {
   @Prop({ type: String, required: true, unique: true, trim: true, uppercase: true })
   sku: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Business', required: true })
-  business: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'Store', required: true })
+  store: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'Category', required: true })
   category: Types.ObjectId;

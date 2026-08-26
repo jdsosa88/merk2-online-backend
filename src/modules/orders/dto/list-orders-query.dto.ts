@@ -15,12 +15,12 @@ export class ListOrdersQueryDto extends PaginationListParamsDto {
   status?: string;
 
   @ApiPropertyOptional({
-    description: 'Business ID to filter orders',
+    description: 'Store ID to filter orders',
     example: '60d5f9f8f8b7a12c3c4d5e6f'
   })
   @IsOptional()
   @IsString()
-  businessId?: string;
+  storeId?: string;
 
   @ApiPropertyOptional({
     description: 'Customer ID to filter orders',

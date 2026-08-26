@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({
+  path: path.join(__dirname, '../config/envs/.env.development'),
+});
 
 // Definir el schema directamente
 const UserSchema = new mongoose.Schema({
@@ -115,6 +118,7 @@ async function seedUsers() {
     console.log('Customer:  customer@test.com');
     console.log('Provider:  provider@test.com');
     console.log('Messenger: messenger@test.com');
+    console.log('\nSeller onboarding (new): POST /seller-applications → admin approve → POST /stores');
 
   } catch (error) {
     console.error('Seeding failed:', error);

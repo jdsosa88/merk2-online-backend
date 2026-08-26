@@ -8,14 +8,15 @@ import {
   Query,
   Delete,
   UploadedFiles,
-  UseInterceptors
+  UseInterceptors,
+  GoneException,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { PoliciesGuard } from 'src/common/guards/policies.guard';
 import { BusinessService } from './business.service';
-import { CreateBusinessDto } from './dto/create-business.dto';
 import { CheckPolicies } from 'src/modules/casl/decorators/policies.decorator';
-import { CreateBusinessPolicy } from './policies/create-business.policy';
 import { Business } from './schemas/business.schema';
 import { AuthUser } from 'src/common/decorators/user.decorator';
 import { Types } from 'mongoose';
@@ -51,18 +52,16 @@ export class BusinessController {
     private readonly employmentRequestService: EmploymentRequestService,
   ) { }
 
+  /**
+   * @deprecated Use POST /seller-applications instead.
+   */
   @Post('request-create-business')
-  @CheckPolicies(new CreateBusinessPolicy())
+  @HttpCode(HttpStatus.GONE)
   @ApiRequestCreateBusiness()
-  async requestCreateBusiness(
-    @Body() createBusinessDto: CreateBusinessDto,
-    @AuthUser('id') userId: string,
-  ): Promise<ApiResponseDto<Business>> {
-    const newBusiness = await this.businessService.requestCreateBusiness(
-      createBusinessDto,
-      new Types.ObjectId(userId)
+  async requestCreateBusiness(): Promise<never> {
+    throw new GoneException(
+      'This endpoint is deprecated. Use POST /seller-applications to request seller approval.',
     );
-    return new ApiResponseDto("The business has been successfully requested", newBusiness);
   }
 
   @Patch()

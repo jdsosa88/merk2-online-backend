@@ -5,7 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Order, OrderSchema } from './schemas/order.schema';
 import { PendingCharge, PendingChargeSchema } from './schemas/pending-charge.schema';
 import { CaslModule } from '../casl/casl.module';
-import { BusinessModule } from '../business/business.module';
+import { StoresModule } from '../stores/stores.module';
 import { ProductsModule } from '../products/products.module';
 import { UsersModule } from '../users/users.module';
 import { MessengerInDelivery, MessengerInDeliverySchema } from './schemas/messengers-in-delivery.schema';
@@ -18,7 +18,7 @@ import { MessengerInDelivery, MessengerInDeliverySchema } from './schemas/messen
       { name: MessengerInDelivery.name, schema: MessengerInDeliverySchema },
     ]),
     CaslModule,
-    forwardRef(() => BusinessModule),
+    forwardRef(() => StoresModule),
     forwardRef(() => ProductsModule),
     forwardRef(() => UsersModule),
   ],

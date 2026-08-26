@@ -4,7 +4,6 @@ import {
   BadRequestException,
   ForbiddenException,
   InternalServerErrorException,
-  Provider
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -14,14 +13,13 @@ import { CheckoutOrderDto } from './dto/checkout-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { AssignMessengerDto } from './dto/assign-messenger.dto';
 import { User } from '../users/schemas/user.schema';
-import { BusinessService } from '../business/business.service';
+import { StoresService } from '../stores/stores.service';
 import { ProductsService } from '../products/products.service';
 import { UsersService } from '../users/users.service';
-import { Role, UserRole } from '../users/types/users.type';
-import { BusinessStatus, MessengerAssigmentType } from '../business/types/business.type';
+import { Role } from '../users/types/users.type';
+import { StoreStatus } from '../stores/types/store.type';
 import { ListOrdersQueryDto } from './dto/list-orders-query.dto';
 import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
-import { ConfigService } from '@nestjs/config';
 import { OrderStatus } from './types/orders.type';
 import { MoneyUtils } from 'src/common/utils/money.utils';
 import { MessengerInDelivery, MessengerInDeliveryDocument } from './schemas/messengers-in-delivery.schema';
@@ -34,8 +32,8 @@ interface OutOfStockItem {
   requestedQuantity: number;
 }
 
-interface BusinessGroup {
-  businessId: Types.ObjectId;
+interface StoreGroup {
+  storeId: Types.ObjectId;
   items: Array<{
     productId: Types.ObjectId;
     product: any;
@@ -49,19 +47,17 @@ export class OrdersService {
     @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
     @InjectModel(PendingCharge.name) private pendingChargeModel: Model<PendingChargeDocument>,
     @InjectModel(MessengerInDelivery.name) private messengerInDelivery: Model<MessengerInDeliveryDocument>,
-    private readonly businessService: BusinessService,
+    private readonly storesService: StoresService,
     private readonly productsService: ProductsService,
     private readonly usersService: UsersService,
   ) { }
 
   async checkout(user: User, checkoutOrderDto: CheckoutOrderDto): Promise<Order[]> {
     try {
-      // 1. Validate user can place orders
       if (user.role === Role.ADMIN) {
         throw new ForbiddenException('Admin users cannot place orders');
       }
 
-      // 2. Check if user has pending charges
       const hasPendingCharges = await this.pendingChargeModel.findOne({
         user: user._id,
         status: 'pending'
@@ -80,7 +76,7 @@ export class OrdersService {
       if (!hasValidAddress) {
         throw new BadRequestException('You must have a valid address to make an order.');
       }
-      // 3. Validate all products exist and have enough stock
+
       const productIds = checkoutOrderDto.items.map(item => item.productId);
       const products = await this.productsService.findProductsByIds(productIds);
 
@@ -88,8 +84,7 @@ export class OrdersService {
         throw new NotFoundException('Some products not found');
       }
 
-      // 4. Group products by business and validate
-      const businessGroups = new Map<string, BusinessGroup>();
+      const storeGroups = new Map<string, StoreGroup>();
       const outOfStockItems: OutOfStockItem[] = [];
 
       for (const item of checkoutOrderDto.items) {
@@ -98,7 +93,6 @@ export class OrdersService {
           throw new NotFoundException(`Product ${item.productId} not found`);
         }
 
-        // Check stock
         if (product.stock < item.quantity) {
           outOfStockItems.push({
             productId: product._id.toString(),
@@ -109,53 +103,39 @@ export class OrdersService {
           continue;
         }
 
-        // Check if product is available
         if (!product.isAvailable || !product.isActive) {
           throw new BadRequestException(`Product ${product.name} is not available`);
         }
 
-        // Get business and validate
-        const business = product.business as any;
+        const store = product.store as any;
 
-        // Check business status
-        if (business.status !== BusinessStatus.ACCEPTED) {
-          throw new BadRequestException(`Business ${business.name} is not active`);
+        if (store.status !== StoreStatus.ACTIVE) {
+          throw new BadRequestException(`Store ${store.name} is not active`);
         }
 
-        // Check if user is linked to this business (for PROVIDER, MANAGER, MESSENGER)
         if (user.role === Role.PROVIDER || user.role === Role.MESSENGER) {
           const providerOrMessenger = user as any;
-          if (providerOrMessenger.businesses?.some((b: Types.ObjectId) =>
-            b.toString() === business._id.toString())) {
-            throw new ForbiddenException(`You cannot place orders to your own business`);
+          if (providerOrMessenger.stores?.some((s: Types.ObjectId) =>
+            s.toString() === store._id.toString())) {
+            throw new ForbiddenException(`You cannot place orders to your own store`);
           }
         }
 
-        if (user.role === Role.MANAGER) {
-          const manager = user as any;
-          if (manager.business?.toString() === business._id.toString()) {
-            throw new ForbiddenException(`You cannot place orders to your own business`);
-          }
-        }
-
-        // Group by business
-        const businessId = business._id.toString();
-        if (!businessGroups.has(businessId)) {
-          businessGroups.set(businessId, {
-            businessId: business._id,
+        const storeId = store._id.toString();
+        if (!storeGroups.has(storeId)) {
+          storeGroups.set(storeId, {
+            storeId: store._id,
             items: []
           });
         }
 
-        businessGroups.get(businessId)!.items.push({
+        storeGroups.get(storeId)!.items.push({
           productId: product._id,
           product,
           quantity: item.quantity
-
         });
       }
 
-      // 5. If any products are out of stock, throw error with details
       if (outOfStockItems.length > 0) {
         throw new BadRequestException(
           {
@@ -169,11 +149,9 @@ export class OrdersService {
         );
       }
 
-      // 6. Create orders for each business group
       const createdOrders: Order[] = [];
 
-      for (const [businessId, group] of businessGroups.entries()) {
-        // Calculate order details
+      for (const [storeId, group] of storeGroups.entries()) {
         const orderItems = group.items.map(({ product, quantity }) => ({
           product: product._id,
           quantity,
@@ -184,20 +162,14 @@ export class OrdersService {
         }));
 
         const subtotal = orderItems.reduce((sum, item) => MoneyUtils.sumCents(sum, item.totalPrice), 0);
-
-        // Calculate delivery charge (simplified - could be based on distance, business settings, etc.)
         const deliveryCharge = this.calculateDeliveryCharge();
-
-        // Calculate additional charges (taxes, fees)
         const additionalCharges = this.calculateAdditionalCharges();
         const additionalChargesTotal = additionalCharges.reduce((sum, charge) => MoneyUtils.sumCents(sum, charge.amount), 0);
-
         const total = MoneyUtils.sumCents(subtotal, deliveryCharge, additionalChargesTotal);
 
-        // Create order
         const order = new this.orderModel({
           customer: user._id,
-          business: new Types.ObjectId(businessId),
+          store: new Types.ObjectId(storeId),
           items: orderItems,
           subtotal,
           deliveryCharge,
@@ -210,7 +182,6 @@ export class OrdersService {
 
         const savedOrder = await order.save();
 
-        // Update product stock
         for (const { product, quantity } of group.items) {
           await this.productsService.updateStock(product._id.toString(), quantity, 'subtract');
         }
@@ -238,7 +209,7 @@ export class OrdersService {
     user: User,
   ): Promise<Order> {
     const order = await this.orderModel.findById(orderId)
-      .populate('business', 'name owner employees messengerAssigmentType')
+      .populate('store', 'name owner messengers messengerAssignmentType')
       .populate('customer', 'firstName lastName email phone')
       .populate('assignedMessenger', 'firstName lastName email phone')
       .exec();
@@ -251,15 +222,13 @@ export class OrdersService {
       order,
       this.productsService,
       this.pendingChargeModel,
-      this.businessService,
       this.usersService,
       this.messengerInDelivery,
     );
 
     await context.transitionTo(updateOrderStatusDto.status, user, updateOrderStatusDto);
 
-    // Refrescar poblaciones si es necesario (algunos campos como assignedMessenger pueden haber cambiado)
-    await order.populate('customer business assignedMessenger');
+    await order.populate('customer store assignedMessenger');
 
     return order;
   }
@@ -271,57 +240,52 @@ export class OrdersService {
     try {
       const orderId = new Types.ObjectId(assignMessengerDto.orderId);
       const order = await this.orderModel.findById(orderId)
-        .populate('business', 'owner employees')
+        .populate('store', 'owner messengers')
         .exec();
 
       if (!order) {
         throw new NotFoundException('Order not found');
       }
 
-      //Validate order status is ready_for_delivery
       if (order.status !== OrderStatus.READY_FOR_DELIVERY) {
         throw new BadRequestException("A messenger can only be assigned to an order in the ready_for_delivery status");
       }
 
-      // Validate user can assign messengers (business owner/manager)
-      const business = order.business as any;
+      const store = order.store as any;
 
-      const isOwner = business.owner.toString() === user._id.toString();
-      const isManager = business.employees?.managers?.some(
-        (managerId: Types.ObjectId) => managerId.toString() === user._id.toString()
-      );
+      const isOwner = store.owner.toString() === user._id.toString();
 
-      if (!isOwner && !isManager && user.role !== Role.ADMIN) {
-        throw new ForbiddenException('Only business owner, manager, or admin can assign messengers');
+      if (!isOwner && user.role !== Role.ADMIN) {
+        throw new ForbiddenException('Only store owner or admin can assign messengers');
       }
 
-      // Validate messenger exists and is a MESSENGER
       const messenger = await this.usersService.findOne(assignMessengerDto.messengerId);
-      console.log(messenger);
 
-      const canWorkAsMessenger = (user.role === Role.PROVIDER || user.role === Role.MANAGER) &&
-        (user as any).isMessenger === true;
-      if (messenger.role !== Role.MESSENGER && !canWorkAsMessenger) {
+      const canWorkAsMessenger =
+        messenger.role === Role.MESSENGER ||
+        (messenger.role === Role.PROVIDER && (messenger as any).isMessenger === true) ||
+        (messenger.role === Role.MANAGER && (messenger as any).isMessenger === true);
+      if (!canWorkAsMessenger) {
         throw new BadRequestException('User is not a messenger');
       }
 
-      // Validate messenger is available for this business
       const messengerUser = messenger as any;
       let isAssociated = false;
-      if (messengerUser.businesses && messengerUser.businesses.length > 0) {
-        isAssociated = messengerUser.businesses.some(
-          (businessId: Types.ObjectId) => businessId.toString() === business._id.toString()
+      if (messengerUser.stores && messengerUser.stores.length > 0) {
+        isAssociated = messengerUser.stores.some(
+          (storeId: Types.ObjectId) => storeId.toString() === store._id.toString()
         );
-      } else {
-        isAssociated = messengerUser.busines &&
-          messengerUser.business.toString() === order.business.toString();
+      }
+      if (!isAssociated && store.messengers?.some(
+        (id: Types.ObjectId) => id.toString() === messenger._id.toString()
+      )) {
+        isAssociated = true;
       }
 
-      if (!isAssociated && !messengerUser?.isPlatformMessenger === true) {
-        throw new BadRequestException('User is not associated with this business');
+      if (!isAssociated && messengerUser?.isPlatformMessenger !== true) {
+        throw new BadRequestException('User is not associated with this store');
       }
 
-      // Update order
       const updatedOrder = await this.orderModel.findByIdAndUpdate(
         orderId,
         {
@@ -343,7 +307,7 @@ export class OrdersService {
     try {
       const order = await this.orderModel.findById(orderId)
         .populate('customer', 'firstName lastName email phone')
-        .populate('business', 'name description phones')
+        .populate('store', 'name description address')
         .populate('assignedMessenger', 'firstName lastName email phone')
         .populate('items.product', 'name sku images')
         .exec();
@@ -352,7 +316,6 @@ export class OrdersService {
         throw new NotFoundException('Order not found');
       }
 
-      // Check permissions
       const canRead = await this.canReadOrder(order, user);
       if (!canRead) {
         throw new ForbiddenException('You do not have permission to view this order');
@@ -373,14 +336,12 @@ export class OrdersService {
       const perPage: number = Number(query.perPage) || 25;
 
       const filter: any = this.buildOrderFilter(query, user);
-
-      // Build sort
       const sort: any = { createdAt: -1 };
 
       const items: Order[] = await this.orderModel
         .find(filter)
         .populate('customer', 'firstName lastName email')
-        .populate('business', 'name')
+        .populate('store', 'name')
         .populate('assignedMessenger', 'firstName lastName')
         .sort(sort)
         .skip((page - 1) * perPage)
@@ -402,36 +363,33 @@ export class OrdersService {
     }
   }
 
-  async findOrdersByBusiness(
+  async findOrdersByStore(
     query: ListOrdersQueryDto,
     user: User,
   ): Promise<PaginatedListDto<Order>> {
     try {
-      // Validate user has access to this business
-      if (!query.businessId || query.businessId?.length === 0) {
-        throw new BadRequestException("businessId is required");
+      if (!query.storeId || query.storeId?.length === 0) {
+        throw new BadRequestException("storeId is required");
       }
-      const business = await this.businessService.findById(query.businessId);
+      const store = await this.storesService.findById(query.storeId);
 
-      const hasAccess = await this.hasBusinessAccess(business, user);
+      const hasAccess = await this.hasStoreAccess(store, user);
       if (!hasAccess) {
-        throw new ForbiddenException('You do not have access to this business orders');
+        throw new ForbiddenException('You do not have access to this store orders');
       }
 
       const page: number = Number(query.page) || 1;
       const perPage: number = Number(query.perPage) || 25;
 
       const filter: any = {
-        business: new Types.ObjectId(query.businessId),
+        store: new Types.ObjectId(query.storeId),
       };
 
-      // Add status filter if provided
       if (query.status && query.status.trim().length > 0) {
         const statuses = query.status.split(',').map(s => s.trim());
         filter.status = { $in: statuses };
       }
 
-      // Add date range filter
       if (query.startDate) {
         filter.createdAt = { $gte: new Date(query.startDate) };
       }
@@ -439,22 +397,18 @@ export class OrdersService {
         filter.createdAt = { ...filter.createdAt, $lte: new Date(query.endDate) };
       }
 
-      //Add customer filter
       if (query.customerId) {
         filter.customer = new Types.ObjectId(query.customerId);
       }
 
-      //Add assigned messenger filter
       if (query.messengerId) {
         filter.assignedMessenger = new Types.ObjectId(query.messengerId);
       }
 
-      //Add pending charges filter
       if (query.hasPendingCharges) {
         filter.hasPendingCharges = query.hasPendingCharges === 'true';
       }
 
-      // Add search filter
       if (query.search) {
         filter.$or = [
           { trackingNumber: { $regex: query.search, $options: 'i' } },
@@ -488,37 +442,29 @@ export class OrdersService {
   }
 
   private calculateDeliveryCharge(): number {
-    return 0; //not calculated yet
+    return 0;
   }
 
   private calculateAdditionalCharges(): Array<{ type: string; amount: number; description?: string }> {
-    return []; //not claculated yet
+    return [];
   }
 
   private async canReadOrder(order: Order, user: User): Promise<boolean> {
-    // Customer can read their own orders
     if (order.customer._id.toString() === user._id.toString()) {
       return true;
     }
 
-    // Admin can read all orders
     if (user.role === Role.ADMIN) {
       return true;
     }
 
-    // Business owner/manager can read their business orders
-    const business = await this.businessService.findById(order.business._id.toString());
-    if (business.owner._id.toString() === user._id.toString()) {
+    const store = await this.storesService.findById(
+      (order.store as any)._id?.toString?.() || order.store.toString()
+    );
+    if (store.owner.toString() === user._id.toString()) {
       return true;
     }
 
-    if (business.employees?.managers?.some(
-      (managerId: Types.ObjectId) => managerId.toString() === user._id.toString()
-    )) {
-      return true;
-    }
-
-    // Messenger can read assigned orders
     if (order.assignedMessenger?._id?.toString() === user._id.toString()) {
       return true;
     }
@@ -534,22 +480,19 @@ export class OrdersService {
       { ...(user.role !== Role.CUSTOMER && { assignedMessenger: user._id }) },
       {
         ...(user.role === Role.MESSENGER && { status: OrderStatus.READY_FOR_DELIVERY, }),
-        business: (user as any).businesses ?
-          { $in: (user as any).businesses } :
-          (user as any).busines ?
-            (user as any).busines :
-            null
+        store: (user as any).stores ?
+          { $in: (user as any).stores } :
+          null
       }
     ];
 
-    // Apply additional filters
     if (query.status && query.status.trim().length > 0) {
       const statuses = query.status.split(',').map(s => s.trim());
       filter.status = { $in: statuses };
     }
 
-    if (query.businessId) {
-      filter.business = new Types.ObjectId(query.businessId);
+    if (query.storeId) {
+      filter.store = new Types.ObjectId(query.storeId);
     }
 
     if (query.customerId) {
@@ -583,25 +526,19 @@ export class OrdersService {
     return filter;
   }
 
-  private async hasBusinessAccess(business: any, user: User): Promise<boolean> {
+  private async hasStoreAccess(store: any, user: User): Promise<boolean> {
     if (user.role === Role.ADMIN) {
       return true;
     }
 
-    if (business.owner.toString() === user._id.toString()) {
-      return true;
-    }
-
-    if (business.employees?.managers?.some(
-      (managerId: Types.ObjectId) => managerId.toString() === user._id.toString()
-    )) {
+    if (store.owner.toString() === user._id.toString()) {
       return true;
     }
 
     if (user.role === Role.MESSENGER) {
       const messenger = user as any;
-      if (messenger.businesses?.some(
-        (businessId: Types.ObjectId) => businessId.toString() === business._id.toString()
+      if (messenger.stores?.some(
+        (storeId: Types.ObjectId) => storeId.toString() === store._id.toString()
       )) {
         return true;
       }

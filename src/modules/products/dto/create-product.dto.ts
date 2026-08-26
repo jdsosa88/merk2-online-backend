@@ -105,10 +105,10 @@ export class CreateProductDto {
   @IsNotEmpty()
   sku: string;
 
-  @ApiProperty({ description: 'ID del business al que pertenece el producto' })
+  @ApiProperty({ description: 'ID del store (punto de venta) al que pertenece el producto' })
   @IsMongoId()
   @IsNotEmpty()
-  business: string;
+  store: string;
 
   @ApiProperty({ description: 'ID de la categoría del producto' })
   @IsMongoId()

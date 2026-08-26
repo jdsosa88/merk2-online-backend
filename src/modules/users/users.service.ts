@@ -210,6 +210,23 @@ export class UsersService {
     return await this.userModel.findOne({ email }).exec();
   }
 
+  async findByEmployer(employerId: string, roles?: Role[]): Promise<User[]> {
+    const filter: Record<string, unknown> = {
+      employer: new Types.ObjectId(employerId),
+    };
+    if (roles?.length) {
+      filter.role = { $in: roles };
+    }
+    return this.userModel.find(filter).sort({ createdAt: -1 }).exec();
+  }
+
+  async findManyByIds(ids: string[]): Promise<User[]> {
+    if (!ids.length) return [];
+    return this.userModel
+      .find({ _id: { $in: ids.map((id) => new Types.ObjectId(id)) } })
+      .exec();
+  }
+
   async saveUpdatedUser(userId: string | Types.ObjectId, updateUserDto: UpdateUserFactoryDto): Promise<User> {
     const id = new Types.ObjectId(userId);
     return await this.userFactory.updateUser({ userId: id, updateUserDto });

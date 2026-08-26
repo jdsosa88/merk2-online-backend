@@ -9,6 +9,8 @@ import { Category } from '../categories/schemas/category.schema';
 import { AppConfig } from '../health/schemas/app-config.schema';
 import { Order } from '../orders/schemas/order.schema';
 import { OrderStatus } from '../orders/types/orders.type';
+import { SellerApplication } from '../seller-applications/schemas/seller-application.schema';
+import { Store } from '../stores/schemas/store.schema';
 
 /**
  * Defines the possible actions that can be performed on resources
@@ -32,6 +34,8 @@ export type Subjects = InferSubjects<
   | typeof Product
   | typeof AppConfig
   | typeof Order
+  | typeof SellerApplication
+  | typeof Store
 >
   | 'Health'
   | 'all';
@@ -61,6 +65,7 @@ export class CaslAbilityFactory {
     can(Action.READ, Category);
     can(Action.READ, Product);
     can(Action.READ, Business);
+    can(Action.READ, Store);
     can(Action.READ, 'Health');
 
     //UPDATE
@@ -74,6 +79,7 @@ export class CaslAbilityFactory {
     //LIST
     cannot(Action.LIST, User);
     can(Action.LIST, Business);
+    can(Action.LIST, Store);
 
     //MANAGE
     cannot(Action.MANAGE, AppConfig);
@@ -84,22 +90,24 @@ export class CaslAbilityFactory {
         can(Action.MANAGE, 'all');
         cannot(Action.UPDATE, User, ['_id']);
         cannot(Action.UPDATE, User, ['isActive', 'role'], { _id: user._id });
+        // Deprecated Business onboarding — admin should not create Business as seller flow
         cannot(Action.CREATE, Business, { owner: user._id });
         cannot(Action.CREATE, Order);
         break;
 
       case Role.PROVIDER:
         can(Action.READ, User);
-        can(Action.CREATE, Business, { owner: user._id });
-        can(Action.UPDATE, Business, { owner: user._id });
-        can(Action.CREATE, EmploymentRequest, { invitedBy: user._id });
-        can(Action.UPDATE, EmploymentRequest, ['status'], { invitedBy: user._id });
+        can(Action.CREATE, Store, { owner: user._id });
+        can(Action.UPDATE, Store, { owner: user._id });
+        can(Action.DELETE, Store, { owner: user._id });
         can(Action.MANAGE, Product);
-        can(Action.REQUEST_DELETE, Business, { owner: user._id });
         can(Action.CREATE, Order);
         can(Action.READ, Order);
         can(Action.UPDATE, Order, ['status', 'assignedMessenger', 'notes', 'estimatedDeliveryTime']);
         can(Action.LIST, Order);
+        // Keep limited legacy Business read/update for deprecated endpoints only
+        can(Action.READ, Business, { owner: user._id });
+        can(Action.UPDATE, Business, { owner: user._id });
         break;
 
       case Role.MANAGER:
@@ -113,6 +121,7 @@ export class CaslAbilityFactory {
 
       case Role.MESSENGER:
         can(Action.READ, User);
+        can(Action.READ, Store);
         can(Action.CREATE, Order);
         can(Action.READ, Order, { assignedMessenger: user._id });
         can(Action.UPDATE, Order, ['status', 'trackingNumber', 'deliveryAddress']);
@@ -121,9 +130,8 @@ export class CaslAbilityFactory {
 
       case Role.CUSTOMER:
         can(Action.READ, User, { _id: user._id });
-        can(Action.CREATE, Business, { owner: user._id });
-        can(Action.UPDATE, Business, { owner: user._id });
-        can(Action.UPDATE, EmploymentRequest, ['status'], { user: user._id });
+        can(Action.CREATE, SellerApplication);
+        can(Action.READ, SellerApplication, { user: user._id });
         can(Action.CREATE, Order);
         can(Action.READ, Order, { customer: user._id });
         can(Action.UPDATE, Order, ['status', 'cancellationReason'],

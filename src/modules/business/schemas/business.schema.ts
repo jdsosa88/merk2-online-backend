@@ -25,6 +25,10 @@ class Day {
   endHour: string; //momentaneamente string pero es un time formato 24 horas
 }
 
+/**
+ * @deprecated Use SellerApplication + Store modules instead.
+ * Business mixed seller onboarding with store/outlet. Kept only for legacy code paths.
+ */
 @Schema({ timestamps: true })
 export class Business {
   @Prop({ type: String, required: true, length: 150, unique: true })

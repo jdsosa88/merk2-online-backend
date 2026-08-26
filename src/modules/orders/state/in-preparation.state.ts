@@ -27,7 +27,7 @@ export class InPreparationState extends NonTerminalState {
   private async handleReadyForDelivery(user: User, dto: UpdateOrderStatusDto) {
     const hasPermission = this.context.canManageBusinessOrder(user);
     if (!hasPermission) {
-      throw new ForbiddenException(`Only the business owner or manager can mark the order as ${OrderStatus.READY_FOR_DELIVERY}`);
+      throw new ForbiddenException(`Only the store owner can mark the order as ${OrderStatus.READY_FOR_DELIVERY}`);
     }
 
     await this.context.updateOrder({

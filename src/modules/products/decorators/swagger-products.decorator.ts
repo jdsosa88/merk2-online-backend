@@ -24,14 +24,13 @@ export function ApiCreateProduct() {
       description: 'Bad request',
       type: ErrorResponseDto,
       examples: {
-        businessNotFound: { summary: 'Business not found', value: utils.getBadRequestError('Business not found') },
+        storeNotFound: { summary: 'Store not found', value: utils.getBadRequestError('Store not found') },
         categoryNotFound: { summary: 'Category not found', value: utils.getBadRequestError('Category not found') },
-        categoryNotInBusiness: { summary: 'Category not in business', value: utils.getBadRequestError('Category not included in business') },
         invalidAddons: { summary: 'Invalid addons', value: utils.getProductInvalidAddonsError() },
         addonAssigned: { summary: 'Addon assigned', value: utils.getBadRequestError('One or more addons are already assigned to another product') },
         missingParent: { summary: 'Missing parent', value: utils.getBadRequestError('Addon product must have a parent product') },
         parentNotFound: { summary: 'Parent not found', value: utils.getBadRequestError('Parent product not found or is not of type SIMPLE') },
-        differentBusiness: { summary: 'Different business', value: utils.getBadRequestError('Addon must belong to the same business as parent product') }
+        differentStore: { summary: 'Different store', value: utils.getBadRequestError('Addon must belong to the same store as parent product') }
       }
     }),
     ApiResponse({
@@ -41,7 +40,7 @@ export function ApiCreateProduct() {
       examples: {
         invalidToken: { summary: 'Invalid Token', value: utils.getInvalidTokenError() },
         inactiveUser: { summary: 'Inactive User', value: utils.getInactiveUserError() },
-        notOwnerOrManager: { summary: 'Not owner/manager', value: utils.getUnauthorizedError('Only business owner or manager can create products') }
+        notOwner: { summary: 'Not owner', value: utils.getUnauthorizedError('Only store owner can create products') }
       }
     }),
     ApiResponse({
@@ -70,7 +69,7 @@ export function ApiFindAllProducts() {
   return applyDecorators(
     ApiOperation({ summary: 'Get all products with filters and pagination' }),
     ApiBearerAuth('JWT'),
-    ApiQuery({ name: 'businessId', required: false, description: 'Filter by business ID' }),
+    ApiQuery({ name: 'storeId', required: false, description: 'Filter by store ID' }),
     ApiQuery({ name: 'categoryId', required: false, description: 'Filter by category ID' }),
     ApiQuery({ name: 'type', required: false, enum: ProductType, description: 'Filter by product type' }),
     ApiQuery({ name: 'includeInactive', required: false, type: Boolean, description: 'Include inactive products' }),
@@ -109,7 +108,7 @@ export function ApiSearchProducts() {
     ApiOperation({ summary: 'Search products' }),
     ApiBearerAuth('JWT'),
     ApiQuery({ name: 'q', required: true, description: 'Search term' }),
-    ApiQuery({ name: 'businessId', required: false, description: 'Filter by business ID' }),
+    ApiQuery({ name: 'storeId', required: false, description: 'Filter by store ID' }),
     ApiQuery({ name: 'categoryId', required: false, description: 'Filter by category ID' }),
     ApiQuery({ name: 'type', required: false, enum: ProductType, description: 'Filter by product type' }),
     ApiQuery({ name: 'minPrice', required: false, type: Number, description: 'Minimum price' }),
@@ -142,16 +141,16 @@ export function ApiSearchProducts() {
   );
 }
 
-export function ApiGetBusinessProducts() {
+export function ApiGetStoreProducts() {
   const utils = new SwaggerResponseUtils();
   return applyDecorators(
-    ApiOperation({ summary: 'Get all products for a business' }),
+    ApiOperation({ summary: 'Get all products for a store' }),
     ApiBearerAuth('JWT'),
-    ApiQuery({ name: 'businessId', description: 'Business ID' }),
+    ApiQuery({ name: 'storeId', description: 'Store ID' }),
     ApiQuery({ name: 'type', required: false, enum: ProductType, description: 'Filter by product type' }),
     ApiResponse({
       status: 200,
-      description: 'Business products',
+      description: 'Store products',
       type: ApiResponseDto,
       example: utils.getResponseWithProductsList(),
     }),
@@ -169,9 +168,9 @@ export function ApiGetBusinessProducts() {
     }),
     ApiResponse({
       status: 404,
-      description: 'Business not found',
+      description: 'Store not found',
       type: ErrorResponseDto,
-      example: utils.getBusinessNotFoundError()
+      example: utils.getBadRequestError('Store not found')
     }),
     ApiResponse({
       status: 500,
@@ -320,12 +319,12 @@ export function ApiUpdateProduct() {
       type: ErrorResponseDto,
       examples: {
         categoryNotFound: { summary: 'Category not found', value: utils.getBadRequestError('Category not found') },
-        categoryNotInBusiness: { summary: 'Category not in business', value: utils.getBadRequestError('Category not included in business') },
+        categoryNotInStore: { summary: 'Category not in store', value: utils.getBadRequestError('Category not found') },
         cannotChangeType: { summary: 'Cannot change type', value: utils.getBadRequestError('Cannot change product type') },
         invalidAddons: { summary: 'Invalid addons', value: utils.getProductInvalidAddonsError() },
         addonAssigned: { summary: 'Addon assigned', value: utils.getBadRequestError('One or more addons are already assigned to another product') },
         invalidParent: { summary: 'Invalid parent', value: utils.getBadRequestError('Parent product not found or is not of type SIMPLE') },
-        differentBusiness: { summary: 'Different business', value: utils.getBadRequestError('Addon must belong to the same business as parent product') }
+        differentStore: { summary: 'Different store', value: utils.getBadRequestError('Addon must belong to the same store as parent product') }
       }
     }),
     ApiResponse({
@@ -583,7 +582,7 @@ export function ApiUploadProductImages() {
       status: 403,
       description: 'Forbidden - Only owner, manager or admin can upload images',
       type: ErrorResponseDto,
-      example: utils.getForbiddenError('Only business owner, manager or system admin can access this endpoint'),
+      example: utils.getForbiddenError('Only store owner or system admin can access this endpoint'),
     }),
     ApiResponse({
       status: 404,
@@ -637,7 +636,7 @@ export function ApiDeleteProductImages() {
       status: 403,
       description: 'Forbidden - Only owner, manager or admin can delete images',
       type: ErrorResponseDto,
-      example: utils.getForbiddenError('Only business owner, manager or system admin can access this endpoint'),
+      example: utils.getForbiddenError('Only store owner or system admin can access this endpoint'),
     }),
     ApiResponse({
       status: 404,

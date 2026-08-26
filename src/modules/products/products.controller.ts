@@ -27,7 +27,7 @@ import {
   ApiCreateProduct,
   ApiFindAllProducts,
   ApiSearchProducts,
-  ApiGetBusinessProducts,
+  ApiGetStoreProducts,
   ApiGetCategoryProducts,
   ApiFindProductBySku,
   ApiFindProductById,
@@ -66,14 +66,14 @@ export class ProductsController {
   @Get('list')
   @ApiFindAllProducts()
   async findAll(
-    @Query('businessId') businessId?: string,
+    @Query('storeId') storeId?: string,
     @Query('categoryId') categoryId?: string,
     @Query('type', new ParseEnumPipe(ProductType, { optional: true })) type?: ProductType,
     @Query('includeInactive', new DefaultValuePipe(false), ParseBoolPipe) includeInactive?: boolean,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) perPage?: number
   ): Promise<ApiResponseDto<PaginatedListDto<Product>>> {
-    const result = await this.productsService.findAll(businessId, categoryId, type, includeInactive, page, perPage);
+    const result = await this.productsService.findAll(storeId, categoryId, type, includeInactive, page, perPage);
     return new ApiResponseDto("Products retrieved successfully", result);
   }
 
@@ -81,7 +81,7 @@ export class ProductsController {
   @ApiSearchProducts()
   async search(
     @Query('q') searchTerm: string,
-    @Query('businessId') businessId?: string,
+    @Query('storeId') storeId?: string,
     @Query('categoryId') categoryId?: string,
     @Query('type', new ParseEnumPipe(ProductType, { optional: true })) type?: ProductType,
     @Query('minPrice') minPrice?: number,
@@ -90,7 +90,7 @@ export class ProductsController {
   ): Promise<ApiResponseDto<Product[]>> {
     const products = await this.productsService.searchProducts(
       searchTerm,
-      businessId,
+      storeId,
       categoryId,
       type,
       minPrice,
@@ -100,14 +100,14 @@ export class ProductsController {
     return new ApiResponseDto("Products search completed", products);
   }
 
-  @Get('business')
-  @ApiGetBusinessProducts()
-  async getBusinessProducts(
-    @Query('businessId') businessId: string,
+  @Get('store')
+  @ApiGetStoreProducts()
+  async getStoreProducts(
+    @Query('storeId') storeId: string,
     @Query('type', new ParseEnumPipe(ProductType, { optional: true })) type?: ProductType,
   ): Promise<ApiResponseDto<Product[]>> {
-    const products = await this.productsService.getBusinessProducts(businessId, type);
-    return new ApiResponseDto("Business products retrieved", products);
+    const products = await this.productsService.getStoreProducts(storeId, type);
+    return new ApiResponseDto("Store products retrieved", products);
   }
 
   @Get('category')

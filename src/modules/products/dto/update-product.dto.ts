@@ -6,7 +6,7 @@ import { OmitType, PartialType } from '@nestjs/mapped-types';
 import { MoneyUtils } from 'src/common/utils/money.utils';
 
 export class UpdateProductDto extends PartialType(
-  OmitType(CreateProductDto, ['business'] as const)
+  OmitType(CreateProductDto, ['store'] as const)
 ) {
   @ApiPropertyOptional({ example: 4.5 })
   @IsOptional()

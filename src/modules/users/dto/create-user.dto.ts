@@ -93,15 +93,26 @@ export class CreateProviderDto extends CreateUserDto {
   @IsBoolean()
   isMessenger?: boolean = false;
 
+  /** @deprecated Use stores */
   @ApiPropertyOptional({
     type: [String],
-    description: 'Array of business IDs the provider is associated with',
+    description: 'Array of business IDs the provider is associated with (deprecated)',
     format: 'ObjectId'
   })
   @IsOptional()
   @IsArray()
   @IsMongoId({ each: true })
   businesses?: Types.ObjectId[];
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Array of store IDs the provider owns',
+    format: 'ObjectId'
+  })
+  @IsOptional()
+  @IsArray()
+  @IsMongoId({ each: true })
+  stores?: Types.ObjectId[];
 }
 
 export class CreateManagerDto extends CreateUserDto {
@@ -113,13 +124,22 @@ export class CreateManagerDto extends CreateUserDto {
   @IsBoolean()
   isMessenger?: boolean = false;
 
-  @ApiProperty({
-    description: 'Business ID the manager is assigned to',
+  @ApiPropertyOptional({
+    description: 'Provider (employer) who owns this manager in their team',
     format: 'ObjectId'
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsMongoId()
-  business: Types.ObjectId;
+  employer?: Types.ObjectId;
+
+  /** @deprecated Prefer employer. Kept for legacy Business employees. */
+  @ApiPropertyOptional({
+    description: 'Business ID the manager is assigned to (legacy)',
+    format: 'ObjectId'
+  })
+  @IsOptional()
+  @IsMongoId()
+  business?: Types.ObjectId;
 }
 
 export class CreateMessengerDto extends CreateUserDto {
@@ -132,12 +152,30 @@ export class CreateMessengerDto extends CreateUserDto {
   isPlatformMessenger?: boolean = false;
 
   @ApiPropertyOptional({
+    description: 'Provider (employer) who owns this messenger in their team',
+    format: 'ObjectId'
+  })
+  @IsOptional()
+  @IsMongoId()
+  employer?: Types.ObjectId;
+
+  @ApiPropertyOptional({
     type: [String],
-    description: 'Array of business IDs the messenger is associated with',
+    description: 'Array of business IDs the messenger is associated with (deprecated)',
     format: 'ObjectId'
   })
   @IsOptional()
   @IsArray()
   @IsMongoId({ each: true })
   businesses?: Types.ObjectId[];
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Array of store IDs the messenger is associated with',
+    format: 'ObjectId'
+  })
+  @IsOptional()
+  @IsArray()
+  @IsMongoId({ each: true })
+  stores?: Types.ObjectId[];
 }

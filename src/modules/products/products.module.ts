@@ -4,7 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Product, ProductSchema } from './schemas/product.schema';
 import { CaslModule } from '../casl/casl.module';
 
-import { BusinessModule } from '../business/business.module';
+import { StoresModule } from '../stores/stores.module';
 import { ProductsService } from './products.service';
 import { CategoriesModule } from '../categories/categories.module';
 import { UsersModule } from '../users/users.module';
@@ -16,7 +16,7 @@ import { ImagesModule } from '../images/images.module';
     MongooseModule.forFeature([{ name: Product.name, schema: ProductSchema }]),
     CaslModule,
     forwardRef(() => UsersModule),
-    forwardRef(() => BusinessModule),
+    forwardRef(() => StoresModule),
     forwardRef(() => CategoriesModule),
     ImagesModule,
   ],

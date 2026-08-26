@@ -14,11 +14,12 @@ import { Model, Types } from 'mongoose';
 import { Product, ProductDocument, ProductType } from './schemas/product.schema';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { BusinessService } from '../business/business.service';
+import { StoresService } from '../stores/stores.service';
 import { CategoriesService } from '../categories/categories.service';
 import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
 import { MoneyUtils } from 'src/common/utils/money.utils';
-import { Business } from '../business/schemas/business.schema';
+import { Store } from '../stores/schemas/store.schema';
+import { StoreStatus } from '../stores/types/store.type';
 import { User } from '../users/schemas/user.schema';
 import { ImagesService } from '../images/images.service';
 import { AddProductImagesParams, DeleteProductImagesParams } from './types/product.types';
@@ -27,7 +28,7 @@ import { AddProductImagesParams, DeleteProductImagesParams } from './types/produ
 export class ProductsService {
   constructor(
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
-    @Inject(forwardRef(() => BusinessService)) private readonly businessService: BusinessService,
+    @Inject(forwardRef(() => StoresService)) private readonly storesService: StoresService,
     private readonly categoriesService: CategoriesService,
     private readonly imagesService: ImagesService,
   ) { }
@@ -42,22 +43,18 @@ export class ProductsService {
         throw new ConflictException(`Product with SKU "${createProductDto.sku}" already exists`);
       }
 
-      const business = await this.businessService.findById(createProductDto.business);
-      if (!business) {
-        throw new BadRequestException('Business not found');
+      const store = await this.storesService.findById(createProductDto.store);
+      if (!store) {
+        throw new BadRequestException('Store not found');
       }
 
-      const isOwner = business.owner.toString() === userId;
-      const isManager = business.employees?.managers
-        ? business.employees.managers.filter(id => id.toString() === userId).length > 0
-        : false;
-
-      if (!isOwner && !isManager) {
-        throw new UnauthorizedException('Only business owner or manager can create products.')
+      if (store.status !== StoreStatus.ACTIVE) {
+        throw new BadRequestException('Store is not active');
       }
 
-      if (!business.categories.map(category => category.toString()).includes(createProductDto.category)) {
-        new BadRequestException('Category not included in business');
+      const isOwner = store.owner.toString() === userId;
+      if (!isOwner) {
+        throw new UnauthorizedException('Only store owner can create products.')
       }
 
       const category = await this.categoriesService.findOne(createProductDto.category);
@@ -76,9 +73,7 @@ export class ProductsService {
             throw new BadRequestException('One or more addons are invalid or not of type ADDON');
           }
 
-          const alreadyAssigned = addonProducts.filter(addon =>
-            addon.parentProduct && addon.parentProduct.toString() !== createProductDto.business
-          );
+          const alreadyAssigned = addonProducts.filter(addon => !!addon.parentProduct);
 
           if (alreadyAssigned.length > 0) {
             throw new BadRequestException('One or more addons are already assigned to another product');
@@ -94,8 +89,8 @@ export class ProductsService {
           throw new BadRequestException('Parent product not found or is not of type SIMPLE');
         }
 
-        if (parentProduct.business.toString() !== createProductDto.business) {
-          throw new BadRequestException('Addon must belong to the same business as parent product');
+        if (parentProduct.store.toString() !== createProductDto.store) {
+          throw new BadRequestException('Addon must belong to the same store as parent product');
         }
       }
 
@@ -104,7 +99,7 @@ export class ProductsService {
       const newProduct = new this.productModel({
         ...productData,
         sku: productData.sku.toUpperCase(),
-        business: new Types.ObjectId(productData.business),
+        store: new Types.ObjectId(productData.store),
         category: new Types.ObjectId(productData.category),
         parentProduct: productData.parentProduct
           ? new Types.ObjectId(productData.parentProduct)
@@ -123,7 +118,7 @@ export class ProductsService {
         );
       }
 
-      await this.businessService.addProduct(createProductDto.business, savedProduct._id);
+      await this.storesService.addProduct(createProductDto.store, savedProduct._id);
       return savedProduct;
     } catch (error) {
       if (
@@ -139,7 +134,7 @@ export class ProductsService {
   }
 
   async findAll(
-    businessId?: string,
+    StoreId?: string,
     categoryId?: string,
     type?: ProductType,
     includeInactive: boolean = false,
@@ -152,8 +147,8 @@ export class ProductsService {
       query.isActive = true;
     }
 
-    if (businessId) {
-      query.business = new Types.ObjectId(businessId);
+    if (StoreId) {
+      query.store = new Types.ObjectId(StoreId);
     }
 
     if (categoryId) {
@@ -168,7 +163,7 @@ export class ProductsService {
 
     const [products, total] = await Promise.all([
       this.productModel.find(query)
-        .populate('business', 'name _id')
+        .populate('store', 'name _id')
         .populate('category', 'name _id level')
         .populate('addons', 'name price finalPrice sku isAvailable')
         .populate('parentProduct', 'name price finalPrice sku')
@@ -191,10 +186,10 @@ export class ProductsService {
   async findOne(id: string): Promise<Product> {
     const _id = new Types.ObjectId(id);
     const product = await this.productModel.findById(_id)
-      .populate('business', 'name _id')
+      .populate('store', 'name _id')
       .populate('category', 'name _id level')
       .populate('addons', 'name price finalPrice sku isAvailable description images')
-      .populate('parentProduct', 'name price finalPrice sku business')
+      .populate('parentProduct', 'name price finalPrice sku store')
       .populate('images')
       .exec();
 
@@ -207,7 +202,7 @@ export class ProductsService {
 
   async findBySku(sku: string): Promise<Product> {
     const product = await this.productModel.findOne({ sku: sku.toUpperCase() })
-      .populate('business', 'name _id')
+      .populate('store', 'name _id')
       .populate('category', 'name _id level')
       .populate('addons', 'name price finalPrice sku isAvailable')
       .populate('parentProduct', 'name price finalPrice sku')
@@ -223,7 +218,7 @@ export class ProductsService {
   async findProductsByIds(productIds: string[]): Promise<Product[]> {
     const ids = productIds.map(id => new Types.ObjectId(id));
     return this.productModel.find({ _id: { $in: ids } })
-      .populate('business', 'name status owner employees images')
+      .populate('store', 'name status owner messengers')
       .exec();
   }
 
@@ -252,13 +247,9 @@ export class ProductsService {
         throw new BadRequestException('Category not found');
       }
 
-      const business = await this.businessService.findById(product.business.toString());
-      if (!business) {
-        throw new BadRequestException('Business not found');
-      }
-
-      if (!business.categories.map(category => category.toString()).includes(updateProductDto.category)) {
-        new BadRequestException('Category not included in business');
+      const store = await this.storesService.findById(product.store.toString());
+      if (!store) {
+        throw new BadRequestException('Store not found');
       }
     }
 
@@ -349,7 +340,7 @@ export class ProductsService {
     const deletedProduct = await this.productModel.findByIdAndDelete(_id);
     if (!deletedProduct) throw new BadRequestException('Prouct not found');
 
-    await this.businessService.removeProduct(deletedProduct.business.toString(), deletedProduct._id);
+    await this.storesService.removeProduct(deletedProduct.store.toString(), deletedProduct._id);
 
     return deletedProduct;
   }
@@ -366,14 +357,14 @@ export class ProductsService {
 
   }
 
-  async getBusinessProducts(businessId: string, type?: ProductType): Promise<Product[]> {
-    const business = await this.businessService.findById(businessId);
-    if (!business) {
-      throw new NotFoundException('Business not found');
+  async getStoreProducts(StoreId: string, type?: ProductType): Promise<Product[]> {
+    const store = await this.storesService.findById(StoreId);
+    if (!store) {
+      throw new NotFoundException('Store not found');
     }
 
     const query: any = {
-      business: new Types.ObjectId(businessId),
+      store: new Types.ObjectId(StoreId),
       isActive: true
     };
 
@@ -405,7 +396,7 @@ export class ProductsService {
     }
 
     return this.productModel.find(query)
-      .populate('business', 'name _id')
+      .populate('store', 'name _id')
       .populate('addons', 'name price sku')
       .sort({ finalPrice: 1 })
       .exec();
@@ -413,7 +404,7 @@ export class ProductsService {
 
   async searchProducts(
     searchTerm: string,
-    businessId?: string,
+    StoreId?: string,
     categoryId?: string,
     type?: ProductType,
     minPrice?: number,
@@ -431,8 +422,8 @@ export class ProductsService {
       ]
     };
 
-    if (businessId) {
-      query.business = new Types.ObjectId(businessId);
+    if (StoreId) {
+      query.store = new Types.ObjectId(StoreId);
     }
 
     if (categoryId) {
@@ -454,7 +445,7 @@ export class ProductsService {
     }
 
     return this.productModel.find(query)
-      .populate('business', 'name _id')
+      .populate('store', 'name _id')
       .populate('category', 'name _id')
       .populate('addons', 'name price sku')
       .sort({ finalPrice: 1 })
@@ -576,8 +567,8 @@ export class ProductsService {
       throw new BadRequestException('Parent product not found or is not of type SIMPLE');
     }
 
-    if (!parentProduct.business.equals(product.business)) {
-      throw new BadRequestException('Addon must belong to the same business as parent product');
+    if (!parentProduct.store.equals(product.store)) {
+      throw new BadRequestException('Addon must belong to the same store as parent product');
     }
 
     // Remover del addon array del padre antiguo
@@ -639,16 +630,14 @@ export class ProductsService {
 
   private async getValidatedProduct(productId: string, user: User): Promise<ProductDocument> {
     const _id = new Types.ObjectId(productId);
-    const product = await this.productModel.findById(_id).populate('business');
+    const product = await this.productModel.findById(_id).populate('store');
     if (!product) throw new NotFoundException('Product not found');
-    const business = product.business ? ((product as any).business as Business) : undefined;
-    const isAdmin = user.role === 'ADMIN' ? true : false;
-    const isOwner = business?.owner.toString() === user._id.toString() ? true : false;
-    const businessManager = business?.employees?.managers?.filter((manager) => manager.toString() === user._id.toString());
-    const isBusinessManager = businessManager && businessManager.length > 0 ? true : false;
-    if (!isAdmin && !isOwner && !isBusinessManager) {
+    const store = product.store ? ((product as any).store as Store) : undefined;
+    const isAdmin = user.role === 'ADMIN';
+    const isOwner = store?.owner?.toString() === user._id.toString();
+    if (!isAdmin && !isOwner) {
       throw new ForbiddenException(
-        'Only business owner, manager or system admin can access this endpoint'
+        'Only store owner or system admin can access this endpoint'
       );
     }
     return product;
@@ -659,9 +648,9 @@ export class ProductsService {
       throw new BadRequestException("You must add at least one image");
     }
 
-    const totalBusinessProducts = product.images.length;
+    const totalStoreProducts = product.images.length;
     const newImagesCount = images ? images.length : 0;
-    if (totalBusinessProducts + newImagesCount > 10) {
+    if (totalStoreProducts + newImagesCount > 10) {
       throw new BadRequestException(
         'You have exceeded the maximum number of images allowed per product. The image limit per product is 10.'
       );

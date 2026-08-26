@@ -113,13 +113,36 @@ export class UpdateUserAllDto extends UpdateUserDto {
 
   @ApiPropertyOptional({
     type: [String],
-    description: 'For PROVIDER/MESSENGER roles: array of business IDs',
+    description: 'For PROVIDER/MESSENGER roles: array of business IDs (deprecated)',
     format: 'ObjectId'
   })
   @IsOptional()
   @IsArray()
   @IsMongoId({ each: true })
   businesses?: Types.ObjectId[];
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'For PROVIDER/MESSENGER roles: array of store IDs',
+    format: 'ObjectId'
+  })
+  @IsOptional()
+  @IsArray()
+  @IsMongoId({ each: true })
+  stores?: Types.ObjectId[];
+
+  @ApiPropertyOptional({
+    description: 'Verified seller profile data for PROVIDER'
+  })
+  @IsOptional()
+  sellerProfile?: {
+    fullName: string;
+    ci: string;
+    phone: string;
+    email: string;
+    address: string;
+    license: string;
+  };
 
   @ApiPropertyOptional({
     type: String,

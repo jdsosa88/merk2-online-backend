@@ -5,7 +5,6 @@ import { UpdateOrderStatusDto } from '../dto/update-order-status.dto';
 import { ProductsService } from '../../products/products.service';
 import { Model, Types } from 'mongoose';
 import { PendingChargeDocument } from '../schemas/pending-charge.schema';
-import { BusinessService } from '../../business/business.service';
 import { UsersService } from '../../users/users.service';
 import { MessengerInDeliveryDocument } from '../schemas/messengers-in-delivery.schema';
 import { OrderState } from './order-state.abstract';
@@ -15,7 +14,7 @@ import { ReadyForDeliveryState } from './ready-for-delivery.state';
 import { OnTheWayState } from './on-the-way.state';
 import { TerminalState } from './terminal.state';
 import { Role } from '../../users/types/users.type';
-import { MessengerAssigmentType } from '../../business/types/business.type';
+import { MessengerAssignmentType } from '../../stores/types/store.type';
 
 export class OrderStateContext {
   private state: OrderState;
@@ -24,7 +23,6 @@ export class OrderStateContext {
     public readonly order: OrderDocument,
     private readonly productsService: ProductsService,
     private readonly pendingChargeModel: Model<PendingChargeDocument>,
-    private readonly businessService: BusinessService,
     private readonly usersService: UsersService,
     private readonly messengerInDeliveryModel: Model<MessengerInDeliveryDocument>,
   ) {
@@ -61,28 +59,32 @@ export class OrderStateContext {
   }
 
   async autoAssignMessenger(): Promise<void> {
-    const business = this.order.business as any;
-    if (business.messengerAssigmentType !== MessengerAssigmentType.AUTOMATIC) return;
+    const store = this.order.store as any;
+    if (store.messengerAssignmentType !== MessengerAssignmentType.AUTOMATIC) return;
 
     const possibleAssignees = [
-      ...(business.employees?.messengers || []),
-      ...(business.employees?.managers || []),
-      business.owner,
+      ...(store.messengers || []),
+      store.owner,
     ];
 
     for (const assigneeId of possibleAssignees) {
       try {
         const user = await this.usersService.findOne(assigneeId.toString());
-        const canWorkAsMessenger = (user.role === Role.PROVIDER || user.role === Role.MANAGER)
-          && (user as any).isMessenger === true;
-        if (user.role !== Role.MESSENGER && !canWorkAsMessenger) continue;
+        const canWorkAsMessenger =
+          user.role === Role.MESSENGER ||
+          (user.role === Role.PROVIDER && (user as any).isMessenger === true) ||
+          (user.role === Role.MANAGER && (user as any).isMessenger === true);
+        if (!canWorkAsMessenger) continue;
 
         const messengerUser = user as any;
         let isAssociated = false;
-        if (messengerUser.businesses?.length > 0) {
-          isAssociated = messengerUser.businesses.some((bId: Types.ObjectId) => bId.toString() === business._id.toString());
-        } else if (messengerUser.business) {
-          isAssociated = messengerUser.business.toString() === business._id.toString();
+        if (messengerUser.stores?.length > 0) {
+          isAssociated = messengerUser.stores.some((sId: Types.ObjectId) => sId.toString() === store._id.toString());
+        }
+        if (!isAssociated && store.messengers?.some(
+          (id: Types.ObjectId) => id.toString() === user._id.toString()
+        )) {
+          isAssociated = true;
         }
         if (!isAssociated && !messengerUser?.isPlatformMessenger) continue;
 
@@ -130,17 +132,18 @@ export class OrderStateContext {
     }
   }
 
-  //Validations
   isCustomer(user: User): boolean {
     return this.order.customer._id.toString() === user._id.toString();
   }
 
+  isStoreOwner(user: User): boolean {
+    const store = this.order.store as any;
+    return store.owner.toString() === user._id.toString();
+  }
+
+  /** @deprecated Prefer isStoreOwner */
   isBusinessOwnerOrManager(user: User): boolean {
-    const business = this.order.business as any;
-    return business.owner.toString() === user._id.toString() ||
-      business.employees?.managers?.some(
-        (managerId: Types.ObjectId) => managerId.toString() === user._id.toString()
-      );
+    return this.isStoreOwner(user);
   }
 
   isAssignedMessenger(user: User): boolean {
@@ -152,20 +155,25 @@ export class OrderStateContext {
     if (this.order.status === OrderStatus.ON_THE_WAY) {
       return this.isAssignedMessenger(user);
     }
-    return this.isBusinessOwnerOrManager(user);
+    return this.isStoreOwner(user);
   }
 
   canCancelAsCustomer(user: User): boolean {
     return this.isCustomer(user);
   }
 
-  canManageBusinessOrder(user: User): boolean {
+  canManageStoreOrder(user: User): boolean {
     if (
       this.order.status === OrderStatus.READY_FOR_DELIVERY ||
       this.order.status === OrderStatus.ON_THE_WAY
     ) {
       return this.isAssignedMessenger(user);
     }
-    return this.isBusinessOwnerOrManager(user);
+    return this.isStoreOwner(user);
+  }
+
+  /** @deprecated Prefer canManageStoreOrder */
+  canManageBusinessOrder(user: User): boolean {
+    return this.canManageStoreOrder(user);
   }
 }

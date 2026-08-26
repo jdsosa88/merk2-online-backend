@@ -5,7 +5,7 @@ import { Product, ProductDocument } from '../schemas/product.schema';
 
 export interface ProductRepository {
   deleteManyByIds(ids: Types.ObjectId[]): Promise<number>;
-  findProductsByBusinessAndCategory(businessId: Types.ObjectId, categoryIds: Types.ObjectId[]): Promise<Types.ObjectId[]>;
+  findProductsByStoreAndCategory(storeId: Types.ObjectId, categoryIds: Types.ObjectId[]): Promise<Types.ObjectId[]>;
 }
 
 @Injectable()
@@ -19,9 +19,9 @@ export class ProductMongoRepository implements ProductRepository {
     return result.deletedCount;
   }
 
-  async findProductsByBusinessAndCategory(businessId: Types.ObjectId, categoryIds: Types.ObjectId[]): Promise<Types.ObjectId[]> {
+  async findProductsByStoreAndCategory(storeId: Types.ObjectId, categoryIds: Types.ObjectId[]): Promise<Types.ObjectId[]> {
     const products = await this.productModel.find({
-      business: businessId,
+      store: storeId,
       category: { $in: categoryIds }
     }).select('_id').lean();
     

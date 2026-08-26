@@ -47,8 +47,8 @@ export class Order {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   customer: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Business', required: true })
-  business: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'Store', required: true })
+  store: Types.ObjectId;
 
   @Prop({ type: [OrderItemSchema], required: true, default: [] })
   items: OrderItem[];
