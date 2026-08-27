@@ -22,11 +22,72 @@ import { Messenger } from '../users/schemas/messenger.schema';
 import { Manager } from '../users/schemas/manager.schema';
 import { User } from '../users/schemas/user.schema';
 import { UpdateUserAllDto } from '../users/dto/update-user.dto';
+import { Order, OrderDocument } from '../orders/schemas/order.schema';
+import { Product, ProductDocument } from '../products/schemas/product.schema';
+import { OrderStatus } from '../orders/types/orders.type';
+
+const NON_SALES_STATUSES = [
+  OrderStatus.CANCELLED,
+  OrderStatus.REJECTED,
+  OrderStatus.ABORTED,
+  OrderStatus.RETURNED,
+] as const;
+
+const OPEN_ORDER_STATUSES = [
+  OrderStatus.REQUESTED,
+  OrderStatus.IN_PREPARATION,
+  OrderStatus.READY_FOR_DELIVERY,
+  OrderStatus.ON_THE_WAY,
+] as const;
+
+export type StoreStatsItem = {
+  storeId: string;
+  name: string;
+  address: string;
+  status: StoreStatus;
+  slogan?: string;
+  productCount: number;
+  activeProductCount: number;
+  lowStockCount: number;
+  unitsSold: number;
+  orderCount: number;
+  openOrderCount: number;
+  completedOrderCount: number;
+  revenue: number;
+  salesSharePercent: number;
+  messengerCount: number;
+};
+
+export type ProviderStoresStats = {
+  stores: StoreStatsItem[];
+  summary: {
+    storeCount: number;
+    activeStoreCount: number;
+    totalProducts: number;
+    totalOrders: number;
+    totalOpenOrders: number;
+    totalRevenue: number;
+    totalUnitsSold: number;
+    topStoreByRevenue: {
+      storeId: string;
+      name: string;
+      revenue: number;
+      salesSharePercent: number;
+    } | null;
+    topStoreByOrders: {
+      storeId: string;
+      name: string;
+      orderCount: number;
+    } | null;
+  };
+};
 
 @Injectable()
 export class StoresService {
   constructor(
     @InjectModel(Store.name) private readonly storeModel: Model<StoreDocument>,
+    @InjectModel(Order.name) private readonly orderModel: Model<OrderDocument>,
+    @InjectModel(Product.name) private readonly productModel: Model<ProductDocument>,
     private readonly usersService: UsersService,
   ) {}
 
@@ -59,6 +120,195 @@ export class StoresService {
       .find({ owner: new Types.ObjectId(ownerId) })
       .sort({ createdAt: -1 })
       .exec();
+  }
+
+  async getMineStats(ownerId: string): Promise<ProviderStoresStats> {
+    const stores = await this.findMine(ownerId);
+    const storeIds = stores.map((s) => s._id);
+
+    if (storeIds.length === 0) {
+      return {
+        stores: [],
+        summary: {
+          storeCount: 0,
+          activeStoreCount: 0,
+          totalProducts: 0,
+          totalOrders: 0,
+          totalOpenOrders: 0,
+          totalRevenue: 0,
+          totalUnitsSold: 0,
+          topStoreByRevenue: null,
+          topStoreByOrders: null,
+        },
+      };
+    }
+
+    const [productAgg, orderAgg] = await Promise.all([
+      this.productModel.aggregate<{
+        _id: Types.ObjectId;
+        productCount: number;
+        activeProductCount: number;
+        lowStockCount: number;
+        unitsSold: number;
+      }>([
+        { $match: { store: { $in: storeIds } } },
+        {
+          $group: {
+            _id: '$store',
+            productCount: { $sum: 1 },
+            activeProductCount: {
+              $sum: {
+                $cond: [
+                  {
+                    $and: [
+                      { $ne: ['$isAvailable', false] },
+                      { $ne: ['$isActive', false] },
+                    ],
+                  },
+                  1,
+                  0,
+                ],
+              },
+            },
+            lowStockCount: {
+              $sum: {
+                $cond: [{ $lte: [{ $ifNull: ['$stock', 0] }, 5] }, 1, 0],
+              },
+            },
+            unitsSold: { $sum: { $ifNull: ['$timesOrdered', 0] } },
+          },
+        },
+      ]),
+      this.orderModel.aggregate<{
+        _id: Types.ObjectId;
+        orderCount: number;
+        openOrderCount: number;
+        completedOrderCount: number;
+        revenueCents: number;
+        unitsFromOrders: number;
+      }>([
+        {
+          $match: {
+            store: { $in: storeIds },
+            status: { $nin: [...NON_SALES_STATUSES] },
+          },
+        },
+        {
+          $group: {
+            _id: '$store',
+            orderCount: { $sum: 1 },
+            openOrderCount: {
+              $sum: {
+                $cond: [{ $in: ['$status', [...OPEN_ORDER_STATUSES]] }, 1, 0],
+              },
+            },
+            completedOrderCount: {
+              $sum: {
+                $cond: [{ $eq: ['$status', OrderStatus.COMPLETED] }, 1, 0],
+              },
+            },
+            revenueCents: { $sum: { $ifNull: ['$total', 0] } },
+            unitsFromOrders: {
+              $sum: {
+                $reduce: {
+                  input: { $ifNull: ['$items', []] },
+                  initialValue: 0,
+                  in: { $add: ['$$value', { $ifNull: ['$$this.quantity', 0] }] },
+                },
+              },
+            },
+          },
+        },
+      ]),
+    ]);
+
+    const productByStore = new Map(
+      productAgg.map((row) => [row._id.toString(), row]),
+    );
+    const orderByStore = new Map(
+      orderAgg.map((row) => [row._id.toString(), row]),
+    );
+
+    const totalRevenueCents = orderAgg.reduce(
+      (sum, row) => sum + (row.revenueCents || 0),
+      0,
+    );
+
+    const storeStats: StoreStatsItem[] = stores.map((store) => {
+      const id = store._id.toString();
+      const products = productByStore.get(id);
+      const orders = orderByStore.get(id);
+      const revenueCents = orders?.revenueCents || 0;
+      const salesSharePercent =
+        totalRevenueCents > 0
+          ? Math.round((revenueCents / totalRevenueCents) * 1000) / 10
+          : 0;
+
+      return {
+        storeId: id,
+        name: store.name,
+        address: store.address,
+        status: store.status,
+        slogan: store.slogan,
+        productCount: products?.productCount || 0,
+        activeProductCount: products?.activeProductCount || 0,
+        lowStockCount: products?.lowStockCount || 0,
+        unitsSold: Math.max(
+          products?.unitsSold || 0,
+          orders?.unitsFromOrders || 0,
+        ),
+        orderCount: orders?.orderCount || 0,
+        openOrderCount: orders?.openOrderCount || 0,
+        completedOrderCount: orders?.completedOrderCount || 0,
+        revenue: revenueCents / 100,
+        salesSharePercent,
+        messengerCount: store.messengers?.length || 0,
+      };
+    });
+
+    const sortedByRevenue = [...storeStats].sort(
+      (a, b) => b.revenue - a.revenue,
+    );
+    const sortedByOrders = [...storeStats].sort(
+      (a, b) => b.orderCount - a.orderCount,
+    );
+    const topByRevenue = sortedByRevenue[0];
+    const topByOrders = sortedByOrders[0];
+
+    return {
+      stores: storeStats,
+      summary: {
+        storeCount: storeStats.length,
+        activeStoreCount: storeStats.filter(
+          (s) => s.status === StoreStatus.ACTIVE,
+        ).length,
+        totalProducts: storeStats.reduce((sum, s) => sum + s.productCount, 0),
+        totalOrders: storeStats.reduce((sum, s) => sum + s.orderCount, 0),
+        totalOpenOrders: storeStats.reduce(
+          (sum, s) => sum + s.openOrderCount,
+          0,
+        ),
+        totalRevenue: totalRevenueCents / 100,
+        totalUnitsSold: storeStats.reduce((sum, s) => sum + s.unitsSold, 0),
+        topStoreByRevenue:
+          topByRevenue && topByRevenue.revenue > 0
+            ? {
+                storeId: topByRevenue.storeId,
+                name: topByRevenue.name,
+                revenue: topByRevenue.revenue,
+                salesSharePercent: topByRevenue.salesSharePercent,
+              }
+            : null,
+        topStoreByOrders:
+          topByOrders && topByOrders.orderCount > 0
+            ? {
+                storeId: topByOrders.storeId,
+                name: topByOrders.name,
+                orderCount: topByOrders.orderCount,
+              }
+            : null,
+      },
+    };
   }
 
   async findById(storeId: string): Promise<StoreDocument> {

@@ -54,6 +54,16 @@ export class StoresController {
     return new ApiResponseDto('Stores retrieved', stores);
   }
 
+  @Get('mine/stats')
+  @CheckPolicies(new ReadStorePolicy())
+  @ApiOperation({
+    summary: 'Sales and catalog stats for all stores owned by the provider',
+  })
+  async findMineStats(@AuthUser('id') userId: string): Promise<ApiResponseDto> {
+    const stats = await this.storesService.getMineStats(userId);
+    return new ApiResponseDto('Store stats retrieved', stats);
+  }
+
   @Get(':id')
   @CheckPolicies(new ReadStorePolicy())
   @ApiOperation({ summary: 'Get store by id' })
