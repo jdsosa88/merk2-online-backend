@@ -84,6 +84,33 @@ export class OrdersService {
         throw new NotFoundException('Some products not found');
       }
 
+      const hasScheduledFor = Boolean(checkoutOrderDto.scheduledFor);
+      let scheduledFor: Date | undefined;
+
+      if (hasScheduledFor) {
+        scheduledFor = new Date(checkoutOrderDto.scheduledFor!);
+        if (Number.isNaN(scheduledFor.getTime()) || scheduledFor.getTime() <= Date.now()) {
+          throw new BadRequestException('scheduledFor must be a valid future date and time');
+        }
+      }
+
+      const hasReservableProduct = products.some((p) => p.isReservable);
+      const hasNonReservableProduct = products.some((p) => !p.isReservable);
+
+      if (hasReservableProduct && !hasScheduledFor) {
+        throw new BadRequestException(
+          'scheduledFor is required when ordering reservable products',
+        );
+      }
+
+      if (hasScheduledFor && hasNonReservableProduct) {
+        throw new BadRequestException(
+          'All products in a reservation order must be reservable',
+        );
+      }
+
+      const isReservationOrder = hasScheduledFor;
+
       const storeGroups = new Map<string, StoreGroup>();
       const outOfStockItems: OutOfStockItem[] = [];
 
@@ -93,7 +120,7 @@ export class OrdersService {
           throw new NotFoundException(`Product ${item.productId} not found`);
         }
 
-        if (product.stock < item.quantity) {
+        if (!isReservationOrder && product.stock < item.quantity) {
           outOfStockItems.push({
             productId: product._id.toString(),
             productName: product.name,
@@ -178,12 +205,15 @@ export class OrdersService {
           status: OrderStatus.REQUESTED,
           statusUpdatedAt: new Date(),
           deliveryAddress: user.geolocation,
+          ...(scheduledFor ? { scheduledFor } : {}),
         });
 
         const savedOrder = await order.save();
 
-        for (const { product, quantity } of group.items) {
-          await this.productsService.updateStock(product._id.toString(), quantity, 'subtract');
+        if (!isReservationOrder) {
+          for (const { product, quantity } of group.items) {
+            await this.productsService.updateStock(product._id.toString(), quantity, 'subtract');
+          }
         }
 
         createdOrders.push(savedOrder);

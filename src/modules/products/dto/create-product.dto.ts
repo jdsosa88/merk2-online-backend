@@ -88,6 +88,16 @@ export class CreateProductDto {
   @IsBoolean()
   isAvailable?: boolean;
 
+  @ApiPropertyOptional({ example: false, description: 'Producto que requiere preparación (cakes, pizzas, etc.)' })
+  @IsOptional()
+  @IsBoolean()
+  requiresElaboration?: boolean;
+
+  @ApiPropertyOptional({ example: false, description: 'Permite reservar el producto para un día/hora concreto' })
+  @IsOptional()
+  @IsBoolean()
+  isReservable?: boolean;
+
   @ApiPropertyOptional({ type: [String], description: 'IDs de productos agregos (solo para tipo SIMPLE)' })
   @IsOptional()
   @IsArray()

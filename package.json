@@ -22,7 +22,9 @@
     "seed:users": "cross-env NODE_ENV=development node src/scripts/mongoose-seed.js",
     "clean:seed:users": "cross-env NODE_ENV=development node src/scripts/mongoose-seed.js clean",
     "seed:categories": "cross-env NODE_ENV=development node src/scripts/mongoose-seed-categories.js",
-    "clean:seed:categories": "cross-env NODE_ENV=development node src/scripts/mongoose-seed-categories.js clean"
+    "clean:seed:categories": "cross-env NODE_ENV=development node src/scripts/mongoose-seed-categories.js clean",
+    "seed:stores": "cross-env NODE_ENV=development node src/scripts/mongoose-seed-stores-products.js",
+    "clean:seed:stores": "cross-env NODE_ENV=development node src/scripts/mongoose-seed-stores-products.js clean"
   },
   "dependencies": {
     "@casl/ability": "6.7.3",

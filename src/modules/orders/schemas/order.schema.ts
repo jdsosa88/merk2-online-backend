@@ -92,6 +92,9 @@ export class Order {
   @Prop({ type: Date, required: false })
   estimatedDeliveryTime?: Date;
 
+  @Prop({ type: Date, required: false })
+  scheduledFor?: Date;
+
   @Prop({ type: Geolocation, required: true })
   deliveryAddress?: Geolocation;
 

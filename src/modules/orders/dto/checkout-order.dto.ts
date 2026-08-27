@@ -1,6 +1,16 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsMongoId, IsNumber, Min, ValidateNested, ArrayMinSize, IsNotEmpty } from 'class-validator';
+import {
+  IsArray,
+  IsMongoId,
+  IsNumber,
+  Min,
+  ValidateNested,
+  ArrayMinSize,
+  IsNotEmpty,
+  IsOptional,
+  IsDateString,
+} from 'class-validator';
 
 export class CheckoutItemDto {
   @ApiProperty({
@@ -37,4 +47,12 @@ export class CheckoutOrderDto {
   @Type(() => CheckoutItemDto)
   @IsNotEmpty()
   items: CheckoutItemDto[];
+
+  @ApiPropertyOptional({
+    description: 'Fecha y hora solicitada para una reserva (ISO 8601). Requerido si hay productos reservables.',
+    example: '2026-09-01T15:00:00.000Z',
+  })
+  @IsOptional()
+  @IsDateString()
+  scheduledFor?: string;
 }

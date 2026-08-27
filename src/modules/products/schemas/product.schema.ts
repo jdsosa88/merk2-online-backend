@@ -86,6 +86,12 @@ export class Product {
   @Prop({ type: Boolean, default: true })
   isAvailable: boolean;
 
+  @Prop({ type: Boolean, default: false })
+  requiresElaboration: boolean;
+
+  @Prop({ type: Boolean, default: false })
+  isReservable: boolean;
+
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Product' }], default: [] })
   addons: Types.ObjectId[];
 
