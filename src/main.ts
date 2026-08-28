@@ -47,7 +47,7 @@ async function bootstrap() {
     swaggerOptions: { persistAuthorization: true },
   });
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 3001);
   const url = await app.getUrl();
   Logger.log(`Application is running on: ${url}`, 'Bootstrap');
 }
