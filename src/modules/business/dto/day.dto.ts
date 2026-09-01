@@ -1,7 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsString,
   Max,
   Min,
@@ -52,4 +54,14 @@ export class DayDto {
     message: 'endHour must be a valid 24-hour time string (e.g., "17:00")',
   })
   endHour: string;
+
+  @ApiProperty({
+    type: Boolean,
+    description: 'Whether the store/business is open this day',
+    required: false,
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isOpen?: boolean;
 }

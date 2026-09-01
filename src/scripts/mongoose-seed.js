@@ -47,7 +47,12 @@ const testUsers = [
     password: 'pwdmerk225mzllo',
     phone: '+1234567891',
     role: 'CUSTOMER',
-    isActive: true
+    isActive: true,
+    geolocation: {
+      address: 'Calle Principal 123, Santo Domingo',
+      latitude: 18.4861,
+      longitude: -69.9312,
+    },
   },
   {
     firstName: 'Provider',

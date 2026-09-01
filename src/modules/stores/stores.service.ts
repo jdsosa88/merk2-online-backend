@@ -14,7 +14,14 @@ import {
   UpdateStoreDto,
   UpdateStoreStatusDto,
 } from './dto/store.dto';
+import {
+  CreateStoreVarietyOptionDto,
+  CreateStoreVarietyTypeDto,
+  UpdateStoreVarietyOptionDto,
+  UpdateStoreVarietyTypeDto,
+} from './dto/variety.dto';
 import { StoreStatus } from './types/store.type';
+import { StoreVarietyOption, StoreVarietyType } from './schemas/variety.schema';
 import { UsersService } from '../users/users.service';
 import { Role } from '../users/types/users.type';
 import { Provider } from '../users/schemas/provider.schema';
@@ -493,6 +500,189 @@ export class StoresService {
       throw new BadRequestException('Store is not active');
     }
     return store;
+  }
+
+  async listVarietyTypes(storeId: string) {
+    const store = await this.findById(storeId);
+    const json = store.toJSON() as { varietyTypes?: StoreVarietyType[] };
+    return json.varietyTypes || [];
+  }
+
+  async createVarietyType(
+    storeId: string,
+    userId: string,
+    dto: CreateStoreVarietyTypeDto,
+  ): Promise<Store> {
+    const store = await this.getOwnedStore(storeId, userId);
+    const nameExists = (store.varietyTypes || []).some(
+      (t) => t.name.trim().toLowerCase() === dto.name.trim().toLowerCase(),
+    );
+    if (nameExists) {
+      throw new ConflictException(`Variety type "${dto.name}" already exists`);
+    }
+
+    store.varietyTypes.push({
+      _id: new Types.ObjectId(),
+      name: dto.name.trim(),
+      isActive: dto.isActive ?? true,
+      isRequired: dto.isRequired ?? true,
+      sortOrder: dto.sortOrder ?? store.varietyTypes.length,
+      options: [],
+    } as StoreVarietyType);
+
+    return store.save();
+  }
+
+  async updateVarietyType(
+    storeId: string,
+    userId: string,
+    typeId: string,
+    dto: UpdateStoreVarietyTypeDto,
+  ): Promise<Store> {
+    const store = await this.getOwnedStore(storeId, userId);
+    const type = this.findVarietyTypeOrThrow(store, typeId);
+
+    if (dto.name !== undefined) {
+      const nameExists = (store.varietyTypes || []).some(
+        (t) =>
+          t._id.toString() !== typeId &&
+          t.name.trim().toLowerCase() === dto.name!.trim().toLowerCase(),
+      );
+      if (nameExists) {
+        throw new ConflictException(`Variety type "${dto.name}" already exists`);
+      }
+      type.name = dto.name.trim();
+    }
+    if (dto.isActive !== undefined) type.isActive = dto.isActive;
+    if (dto.isRequired !== undefined) type.isRequired = dto.isRequired;
+    if (dto.sortOrder !== undefined) type.sortOrder = dto.sortOrder;
+
+    store.markModified('varietyTypes');
+    return store.save();
+  }
+
+  async removeVarietyType(
+    storeId: string,
+    userId: string,
+    typeId: string,
+  ): Promise<Store> {
+    const store = await this.getOwnedStore(storeId, userId);
+    this.findVarietyTypeOrThrow(store, typeId);
+    store.varietyTypes = store.varietyTypes.filter((t) => t._id.toString() !== typeId);
+    store.markModified('varietyTypes');
+    return store.save();
+  }
+
+  async createVarietyOption(
+    storeId: string,
+    userId: string,
+    typeId: string,
+    dto: CreateStoreVarietyOptionDto,
+  ): Promise<Store> {
+    const store = await this.getOwnedStore(storeId, userId);
+    const type = this.findVarietyTypeOrThrow(store, typeId);
+    const data = CreateStoreVarietyOptionDto.toCents(dto);
+
+    const labelExists = type.options.some(
+      (o) => o.label.trim().toLowerCase() === data.label.trim().toLowerCase(),
+    );
+    if (labelExists) {
+      throw new ConflictException(`Option "${data.label}" already exists in this variety type`);
+    }
+
+    const wantDefault = data.isDefault === true;
+    if (wantDefault) {
+      for (const o of type.options) {
+        o.isDefault = false;
+      }
+    }
+    // First option becomes default unless explicitly set to false.
+    const isDefault = wantDefault || (type.options.length === 0 && data.isDefault !== false);
+
+    type.options.push({
+      _id: new Types.ObjectId(),
+      label: data.label.trim(),
+      priceDelta: data.priceDelta ?? 0,
+      isActive: data.isActive ?? true,
+      isDefault,
+      sortOrder: data.sortOrder ?? type.options.length,
+    } as StoreVarietyOption);
+
+    store.markModified('varietyTypes');
+    return store.save();
+  }
+
+  async updateVarietyOption(
+    storeId: string,
+    userId: string,
+    typeId: string,
+    optionId: string,
+    dto: UpdateStoreVarietyOptionDto,
+  ): Promise<Store> {
+    const store = await this.getOwnedStore(storeId, userId);
+    const type = this.findVarietyTypeOrThrow(store, typeId);
+    const option = this.findVarietyOptionOrThrow(type, optionId);
+    const data = UpdateStoreVarietyOptionDto.toCents(dto);
+
+    if (data.label !== undefined) {
+      const labelExists = type.options.some(
+        (o) =>
+          o._id.toString() !== optionId &&
+          o.label.trim().toLowerCase() === data.label!.trim().toLowerCase(),
+      );
+      if (labelExists) {
+        throw new ConflictException(`Option "${data.label}" already exists in this variety type`);
+      }
+      option.label = data.label.trim();
+    }
+    if (data.priceDelta !== undefined) option.priceDelta = data.priceDelta;
+    if (data.isActive !== undefined) option.isActive = data.isActive;
+    if (data.sortOrder !== undefined) option.sortOrder = data.sortOrder;
+    if (data.isDefault !== undefined) {
+      if (data.isDefault) {
+        for (const o of type.options) {
+          o.isDefault = o._id.toString() === optionId;
+        }
+      } else {
+        option.isDefault = false;
+      }
+    }
+
+    store.markModified('varietyTypes');
+    return store.save();
+  }
+
+  async removeVarietyOption(
+    storeId: string,
+    userId: string,
+    typeId: string,
+    optionId: string,
+  ): Promise<Store> {
+    const store = await this.getOwnedStore(storeId, userId);
+    const type = this.findVarietyTypeOrThrow(store, typeId);
+    this.findVarietyOptionOrThrow(type, optionId);
+    type.options = type.options.filter((o) => o._id.toString() !== optionId);
+    store.markModified('varietyTypes');
+    return store.save();
+  }
+
+  private findVarietyTypeOrThrow(store: StoreDocument, typeId: string): StoreVarietyType {
+    const type = (store.varietyTypes || []).find((t) => t._id.toString() === typeId);
+    if (!type) {
+      throw new NotFoundException(`Variety type ${typeId} not found`);
+    }
+    return type;
+  }
+
+  private findVarietyOptionOrThrow(
+    type: StoreVarietyType,
+    optionId: string,
+  ): StoreVarietyOption {
+    const option = (type.options || []).find((o) => o._id.toString() === optionId);
+    if (!option) {
+      throw new NotFoundException(`Variety option ${optionId} not found`);
+    }
+    return option;
   }
 
   private async getOwnedStore(storeId: string, userId: string): Promise<StoreDocument> {

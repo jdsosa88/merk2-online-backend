@@ -6,6 +6,51 @@ import { Geolocation } from 'src/common/schemas/geolocation.schema';
 export type OrderDocument = HydratedDocument<Order>;
 
 @Schema({ _id: false, timestamps: false })
+export class SelectedVarietyOption {
+  @Prop({ type: String, required: true })
+  varietyTypeId: string;
+
+  @Prop({ type: String, required: true })
+  varietyTypeLabel: string;
+
+  @Prop({ type: String, required: true })
+  optionId: string;
+
+  @Prop({ type: String, required: true })
+  optionLabel: string;
+
+  /** Snapshot in cents at checkout time. */
+  @Prop({ type: Number, required: true, min: 0, default: 0 })
+  priceDelta: number;
+}
+
+export const SelectedVarietyOptionSchema =
+  SchemaFactory.createForClass(SelectedVarietyOption);
+
+@Schema({ _id: false, timestamps: false })
+export class SelectedOrderAddon {
+  @Prop({ type: Types.ObjectId, ref: 'Product', required: true })
+  addonId: Types.ObjectId;
+
+  @Prop({ type: String, required: true })
+  addonLabel: string;
+
+  @Prop({ type: Number, required: true, min: 1 })
+  quantity: number;
+
+  /** Addon unit price in cents at checkout (for extras beyond base). */
+  @Prop({ type: Number, required: true, min: 0, default: 0 })
+  pricePerUnit: number;
+
+  /** Extra charged for this addon line: (quantity - 1) * pricePerUnit in cents. */
+  @Prop({ type: Number, required: true, min: 0, default: 0 })
+  totalPrice: number;
+}
+
+export const SelectedOrderAddonSchema =
+  SchemaFactory.createForClass(SelectedOrderAddon);
+
+@Schema({ _id: false, timestamps: false })
 export class OrderItem {
   @Prop({ type: Types.ObjectId, ref: 'Product', required: true })
   product: Types.ObjectId;
@@ -14,16 +59,24 @@ export class OrderItem {
   quantity: number;
 
   @Prop({ type: Number, required: true, min: 0 })
-  pricePerUnit: number; 
+  pricePerUnit: number;
 
   @Prop({ type: Number, required: true, min: 0 })
-  totalPrice: number; 
+  totalPrice: number;
 
   @Prop({ type: String, required: false })
   productName?: string;
 
   @Prop({ type: String, required: false })
   productSku?: string;
+
+  /** Empty = baker's choice / no customization. */
+  @Prop({ type: [SelectedVarietyOptionSchema], default: [] })
+  selectedOptions: SelectedVarietyOption[];
+
+  /** Plate composition addons with quantities (base qty = 1 each). */
+  @Prop({ type: [SelectedOrderAddonSchema], default: [] })
+  selectedAddons: SelectedOrderAddon[];
 }
 
 export const OrderItemSchema = SchemaFactory.createForClass(OrderItem);
@@ -34,7 +87,7 @@ export class AdditionalCharge {
   type: string;
 
   @Prop({ type: Number, required: true, min: 0 })
-  amount: number; 
+  amount: number;
 
   @Prop({ type: String, required: false })
   description?: string;
@@ -54,16 +107,16 @@ export class Order {
   items: OrderItem[];
 
   @Prop({ type: Number, required: true, min: 0, default: 0 })
-  subtotal: number; 
+  subtotal: number;
 
   @Prop({ type: Number, required: true, min: 0, default: 0 })
-  deliveryCharge: number; 
+  deliveryCharge: number;
 
   @Prop({ type: [AdditionalChargeSchema], default: [] })
   additionalCharges: AdditionalCharge[];
 
   @Prop({ type: Number, required: true, min: 0, default: 0 })
-  total: number; 
+  total: number;
 
   @Prop({
     type: String,
@@ -115,41 +168,49 @@ export class Order {
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);
-const centsToDecimal = function(cents: number): number {
+
+const centsToDecimal = function (cents: number): number {
   return cents / 100;
 };
-// Helper methods para convertir
-OrderSchema.methods.toJSON = function() {
+
+OrderSchema.methods.toJSON = function () {
   const obj = this.toObject();
-  
-  // Convertir centavos a decimales para la respuesta
+
   obj.subtotal = centsToDecimal(obj.subtotal);
   obj.deliveryCharge = centsToDecimal(obj.deliveryCharge);
   obj.total = centsToDecimal(obj.total);
-  
-  // Convertir items
+
   if (obj.items) {
     obj.items = obj.items.map((item: any) => ({
       ...item,
       pricePerUnit: centsToDecimal(item.pricePerUnit),
-      totalPrice: centsToDecimal(item.totalPrice)
+      totalPrice: centsToDecimal(item.totalPrice),
+      selectedOptions: (item.selectedOptions || []).map((option: any) => ({
+        ...option,
+        priceDelta: centsToDecimal(option.priceDelta ?? 0),
+      })),
+      selectedAddons: (item.selectedAddons || []).map((addon: any) => ({
+        ...addon,
+        pricePerUnit: centsToDecimal(addon.pricePerUnit ?? 0),
+        totalPrice: centsToDecimal(addon.totalPrice ?? 0),
+      })),
     }));
-  }  
-  
+  }
+
   if (obj.additionalCharges) {
     obj.additionalCharges = obj.additionalCharges.map((charge: any) => ({
       ...charge,
-      amount: centsToDecimal(charge.amount)
+      amount: centsToDecimal(charge.amount),
     }));
   }
-  
+
   return obj;
 };
 
-OrderSchema.statics.decimalToCents = function(decimal: number): number {
+OrderSchema.statics.decimalToCents = function (decimal: number): number {
   return Math.round(decimal * 100);
 };
 
-OrderSchema.statics.centsToDecimal = function(cents: number): number {
+OrderSchema.statics.centsToDecimal = function (cents: number): number {
   return cents / 100;
 };

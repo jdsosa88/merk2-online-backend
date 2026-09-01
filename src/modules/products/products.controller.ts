@@ -14,7 +14,9 @@ import {
   HttpStatus,
   UseGuards,
   UseInterceptors,
-  UploadedFiles
+  UploadedFiles,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -42,11 +44,12 @@ import {
 import { ApiResponseDto } from 'src/common/dto/api-response.dto';
 import { Product } from './schemas/product.schema';
 import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { FileService } from 'src/common/services/file.service';
 import { IdDto } from 'src/common/dto/id.dto';
 import { User } from '../users/schemas/user.schema';
 import { DeleteImagesDto } from './dto/delete-images.dto';
+import { ApiBody, ApiConsumes, ApiOperation, ApiQuery } from '@nestjs/swagger';
 
 @UseGuards(JwtAuthGuard, PoliciesGuard)
 @Controller('products')
@@ -202,6 +205,46 @@ export class ProductsController {
     });
 
     return new ApiResponseDto('Images uploaded successfully', updatedProduct);
+  }
+
+  @Post('/upload-visual-option-image')
+  @ApiOperation({ summary: 'Upload image for a product visual option (stored on disk, returns product with image ids only)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiQuery({ name: 'id', description: 'Product id' })
+  @ApiQuery({ name: 'optionId', description: 'Visual option id' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        image: { type: 'string', format: 'binary' },
+      },
+      required: ['image'],
+    },
+  })
+  @UseInterceptors(FileInterceptor('image', {
+    storage: FileService.getDiskStorage(),
+    limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter: FileService.imageFileFilter,
+  }))
+  async uploadVisualOptionImage(
+    @Query('id') productId: string,
+    @Query('optionId') optionId: string,
+    @UploadedFile() image: Express.Multer.File,
+    @AuthUser() user: User,
+  ): Promise<ApiResponseDto<Product>> {
+    if (!productId || !optionId) {
+      throw new BadRequestException('id and optionId query params are required');
+    }
+    if (!image) {
+      throw new BadRequestException('image file is required');
+    }
+    const updatedProduct = await this.productsService.uploadVisualOptionImage({
+      productId,
+      optionId,
+      user,
+      image,
+    });
+    return new ApiResponseDto('Visual option image uploaded successfully', updatedProduct);
   }
 
   @Delete('delete-images')

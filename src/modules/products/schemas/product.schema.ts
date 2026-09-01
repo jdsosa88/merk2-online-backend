@@ -1,6 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-import { Image } from 'src/common/schemas/image.schema';
+import {
+  ProductVisualOption,
+  ProductVisualOptionSchema,
+} from './product-visual-option.schema';
 
 export type ProductDocument = HydratedDocument<Product>;
 
@@ -92,6 +95,34 @@ export class Product {
   @Prop({ type: Boolean, default: false })
   isReservable: boolean;
 
+  /**
+   * When true, product detail may expose visual options and enabled store variety types.
+   * Quick add from listing can still omit selectedOptions (baker's choice).
+   */
+  @Prop({ type: Boolean, default: false })
+  hasVarieties: boolean;
+
+  /**
+   * When true, customer can see plate composition addons and adjust released ones.
+   * Composition lives in `addons[]` (each base qty = 1).
+   */
+  @Prop({ type: Boolean, default: false })
+  hasAddons: boolean;
+
+  /**
+   * For type=addon: when true, customer may increase quantity above the plate base (1).
+   */
+  @Prop({ type: Boolean, default: false })
+  isReleased: boolean;
+
+  /** Selectable visual gallery options (system Visual type). */
+  @Prop({ type: [ProductVisualOptionSchema], default: [] })
+  visualOptions: ProductVisualOption[];
+
+  /** Store variety type ids enabled for this product (custom types like Flavor). */
+  @Prop({ type: [{ type: Types.ObjectId }], default: [] })
+  enabledVarietyTypeIds: Types.ObjectId[];
+
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Product' }], default: [] })
   addons: Types.ObjectId[];
 
@@ -122,7 +153,6 @@ export class Product {
 
 export const ProductSchema = SchemaFactory.createForClass(Product);
 
-// Helper para convertir centavos a decimales en las respuestas
 ProductSchema.methods.toJSON = function () {
   const obj = this.toObject();
 
@@ -130,10 +160,45 @@ ProductSchema.methods.toJSON = function () {
   obj.discountValue = this.discountValue ? this.discountValue / 100 : 0;
   obj.finalPrice = this.finalPrice / 100;
 
+  // Always expose image ids only (never populated Image documents / binary).
+  obj.images = (obj.images || []).map((image: any) =>
+    typeof image === 'string' ? image : image?._id?.toString?.() || String(image),
+  );
+
+  if (Array.isArray(obj.visualOptions)) {
+    obj.visualOptions = obj.visualOptions.map((option: any) => ({
+      ...option,
+      priceDelta: (option.priceDelta ?? 0) / 100,
+      image: option.image
+        ? typeof option.image === 'string'
+          ? option.image
+          : option.image?._id?.toString?.() || String(option.image)
+        : undefined,
+    }));
+  }
+
+  // Populated addons come as plain objects; convert money + image ids like the parent product.
+  if (Array.isArray(obj.addons)) {
+    obj.addons = obj.addons.map((addon: any) => {
+      if (!addon || typeof addon === 'string' || addon._bsontype === 'ObjectId') {
+        return addon;
+      }
+      return {
+        ...addon,
+        _id: addon._id?.toString?.() || addon._id,
+        price: typeof addon.price === 'number' ? addon.price / 100 : addon.price,
+        finalPrice:
+          typeof addon.finalPrice === 'number' ? addon.finalPrice / 100 : addon.finalPrice,
+        images: (addon.images || []).map((image: any) =>
+          typeof image === 'string' ? image : image?._id?.toString?.() || String(image),
+        ),
+      };
+    });
+  }
+
   return obj;
 };
 
-// Pre-save hook para calcular finalPrice en centavos
 ProductSchema.pre('save', function (next) {
   const basePrice = this.price || 0;
   const discountVal = this.discountValue || 0;

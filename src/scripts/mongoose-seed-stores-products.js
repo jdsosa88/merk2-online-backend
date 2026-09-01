@@ -7,13 +7,13 @@ require('dotenv').config({
 const OWNER_EMAIL = process.env.SEED_PROVIDER_EMAIL || 'seller.applicant@test.com';
 
 const defaultWeek = [
-  { day: 1, name: 'Lunes', startHour: '08:00', endHour: '18:00' },
-  { day: 2, name: 'Martes', startHour: '08:00', endHour: '18:00' },
-  { day: 3, name: 'Miércoles', startHour: '08:00', endHour: '18:00' },
-  { day: 4, name: 'Jueves', startHour: '08:00', endHour: '18:00' },
-  { day: 5, name: 'Viernes', startHour: '08:00', endHour: '18:00' },
-  { day: 6, name: 'Sábado', startHour: '08:00', endHour: '18:00' },
-  { day: 0, name: 'Domingo', startHour: '08:00', endHour: '18:00' },
+  { day: 1, name: 'Lunes', startHour: '08:00', endHour: '18:00', isOpen: true },
+  { day: 2, name: 'Martes', startHour: '08:00', endHour: '18:00', isOpen: true },
+  { day: 3, name: 'Miércoles', startHour: '08:00', endHour: '18:00', isOpen: true },
+  { day: 4, name: 'Jueves', startHour: '08:00', endHour: '18:00', isOpen: true },
+  { day: 5, name: 'Viernes', startHour: '08:00', endHour: '18:00', isOpen: true },
+  { day: 6, name: 'Sábado', startHour: '08:00', endHour: '18:00', isOpen: false },
+  { day: 0, name: 'Domingo', startHour: '08:00', endHour: '18:00', isOpen: false },
 ];
 
 const StoreSchema = new mongoose.Schema(
@@ -30,6 +30,7 @@ const StoreSchema = new mongoose.Schema(
           name: String,
           startHour: String,
           endHour: String,
+          isOpen: { type: Boolean, default: true },
         },
       ],
       default: [],

@@ -1,6 +1,5 @@
-
 import { CreateProductDto } from './create-product.dto';
-import { IsOptional, IsBoolean, IsNumber, Min, Max, IsArray, IsMongoId, IsString } from 'class-validator';
+import { IsOptional, IsBoolean, IsNumber, Min, Max } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { OmitType, PartialType } from '@nestjs/mapped-types';
 import { MoneyUtils } from 'src/common/utils/money.utils';
@@ -24,13 +23,21 @@ export class UpdateProductDto extends PartialType(
   @IsOptional()
   @IsNumber()
   @Min(0)
-  timesOrdered?: number; 
+  timesOrdered?: number;
 
   static toCents(dto: UpdateProductDto): UpdateProductDto {
-      return {
-        ...dto,
-        ...(dto.price && {price: MoneyUtils.decimalToCents(dto.price)}),
-        ...(dto.discountValue && {discountValue: MoneyUtils.decimalToCents(dto.discountValue)}),
-      };
-    }
+    return {
+      ...dto,
+      ...(dto.price !== undefined && { price: MoneyUtils.decimalToCents(dto.price) }),
+      ...(dto.discountValue !== undefined && {
+        discountValue: MoneyUtils.decimalToCents(dto.discountValue),
+      }),
+      ...(dto.visualOptions !== undefined && {
+        visualOptions: dto.visualOptions.map((option) => ({
+          ...option,
+          priceDelta: MoneyUtils.decimalToCents(option.priceDelta ?? 0),
+        })),
+      }),
+    };
+  }
 }

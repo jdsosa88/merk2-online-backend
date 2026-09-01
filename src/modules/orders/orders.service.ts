@@ -38,6 +38,21 @@ interface StoreGroup {
     productId: Types.ObjectId;
     product: any;
     quantity: number;
+    selectedOptions: Array<{
+      varietyTypeId: string;
+      varietyTypeLabel: string;
+      optionId: string;
+      optionLabel: string;
+      priceDelta: number;
+    }>;
+    selectedAddons: Array<{
+      addonId: Types.ObjectId;
+      addonLabel: string;
+      quantity: number;
+      pricePerUnit: number;
+      totalPrice: number;
+    }>;
+    unitPriceCents: number;
   }>;
 }
 
@@ -68,11 +83,7 @@ export class OrdersService {
       }
 
       const geolocation = user.geolocation;
-      const hasValidAddress = geolocation &&
-        geolocation.address.length > 0 &&
-        geolocation.latitude !== null &&
-        geolocation.longitude !== null
-        ? true : false;
+      const hasValidAddress = Boolean(geolocation?.address?.trim().length);
       if (!hasValidAddress) {
         throw new BadRequestException('You must have a valid address to make an order.');
       }
@@ -94,19 +105,15 @@ export class OrdersService {
         }
       }
 
-      const hasReservableProduct = products.some((p) => p.isReservable);
-      const hasNonReservableProduct = products.some((p) => !p.isReservable);
-
-      if (hasReservableProduct && !hasScheduledFor) {
-        throw new BadRequestException(
-          'scheduledFor is required when ordering reservable products',
-        );
-      }
-
-      if (hasScheduledFor && hasNonReservableProduct) {
-        throw new BadRequestException(
-          'All products in a reservation order must be reservable',
-        );
+      // Reservation is explicit via scheduledFor — isReservable alone does not require it.
+      // Purchase (no scheduledFor) works for in-stock products even if they are also reservable.
+      if (hasScheduledFor) {
+        const nonReservable = products.filter((p) => !p.isReservable);
+        if (nonReservable.length) {
+          throw new BadRequestException(
+            'All products in a reservation order must be reservable',
+          );
+        }
       }
 
       const isReservationOrder = hasScheduledFor;
@@ -156,10 +163,25 @@ export class OrdersService {
           });
         }
 
+        const resolved = this.productsService.resolveCheckoutSelectedOptions(
+          product,
+          item.selectedOptions,
+        );
+        const resolvedAddons = this.productsService.resolveCheckoutSelectedAddons(
+          product,
+          item.selectedAddons,
+        );
+
         storeGroups.get(storeId)!.items.push({
           productId: product._id,
           product,
-          quantity: item.quantity
+          quantity: item.quantity,
+          selectedOptions: resolved.selectedOptions,
+          selectedAddons: resolvedAddons.selectedAddons,
+          unitPriceCents: MoneyUtils.sumCents(
+            resolved.unitPriceCents,
+            resolvedAddons.extraCents,
+          ),
         });
       }
 
@@ -179,14 +201,18 @@ export class OrdersService {
       const createdOrders: Order[] = [];
 
       for (const [storeId, group] of storeGroups.entries()) {
-        const orderItems = group.items.map(({ product, quantity }) => ({
-          product: product._id,
-          quantity,
-          pricePerUnit: product.finalPrice,
-          totalPrice: MoneyUtils.multiplyCents(product.finalPrice, quantity),
-          productName: product.name,
-          productSku: product.sku,
-        }));
+        const orderItems = group.items.map(
+          ({ product, quantity, selectedOptions, selectedAddons, unitPriceCents }) => ({
+            product: product._id,
+            quantity,
+            pricePerUnit: unitPriceCents,
+            totalPrice: MoneyUtils.multiplyCents(unitPriceCents, quantity),
+            productName: product.name,
+            productSku: product.sku,
+            selectedOptions,
+            selectedAddons,
+          }),
+        );
 
         const subtotal = orderItems.reduce((sum, item) => MoneyUtils.sumCents(sum, item.totalPrice), 0);
         const deliveryCharge = this.calculateDeliveryCharge();
@@ -505,16 +531,23 @@ export class OrdersService {
   private buildOrderFilter(query: ListOrdersQueryDto, user: User): any {
     const filter: any = {};
 
-    filter.$or = [
-      { customer: user._id },
-      { ...(user.role !== Role.CUSTOMER && { assignedMessenger: user._id }) },
-      {
-        ...(user.role === Role.MESSENGER && { status: OrderStatus.READY_FOR_DELIVERY, }),
-        store: (user as any).stores ?
-          { $in: (user as any).stores } :
-          null
+    if (user.role === Role.CUSTOMER) {
+      filter.customer = user._id;
+    } else {
+      const orConditions: any[] = [
+        { customer: user._id },
+        { assignedMessenger: user._id },
+      ];
+
+      if (user.role === Role.MESSENGER && (user as any).stores?.length) {
+        orConditions.push({
+          status: OrderStatus.READY_FOR_DELIVERY,
+          store: { $in: (user as any).stores },
+        });
       }
-    ];
+
+      filter.$or = orConditions;
+    }
 
     if (query.status && query.status.trim().length > 0) {
       const statuses = query.status.split(',').map(s => s.trim());

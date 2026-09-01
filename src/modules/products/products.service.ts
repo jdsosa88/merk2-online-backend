@@ -23,6 +23,10 @@ import { StoreStatus } from '../stores/types/store.type';
 import { User } from '../users/schemas/user.schema';
 import { ImagesService } from '../images/images.service';
 import { AddProductImagesParams, DeleteProductImagesParams } from './types/product.types';
+import {
+  VISUAL_VARIETY_TYPE_ID,
+  VISUAL_VARIETY_TYPE_LABEL,
+} from '../stores/types/variety.constants';
 
 @Injectable()
 export class ProductsService {
@@ -64,38 +68,35 @@ export class ProductsService {
 
       if (createProductDto.type === ProductType.SIMPLE) {
         if (createProductDto.addons && createProductDto.addons.length > 0) {
-          const addonProducts = await this.productModel.find({
-            _id: { $in: createProductDto.addons },
-            type: ProductType.ADDON
-          });
-
-          if (addonProducts.length !== createProductDto.addons.length) {
-            throw new BadRequestException('One or more addons are invalid or not of type ADDON');
-          }
-
-          const alreadyAssigned = addonProducts.filter(addon => !!addon.parentProduct);
-
-          if (alreadyAssigned.length > 0) {
-            throw new BadRequestException('One or more addons are already assigned to another product');
-          }
+          await this.assertAddonsBelongToStore(
+            createProductDto.store,
+            createProductDto.addons,
+          );
         }
       } else if (createProductDto.type === ProductType.ADDON) {
-        if (!createProductDto.parentProduct) {
-          throw new BadRequestException('Addon product must have a parent product');
-        }
-        const parentProductId = new Types.ObjectId(createProductDto.parentProduct);
-        const parentProduct = await this.productModel.findById(parentProductId);
-        if (!parentProduct || parentProduct.type !== ProductType.SIMPLE) {
-          throw new BadRequestException('Parent product not found or is not of type SIMPLE');
-        }
-
-        if (parentProduct.store.toString() !== createProductDto.store) {
-          throw new BadRequestException('Addon must belong to the same store as parent product');
+        // Addons are store catalog items; parentProduct is optional/legacy.
+        if (createProductDto.parentProduct) {
+          const parentProductId = new Types.ObjectId(createProductDto.parentProduct);
+          const parentProduct = await this.productModel.findById(parentProductId);
+          if (!parentProduct || parentProduct.type !== ProductType.SIMPLE) {
+            throw new BadRequestException('Parent product not found or is not of type SIMPLE');
+          }
+          if (parentProduct.store.toString() !== createProductDto.store) {
+            throw new BadRequestException('Addon must belong to the same store as parent product');
+          }
         }
       }
 
       const productData = CreateProductDto.toCents(createProductDto);
 
+      if (productData.enabledVarietyTypeIds?.length) {
+        this.assertEnabledVarietyTypesBelongToStore(
+          store,
+          productData.enabledVarietyTypeIds,
+        );
+      }
+
+      const isAddon = productData.type === ProductType.ADDON;
       const newProduct = new this.productModel({
         ...productData,
         sku: productData.sku.toUpperCase(),
@@ -104,9 +105,22 @@ export class ProductsService {
         parentProduct: productData.parentProduct
           ? new Types.ObjectId(productData.parentProduct)
           : undefined,
-        addons: productData.addons
-          ? productData.addons.map((id: string) => new Types.ObjectId(id))
-          : [],
+        addons: isAddon
+          ? []
+          : productData.addons
+            ? productData.addons.map((id: string) => new Types.ObjectId(id))
+            : [],
+        hasVarieties: isAddon ? false : productData.hasVarieties ?? false,
+        hasAddons: isAddon ? false : productData.hasAddons ?? false,
+        isReleased: isAddon ? productData.isReleased ?? false : false,
+        enabledVarietyTypeIds: isAddon
+          ? []
+          : (productData.enabledVarietyTypeIds || []).map(
+              (id) => new Types.ObjectId(id),
+            ),
+        visualOptions: isAddon
+          ? []
+          : this.mapVisualOptionsInput(productData.visualOptions),
       });
 
       const savedProduct = await newProduct.save();
@@ -165,7 +179,7 @@ export class ProductsService {
       this.productModel.find(query)
         .populate('store', 'name _id')
         .populate('category', 'name _id level')
-        .populate('addons', 'name price finalPrice sku isAvailable')
+        .populate('addons', 'name price finalPrice sku isAvailable isReleased images')
         .populate('parentProduct', 'name price finalPrice sku')
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -188,23 +202,22 @@ export class ProductsService {
     const product = await this.productModel.findById(_id)
       .populate('store', 'name _id')
       .populate('category', 'name _id level')
-      .populate('addons', 'name price finalPrice sku isAvailable description images')
+      .populate('addons', 'name price finalPrice sku isAvailable isReleased description images')
       .populate('parentProduct', 'name price finalPrice sku store')
-      .populate('images')
       .exec();
 
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
-    return product;
+    return this.attachAvailableVarietyTypes(product);
   }
 
   async findBySku(sku: string): Promise<Product> {
     const product = await this.productModel.findOne({ sku: sku.toUpperCase() })
       .populate('store', 'name _id')
       .populate('category', 'name _id level')
-      .populate('addons', 'name price finalPrice sku isAvailable')
+      .populate('addons', 'name price finalPrice sku isAvailable isReleased')
       .populate('parentProduct', 'name price finalPrice sku')
       .exec();
 
@@ -218,7 +231,8 @@ export class ProductsService {
   async findProductsByIds(productIds: string[]): Promise<Product[]> {
     const ids = productIds.map(id => new Types.ObjectId(id));
     return this.productModel.find({ _id: { $in: ids } })
-      .populate('store', 'name status owner messengers')
+      .populate('store', 'name status owner messengers varietyTypes')
+      .populate('addons', 'name price finalPrice sku isAvailable isReleased')
       .exec();
   }
 
@@ -254,7 +268,7 @@ export class ProductsService {
     }
 
     if (updateProductDto.type && updateProductDto.type !== product.type) {
-      throw new BadRequestException('Cannot change product type');
+      await this.changeProductType(product, updateProductDto.type);
     }
 
     // Only simple product
@@ -303,6 +317,40 @@ export class ProductsService {
     product.timesOrdered = productDto.timesOrdered
       ? productDto.timesOrdered
       : product.timesOrdered;
+    if (productDto.requiresElaboration !== undefined) {
+      product.requiresElaboration = productDto.requiresElaboration;
+    }
+    if (productDto.isReservable !== undefined) {
+      product.isReservable = productDto.isReservable;
+    }
+    if (productDto.hasVarieties !== undefined) {
+      product.hasVarieties = product.type === ProductType.ADDON ? false : productDto.hasVarieties;
+    }
+    if (productDto.hasAddons !== undefined) {
+      product.hasAddons = product.type === ProductType.ADDON ? false : productDto.hasAddons;
+    }
+    if (productDto.isReleased !== undefined) {
+      product.isReleased = product.type === ProductType.ADDON ? productDto.isReleased : false;
+    }
+    if (productDto.enabledVarietyTypeIds !== undefined) {
+      if (product.type === ProductType.ADDON) {
+        product.enabledVarietyTypeIds = [];
+      } else {
+        const store = await this.storesService.findById(product.store.toString());
+        this.assertEnabledVarietyTypesBelongToStore(store, productDto.enabledVarietyTypeIds);
+        product.enabledVarietyTypeIds = productDto.enabledVarietyTypeIds.map(
+          (id) => new Types.ObjectId(id),
+        );
+      }
+    }
+    if (productDto.visualOptions !== undefined) {
+      if (product.type === ProductType.ADDON) {
+        product.visualOptions = [] as any;
+      } else {
+        product.visualOptions = this.mapVisualOptionsInput(productDto.visualOptions) as any;
+      }
+      product.markModified('visualOptions');
+    }
 
     return product.save();
   }
@@ -510,51 +558,75 @@ export class ProductsService {
     return product;
   }
 
-  private async updateProductAddons(product: ProductDocument, newAddonIds: string[]): Promise<Types.ObjectId[]> {
-    const oldAddons = [...product.addons];
-    const newAddons = newAddonIds.map(id => new Types.ObjectId(id));
+  private async changeProductType(
+    product: ProductDocument,
+    nextType: ProductType,
+  ): Promise<void> {
+    if (product.type === nextType) return;
 
+    if (product.type === ProductType.SIMPLE && nextType === ProductType.ADDON) {
+      if (product.addons?.length) {
+        await this.productModel.updateMany(
+          { _id: { $in: product.addons } },
+          { $unset: { parentProduct: 1 } },
+        );
+      }
+      product.addons = [];
+      product.hasAddons = false;
+      product.hasVarieties = false;
+      product.enabledVarietyTypeIds = [];
+      product.visualOptions = [] as any;
+      product.requiresElaboration = false;
+      product.isReservable = false;
+      product.parentProduct = undefined;
+      product.markModified('visualOptions');
+      product.markModified('addons');
+      product.markModified('enabledVarietyTypeIds');
+    }
+
+    if (product.type === ProductType.ADDON && nextType === ProductType.SIMPLE) {
+      await this.productModel.updateMany(
+        { addons: product._id },
+        { $pull: { addons: product._id } },
+      );
+      product.parentProduct = undefined;
+      product.isReleased = false;
+    }
+
+    product.type = nextType;
+  }
+
+  private async assertAddonsBelongToStore(
+    storeId: string,
+    addonIds: string[],
+  ): Promise<ProductDocument[]> {
     const addonProducts = await this.productModel.find({
-      _id: { $in: newAddons },
-      type: ProductType.ADDON
+      _id: { $in: addonIds.map((id) => new Types.ObjectId(id)) },
+      type: ProductType.ADDON,
+      store: new Types.ObjectId(storeId),
     });
 
-    if (addonProducts.length !== newAddons.length) {
-      throw new BadRequestException('One or more addons are invalid or not of type ADDON');
-    }
-
-    const alreadyAssigned = addonProducts.filter(addon =>
-      addon.parentProduct && !addon.parentProduct.equals(product._id)
-    );
-
-    if (alreadyAssigned.length > 0) {
-      throw new BadRequestException('One or more addons are already assigned to another product');
-    }
-
-    const removedAddons = oldAddons.filter(
-      id => !newAddons.some(newId => newId.equals(id))
-    );
-
-    if (removedAddons.length > 0) {
-      // Remover referencia parentProduct de los addons removidos
-      await this.productModel.updateMany(
-        { _id: { $in: removedAddons } },
-        { $unset: { parentProduct: 1 } }
+    if (addonProducts.length !== addonIds.length) {
+      throw new BadRequestException(
+        'One or more addons are invalid, not of type ADDON, or belong to another store',
       );
     }
 
-    // Agregar addons nuevos
-    const addedAddons = newAddons.filter(
-      id => !oldAddons.some(oldId => oldId.equals(id))
-    );
-
-    if (addedAddons.length > 0) {
-      // Agregar referencia parentProduct a los nuevos addons
-      await this.productModel.updateMany(
-        { _id: { $in: addedAddons } },
-        { $set: { parentProduct: product._id } }
+    const unavailable = addonProducts.filter((addon) => addon.isAvailable === false);
+    if (unavailable.length > 0) {
+      throw new BadRequestException(
+        `Unavailable addons cannot be used in plate composition: ${unavailable
+          .map((a) => a.name)
+          .join(', ')}`,
       );
     }
+
+    return addonProducts;
+  }
+
+  private async updateProductAddons(product: ProductDocument, newAddonIds: string[]): Promise<Types.ObjectId[]> {
+    const newAddons = newAddonIds.map((id) => new Types.ObjectId(id));
+    await this.assertAddonsBelongToStore(product.store.toString(), newAddonIds);
     return newAddons;
   }
 
@@ -624,8 +696,42 @@ export class ProductsService {
 
     validatedProduct.images = remainingImages;
     await validatedProduct.save();
-    await validatedProduct.populate('images');
     return validatedProduct;
+  }
+
+  async uploadVisualOptionImage(params: {
+    productId: string;
+    optionId: string;
+    user: User;
+    image: Express.Multer.File;
+  }): Promise<Product> {
+    try {
+      const product = await this.getValidatedProduct(params.productId, params.user);
+      const option = (product.visualOptions || []).find(
+        (o) => o._id.toString() === params.optionId,
+      );
+      if (!option) {
+        throw new NotFoundException(`Visual option ${params.optionId} not found`);
+      }
+
+      if (option.image) {
+        await this.imagesService.delete(option.image.toString());
+      }
+
+      const created = await this.imagesService.createFromFile(
+        params.image,
+        `Visual option ${option.label}`,
+      );
+      option.image = created._id;
+      product.markModified('visualOptions');
+      await product.save();
+      return product;
+    } catch (error) {
+      if (params.image?.filename) {
+        this.imagesService.deleteImageFile(params.image.filename);
+      }
+      throw error;
+    }
   }
 
   private async getValidatedProduct(productId: string, user: User): Promise<ProductDocument> {
@@ -663,7 +769,299 @@ export class ProductsService {
     );
     product.images.push(...imageIds);
     await product.save();
-    return product.populate('images');
+    return product;
+  }
+
+  /**
+   * Resolves checkout selectedOptions against product + store config.
+   * Empty selection = baker's choice (base finalPrice only).
+   */
+  resolveCheckoutSelectedOptions(
+    product: ProductDocument | Product,
+    selectedOptions: Array<{ varietyTypeId: string; optionId: string }> | undefined,
+  ): {
+    selectedOptions: Array<{
+      varietyTypeId: string;
+      varietyTypeLabel: string;
+      optionId: string;
+      optionLabel: string;
+      priceDelta: number;
+    }>;
+    unitPriceCents: number;
+  } {
+    const selections = selectedOptions || [];
+    const basePrice = product.finalPrice;
+
+    if (selections.length === 0) {
+      return { selectedOptions: [], unitPriceCents: basePrice };
+    }
+
+    if (!product.hasVarieties) {
+      throw new BadRequestException(
+        `Product ${product.name} does not support variety selection`,
+      );
+    }
+
+    const typeIds = selections.map((s) => s.varietyTypeId);
+    if (new Set(typeIds).size !== typeIds.length) {
+      throw new BadRequestException('Only one option per variety type is allowed');
+    }
+
+    const store = product.store as any;
+    const storeVarietyTypes = store?.varietyTypes || [];
+    const enabledIds = new Set(
+      (product.enabledVarietyTypeIds || []).map((id) => id.toString()),
+    );
+
+    const resolved: Array<{
+      varietyTypeId: string;
+      varietyTypeLabel: string;
+      optionId: string;
+      optionLabel: string;
+      priceDelta: number;
+    }> = [];
+
+    for (const selection of selections) {
+      if (selection.varietyTypeId === VISUAL_VARIETY_TYPE_ID) {
+        const option = (product.visualOptions || []).find(
+          (o) => o._id.toString() === selection.optionId && o.isActive !== false,
+        );
+        if (!option) {
+          throw new BadRequestException(
+            `Visual option ${selection.optionId} is not available for ${product.name}`,
+          );
+        }
+        resolved.push({
+          varietyTypeId: VISUAL_VARIETY_TYPE_ID,
+          varietyTypeLabel: VISUAL_VARIETY_TYPE_LABEL,
+          optionId: option._id.toString(),
+          optionLabel: option.label,
+          priceDelta: option.priceDelta ?? 0,
+        });
+        continue;
+      }
+
+      if (!enabledIds.has(selection.varietyTypeId)) {
+        throw new BadRequestException(
+          `Variety type ${selection.varietyTypeId} is not enabled for ${product.name}`,
+        );
+      }
+
+      const type = storeVarietyTypes.find(
+        (t: any) => t._id.toString() === selection.varietyTypeId && t.isActive !== false,
+      );
+      if (!type) {
+        throw new BadRequestException(
+          `Variety type ${selection.varietyTypeId} not found on store`,
+        );
+      }
+
+      const option = (type.options || []).find(
+        (o: any) => o._id.toString() === selection.optionId && o.isActive !== false,
+      );
+      if (!option) {
+        throw new BadRequestException(
+          `Option ${selection.optionId} not found in variety type ${type.name}`,
+        );
+      }
+
+      resolved.push({
+        varietyTypeId: type._id.toString(),
+        varietyTypeLabel: type.name,
+        optionId: option._id.toString(),
+        optionLabel: option.label,
+        priceDelta: option.priceDelta ?? 0,
+      });
+    }
+
+    for (const type of storeVarietyTypes) {
+      const typeId = type._id.toString();
+      if (!enabledIds.has(typeId)) continue;
+      if (type.isActive === false) continue;
+      if (type.isRequired === false) continue;
+      const hasSelection = resolved.some((r) => r.varietyTypeId === typeId);
+      if (!hasSelection) {
+        throw new BadRequestException(
+          `Variety type "${type.name}" is required when customizing ${product.name}`,
+        );
+      }
+    }
+
+    const totalDelta = resolved.reduce((sum, r) => sum + (r.priceDelta || 0), 0);
+    return {
+      selectedOptions: resolved,
+      unitPriceCents: MoneyUtils.sumCents(basePrice, totalDelta),
+    };
+  }
+
+  /**
+   * Resolve plate composition addons.
+   * Extra charge = Σ (qty - 1) * addon.finalPrice (cents).
+   * Non-released addons must stay at qty 1.
+   */
+  resolveCheckoutSelectedAddons(
+    product: ProductDocument | Product,
+    selectedAddons: Array<{ addonId: string; quantity: number }> | undefined,
+  ): {
+    selectedAddons: Array<{
+      addonId: Types.ObjectId;
+      addonLabel: string;
+      quantity: number;
+      pricePerUnit: number;
+      totalPrice: number;
+    }>;
+    extraCents: number;
+  } {
+    const selections = selectedAddons || [];
+    const composition = (product.addons || []) as any[];
+
+    if (!product.hasAddons) {
+      if (selections.length > 0) {
+        throw new BadRequestException(
+          `Product ${product.name} does not support addon selection`,
+        );
+      }
+      return { selectedAddons: [], extraCents: 0 };
+    }
+
+    if (!composition.length) {
+      if (selections.length > 0) {
+        throw new BadRequestException(
+          `Product ${product.name} has no composition addons configured`,
+        );
+      }
+      return { selectedAddons: [], extraCents: 0 };
+    }
+
+    const selectionById = new Map(
+      selections.map((s) => [s.addonId, s.quantity]),
+    );
+    const compositionIds = new Set(
+      composition.map((a) => (a._id || a).toString()),
+    );
+
+    for (const selection of selections) {
+      if (!compositionIds.has(selection.addonId)) {
+        throw new BadRequestException(
+          `Addon ${selection.addonId} is not part of ${product.name}`,
+        );
+      }
+    }
+
+    const resolved: Array<{
+      addonId: Types.ObjectId;
+      addonLabel: string;
+      quantity: number;
+      pricePerUnit: number;
+      totalPrice: number;
+    }> = [];
+    let extraCents = 0;
+
+    for (const addonRef of composition) {
+      const addonDoc = addonRef._id ? addonRef : null;
+      const addonId = (addonRef._id || addonRef).toString();
+      const quantity = selectionById.has(addonId)
+        ? Number(selectionById.get(addonId))
+        : 1;
+
+      if (!Number.isFinite(quantity) || quantity < 1) {
+        throw new BadRequestException(
+          `Addon quantity must be at least 1 for ${product.name}`,
+        );
+      }
+
+      const isReleased = addonDoc ? addonDoc.isReleased === true : false;
+      if (!isReleased && quantity !== 1) {
+        throw new BadRequestException(
+          `Addon "${addonDoc?.name || addonId}" is not released; quantity must be 1`,
+        );
+      }
+
+      const pricePerUnit = addonDoc
+        ? Number(addonDoc.finalPrice ?? addonDoc.price ?? 0)
+        : 0;
+      const extraQty = Math.max(0, quantity - 1);
+      const lineExtra = MoneyUtils.multiplyCents(pricePerUnit, extraQty);
+      extraCents = MoneyUtils.sumCents(extraCents, lineExtra);
+
+      resolved.push({
+        addonId: new Types.ObjectId(addonId),
+        addonLabel: addonDoc?.name || addonId,
+        quantity,
+        pricePerUnit,
+        totalPrice: lineExtra,
+      });
+    }
+
+    return { selectedAddons: resolved, extraCents };
+  }
+
+  private mapVisualOptionsInput(
+    options?: Array<{
+      _id?: string;
+      label: string;
+      priceDelta?: number;
+      image?: string;
+      isActive?: boolean;
+      sortOrder?: number;
+    }>,
+  ) {
+    if (!options) return [];
+    return options.map((option, index) => ({
+      _id: option._id ? new Types.ObjectId(option._id) : new Types.ObjectId(),
+      label: option.label.trim(),
+      priceDelta: option.priceDelta ?? 0,
+      image: option.image ? new Types.ObjectId(option.image) : undefined,
+      isActive: option.isActive ?? true,
+      sortOrder: option.sortOrder ?? index,
+    }));
+  }
+
+  private assertEnabledVarietyTypesBelongToStore(
+    store: Store | any,
+    enabledVarietyTypeIds: string[],
+  ) {
+    const storeTypeIds = new Set(
+      (store.varietyTypes || []).map((t: any) => t._id.toString()),
+    );
+    for (const typeId of enabledVarietyTypeIds) {
+      if (!storeTypeIds.has(typeId)) {
+        throw new BadRequestException(
+          `Variety type ${typeId} does not belong to this store`,
+        );
+      }
+    }
+  }
+
+  private async attachAvailableVarietyTypes(product: ProductDocument): Promise<any> {
+    const storeId =
+      (product.store as any)?._id?.toString?.() ||
+      (product.store as any)?.toString?.() ||
+      product.store?.toString();
+
+    if (!storeId || !product.hasVarieties) {
+      const json = product.toJSON();
+      return {
+        ...json,
+        availableVarietyTypes: [],
+      };
+    }
+
+    const store = await this.storesService.findById(storeId);
+    const enabled = new Set(
+      (product.enabledVarietyTypeIds || []).map((id) => id.toString()),
+    );
+    const storeJson = store.toJSON() as any;
+    const availableVarietyTypes = (storeJson.varietyTypes || []).filter(
+      (type: any) =>
+        enabled.has(type._id.toString()) &&
+        type.isActive !== false,
+    );
+
+    return {
+      ...product.toJSON(),
+      availableVarietyTypes,
+    };
   }
 
 }

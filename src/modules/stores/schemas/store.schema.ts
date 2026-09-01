@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { MessengerAssignmentType, StoreStatus } from '../types/store.type';
+import { StoreVarietyType, StoreVarietyTypeSchema } from './variety.schema';
 
 export type StoreDocument = HydratedDocument<Store>;
 
@@ -17,6 +18,10 @@ export class StoreDay {
 
   @Prop({ type: String, required: true })
   endHour: string;
+
+  /** When false, the store is closed that day (hours kept for when re-enabled). */
+  @Prop({ type: Boolean, required: true, default: true })
+  isOpen: boolean;
 }
 
 @Schema({ collection: 'stores', timestamps: true })
@@ -53,6 +58,10 @@ export class Store {
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Product' }], default: [] })
   products: Types.ObjectId[];
 
+  /** Reusable custom variety types (flavor, filling, etc.). Visual is product-level. */
+  @Prop({ type: [StoreVarietyTypeSchema], default: [] })
+  varietyTypes: StoreVarietyType[];
+
   @Prop({
     type: String,
     required: true,
@@ -72,3 +81,19 @@ export class Store {
 }
 
 export const StoreSchema = SchemaFactory.createForClass(Store);
+
+const centsToDecimal = (cents: number): number => cents / 100;
+
+StoreSchema.methods.toJSON = function () {
+  const obj = this.toObject();
+  if (Array.isArray(obj.varietyTypes)) {
+    obj.varietyTypes = obj.varietyTypes.map((type: any) => ({
+      ...type,
+      options: (type.options || []).map((option: any) => ({
+        ...option,
+        priceDelta: centsToDecimal(option.priceDelta ?? 0),
+      })),
+    }));
+  }
+  return obj;
+};

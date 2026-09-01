@@ -1,13 +1,50 @@
 import {
   IsString, IsNumber, IsOptional, IsArray, IsBoolean, IsEnum,
-  IsMongoId, MinLength, MaxLength, Min, Max, ArrayMinSize,
-  ValidateNested, ArrayMaxSize, IsNotEmpty
+  IsMongoId, MinLength, MaxLength, Min, Max, ValidateNested, IsNotEmpty
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ImageDto } from 'src/common/dto/image.dto';
 import { ProductType, ProductColor } from '../schemas/product.schema';
 import { MoneyUtils } from 'src/common/utils/money.utils';
+
+export class ProductVisualOptionInputDto {
+  @ApiPropertyOptional({ description: 'Existing visual option id (required when updating an option)' })
+  @IsOptional()
+  @IsMongoId()
+  _id?: string;
+
+  @ApiProperty({ example: 'Floral dress', minLength: 1, maxLength: 100 })
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(1)
+  @MaxLength(100)
+  label: string;
+
+  @ApiPropertyOptional({
+    example: 0,
+    description: 'Extra amount in decimal currency (e.g. 0 or 5.00)',
+    default: 0,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  priceDelta?: number;
+
+  @ApiPropertyOptional({ description: 'Image document id' })
+  @IsOptional()
+  @IsMongoId()
+  image?: string;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+
+  @ApiPropertyOptional({ default: 0 })
+  @IsOptional()
+  @IsNumber()
+  sortOrder?: number;
+}
 
 export class CreateProductDto {
   @ApiProperty({ minLength: 2, maxLength: 150, example: 'Smartphone XYZ' })
@@ -98,13 +135,58 @@ export class CreateProductDto {
   @IsBoolean()
   isReservable?: boolean;
 
-  @ApiPropertyOptional({ type: [String], description: 'IDs de productos agregos (solo para tipo SIMPLE)' })
+  @ApiPropertyOptional({
+    example: false,
+    description: 'Exposes visual options and enabled store variety types on product detail',
+  })
+  @IsOptional()
+  @IsBoolean()
+  hasVarieties?: boolean;
+
+  @ApiPropertyOptional({
+    example: false,
+    description: 'Exposes plate composition addons on product detail (simple products only)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  hasAddons?: boolean;
+
+  @ApiPropertyOptional({
+    example: false,
+    description: 'For addon products: customer may increase quantity above plate base (1)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isReleased?: boolean;
+
+  @ApiPropertyOptional({ type: [ProductVisualOptionInputDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductVisualOptionInputDto)
+  visualOptions?: ProductVisualOptionInputDto[];
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Store variety type ids enabled for this product',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsMongoId({ each: true })
+  enabledVarietyTypeIds?: string[];
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Composition addon product ids (simple products only; shared across plates)',
+  })
   @IsOptional()
   @IsArray()
   @IsMongoId({ each: true })
   addons?: string[];
 
-  @ApiPropertyOptional({ description: 'ID del producto padre (solo para tipo ADDON)' })
+  @ApiPropertyOptional({
+    description: 'Optional parent product id (legacy; composition uses simple.addons[])',
+  })
   @IsOptional()
   @IsString()
   @IsMongoId()
@@ -142,6 +224,10 @@ export class CreateProductDto {
             MoneyUtils.decimalToCents(dto.price)
           )
           : 0,
+      visualOptions: dto.visualOptions?.map((option) => ({
+        ...option,
+        priceDelta: MoneyUtils.decimalToCents(option.priceDelta ?? 0),
+      })),
     };
   }
 }
