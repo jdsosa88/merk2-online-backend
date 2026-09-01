@@ -94,6 +94,14 @@ export class UpdateUserDto {
   @ValidateNested()
   @Type(() => GeolocationDto)
   geolocation?: GeolocationDto;
+
+  @ApiPropertyOptional({
+    description: 'Zona de entrega donde recibe mensajería (ej. Centro del pueblo, Manzanillo)',
+    format: 'ObjectId',
+  })
+  @IsOptional()
+  @IsMongoId()
+  deliveryZone?: string | Types.ObjectId;
 }
 
 export class UpdateUserAllDto extends UpdateUserDto {

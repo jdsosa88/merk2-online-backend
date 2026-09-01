@@ -49,6 +49,10 @@ export class User {
   @Prop({ type: Geolocation, required: false })
   geolocation?: Geolocation;
 
+  /** Zona de entrega dentro del municipio (ej. barrio de Manzanillo). */
+  @Prop({ type: Types.ObjectId, ref: 'DeliveryZone', required: false, index: true })
+  deliveryZone?: Types.ObjectId;
+
   @Prop({ type: Types.ObjectId, ref: 'Image', required: false })
   avatar?: Types.ObjectId;
 }

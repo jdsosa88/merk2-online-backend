@@ -28,6 +28,7 @@ export interface IUpdateUserDto {
   isActive?: boolean;
   isPhoneVerified?: boolean;
   geolocation?: GeolocationDto;
+  deliveryZone?: string | Types.ObjectId;
   avatar?: Types.ObjectId;
 }
 

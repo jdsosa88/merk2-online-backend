@@ -2,6 +2,10 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { MessengerAssignmentType, StoreStatus } from '../types/store.type';
 import { StoreVarietyType, StoreVarietyTypeSchema } from './variety.schema';
+import {
+  StoreDeliveryConfig,
+  StoreDeliveryConfigSchema,
+} from '../../delivery/schemas/store-delivery.schema';
 
 export type StoreDocument = HydratedDocument<Store>;
 
@@ -78,6 +82,10 @@ export class Store {
     default: MessengerAssignmentType.AUTOMATIC,
   })
   messengerAssignmentType: MessengerAssignmentType;
+
+  /** Precios de mensajería por zona y recargos por peso influenciador. */
+  @Prop({ type: StoreDeliveryConfigSchema, default: () => ({ zonePrices: [], weightSurchargeTiers: [] }) })
+  deliveryConfig: StoreDeliveryConfig;
 }
 
 export const StoreSchema = SchemaFactory.createForClass(Store);
@@ -94,6 +102,22 @@ StoreSchema.methods.toJSON = function () {
         priceDelta: centsToDecimal(option.priceDelta ?? 0),
       })),
     }));
+  }
+  if (obj.deliveryConfig) {
+    obj.deliveryConfig = {
+      ...obj.deliveryConfig,
+      zonePrices: (obj.deliveryConfig.zonePrices || []).map((zp: any) => ({
+        zoneId: zp.zoneId?.toString?.() || zp.zoneId,
+        price: centsToDecimal(zp.priceCents ?? 0),
+      })),
+      weightSurchargeTiers: (obj.deliveryConfig.weightSurchargeTiers || []).map(
+        (tier: any) => ({
+          minWeight: tier.minWeight,
+          maxWeight: tier.maxWeight,
+          surcharge: centsToDecimal(tier.surchargeCents ?? 0),
+        }),
+      ),
+    };
   }
   return obj;
 };

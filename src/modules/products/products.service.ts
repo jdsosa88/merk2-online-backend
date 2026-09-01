@@ -153,7 +153,8 @@ export class ProductsService {
     type?: ProductType,
     includeInactive: boolean = false,
     page: number = 1,
-    perPage: number = 25
+    perPage: number = 25,
+    deliveryZoneId?: string,
   ): Promise<PaginatedListDto<Product>> {
     const query: any = {};
 
@@ -161,7 +162,20 @@ export class ProductsService {
       query.isActive = true;
     }
 
-    if (StoreId) {
+    if (deliveryZoneId) {
+      const storeIds = await this.storesService.findStoreIdsDeliveringToZone(deliveryZoneId);
+      if (StoreId) {
+        const allowed = storeIds.some((id) => id.toString() === StoreId);
+        if (!allowed) {
+          return { items: [], total: 0, page, perPage, totalPages: 0 };
+        }
+        query.store = new Types.ObjectId(StoreId);
+      } else if (!storeIds.length) {
+        return { items: [], total: 0, page, perPage, totalPages: 0 };
+      } else {
+        query.store = { $in: storeIds };
+      }
+    } else if (StoreId) {
       query.store = new Types.ObjectId(StoreId);
     }
 

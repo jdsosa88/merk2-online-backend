@@ -19,6 +19,7 @@ import { SellerApplicationsModule } from './modules/seller-applications/seller-a
 import { StoresModule } from './modules/stores/stores.module';
 import { ProductsModule } from './modules/products/products.module';
 import { TeamModule } from './modules/team/team.module';
+import { DeliveryModule } from './modules/delivery/delivery.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { TeamModule } from './modules/team/team.module';
     StoresModule,
     ProductsModule,
     TeamModule,
+    DeliveryModule,
     CategoriesModule,
     OrdersModule,
     HealthModule,

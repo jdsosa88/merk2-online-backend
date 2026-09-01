@@ -10,8 +10,10 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ApiOperation } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { CheckoutOrderDto } from './dto/checkout-order.dto';
+import { DeliveryQuoteDto } from '../delivery/dto/delivery-quote.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { AssignMessengerDto } from './dto/assign-messenger.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
@@ -51,6 +53,17 @@ export class OrdersController {
   ): Promise<ApiResponseDto<Order[]>> {
     const orders = await this.ordersService.checkout(user, checkoutOrderDto);
     return new ApiResponseDto('Orders created successfully', orders);
+  }
+
+  @Post('delivery-quote')
+  @CheckPolicies(new CreateOrderPolicyHandler())
+  @ApiOperation({ summary: 'Calcular costo de mensajería por tienda (carrito)' })
+  async deliveryQuote(
+    @AuthUser() user: User,
+    @Body() dto: DeliveryQuoteDto,
+  ): Promise<ApiResponseDto> {
+    const quote = await this.ordersService.quoteDelivery(user, dto);
+    return new ApiResponseDto('Delivery quote calculated', quote);
   }
 
   @Get('/list')

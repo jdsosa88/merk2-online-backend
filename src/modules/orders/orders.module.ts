@@ -8,6 +8,7 @@ import { CaslModule } from '../casl/casl.module';
 import { StoresModule } from '../stores/stores.module';
 import { ProductsModule } from '../products/products.module';
 import { UsersModule } from '../users/users.module';
+import { DeliveryModule } from '../delivery/delivery.module';
 import { MessengerInDelivery, MessengerInDeliverySchema } from './schemas/messengers-in-delivery.schema';
 
 @Module({
@@ -21,6 +22,7 @@ import { MessengerInDelivery, MessengerInDeliverySchema } from './schemas/messen
     forwardRef(() => StoresModule),
     forwardRef(() => ProductsModule),
     forwardRef(() => UsersModule),
+    DeliveryModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

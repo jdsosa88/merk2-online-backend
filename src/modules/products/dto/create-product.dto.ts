@@ -114,6 +114,16 @@ export class CreateProductDto {
   @MaxLength(50)
   weight?: string;
 
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'Peso influenciador para mensajería (0.1 = muy ligero, 2.5 = pesado)',
+    default: 1,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0.1)
+  influenceWeight?: number;
+
   @ApiPropertyOptional({ example: 100 })
   @IsOptional()
   @IsNumber()

@@ -5,6 +5,7 @@ import { StoresService } from './stores.service';
 import { StoresController } from './stores.controller';
 import { UsersModule } from '../users/users.module';
 import { CaslModule } from '../casl/casl.module';
+import { DeliveryModule } from '../delivery/delivery.module';
 import { Order, OrderSchema } from '../orders/schemas/order.schema';
 import { Product, ProductSchema } from '../products/schemas/product.schema';
 
@@ -17,6 +18,7 @@ import { Product, ProductSchema } from '../products/schemas/product.schema';
     ]),
     forwardRef(() => UsersModule),
     CaslModule,
+    DeliveryModule,
   ],
   controllers: [StoresController],
   providers: [StoresService],

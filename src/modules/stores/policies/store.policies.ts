@@ -31,3 +31,11 @@ export class ManageStoreMessengersPolicy implements IPolicyHandler {
     return ability.can(Action.UPDATE, store);
   }
 }
+
+/** Owner, messenger o manager asignado — validación fina en StoresService. */
+export class ManageStoreDeliveryConfigPolicy implements IPolicyHandler {
+  handle(_ability: AppAbility, request: any): boolean {
+    const role = request.user?.role;
+    return ['PROVIDER', 'MESSENGER', 'MANAGER', 'ADMIN'].includes(role);
+  }
+}

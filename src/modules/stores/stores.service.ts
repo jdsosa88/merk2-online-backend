@@ -32,6 +32,8 @@ import { UpdateUserAllDto } from '../users/dto/update-user.dto';
 import { Order, OrderDocument } from '../orders/schemas/order.schema';
 import { Product, ProductDocument } from '../products/schemas/product.schema';
 import { OrderStatus } from '../orders/types/orders.type';
+import { DeliveryService } from '../delivery/delivery.service';
+import { UpdateStoreDeliveryConfigDto } from '../delivery/dto/update-store-delivery-config.dto';
 
 const NON_SALES_STATUSES = [
   OrderStatus.CANCELLED,
@@ -96,6 +98,7 @@ export class StoresService {
     @InjectModel(Order.name) private readonly orderModel: Model<OrderDocument>,
     @InjectModel(Product.name) private readonly productModel: Model<ProductDocument>,
     private readonly usersService: UsersService,
+    private readonly deliveryService: DeliveryService,
   ) {}
 
   async create(ownerId: string, dto: CreateStoreDto): Promise<Store> {
@@ -104,12 +107,15 @@ export class StoresService {
       throw new ForbiddenException('Only approved providers can create stores');
     }
 
+    const deliveryConfig = await this.deliveryService.buildDefaultStoreDeliveryConfig();
+
     const store = new this.storeModel({
       ...dto,
       owner: new Types.ObjectId(ownerId),
       status: StoreStatus.ACTIVE,
       messengers: [],
       products: [],
+      deliveryConfig,
     });
     const saved = await store.save();
 
@@ -726,5 +732,109 @@ export class StoresService {
         );
       }
     }
+  }
+
+  async getStoreDeliveryConfig(storeId: string, userId: string) {
+    const store = await this.findById(storeId);
+    await this.assertCanManageDeliveryConfig(store, userId);
+
+    const zones = await this.deliveryService.listAllZones(false);
+    const platformTiers = await this.deliveryService.getPlatformWeightTiers();
+
+    return this.deliveryService.formatStoreDeliveryConfig(
+      store.deliveryConfig,
+      zones,
+      platformTiers,
+    );
+  }
+
+  async findStoreIdsDeliveringToZone(zoneId: string): Promise<Types.ObjectId[]> {
+    await this.deliveryService.findZoneById(zoneId);
+    const stores = await this.storeModel
+      .find({ status: StoreStatus.ACTIVE })
+      .select('_id deliveryConfig')
+      .exec();
+
+    const ids = stores
+      .filter((store) => {
+        const prices = store.deliveryConfig?.zonePrices ?? [];
+        if (!prices.length) return true;
+        return prices.some((zp) => zp.zoneId.toString() === zoneId);
+      })
+      .map((store) => store._id);
+
+    return ids;
+  }
+
+  async updateStoreDeliveryConfig(
+    storeId: string,
+    userId: string,
+    dto: UpdateStoreDeliveryConfigDto,
+  ): Promise<Store> {
+    const store = await this.findById(storeId);
+    await this.assertCanManageDeliveryConfig(store, userId);
+
+    const payload = UpdateStoreDeliveryConfigDto.toCents(dto);
+    const nextConfig = {
+      zonePrices: (payload.zonePrices ?? store.deliveryConfig?.zonePrices ?? []).map(
+        (zp) => ({
+          zoneId: new Types.ObjectId(zp.zoneId.toString()),
+          priceCents: zp.priceCents,
+        }),
+      ),
+      weightSurchargeTiers:
+        payload.weightSurchargeTiers ?? store.deliveryConfig?.weightSurchargeTiers ?? [],
+    };
+
+    if (nextConfig.zonePrices.length) {
+      const zoneIds = new Set(
+        (await this.deliveryService.listAllZones(false)).map((z) => z._id.toString()),
+      );
+      for (const zp of nextConfig.zonePrices) {
+        if (!zoneIds.has(zp.zoneId.toString())) {
+          throw new BadRequestException(`Unknown delivery zone ${zp.zoneId}`);
+        }
+      }
+    }
+
+    store.deliveryConfig = nextConfig;
+    store.markModified('deliveryConfig');
+    return store.save();
+  }
+
+  private async assertCanManageDeliveryConfig(
+    store: StoreDocument,
+    userId: string,
+  ): Promise<void> {
+    if (store.owner.toString() === userId) {
+      return;
+    }
+
+    const user = await this.usersService.findOne(userId);
+    const storeIdStr = store._id.toString();
+    const linkedStoreIds =
+      user.role === Role.MESSENGER
+        ? (user as Messenger).stores || []
+        : user.role === Role.MANAGER
+          ? (user as Manager).stores || []
+          : user.role === Role.PROVIDER
+            ? (user as Provider).stores || []
+            : [];
+    const isAssignedMessenger =
+      store.messengers.some((id) => id.toString() === userId) ||
+      linkedStoreIds.some((id) => id.toString() === storeIdStr);
+
+    if (
+      isAssignedMessenger &&
+      this.canDeliverAsMessenger(user) &&
+      (user.role === Role.MESSENGER || user.role === Role.PROVIDER || user.role === Role.MANAGER)
+    ) {
+      this.assertSameProviderTeam(store, user);
+      return;
+    }
+
+    throw new ForbiddenException(
+      'Only the store owner or assigned messengers can manage delivery configuration',
+    );
   }
 }

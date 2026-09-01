@@ -24,6 +24,10 @@ import { OrderStatus } from './types/orders.type';
 import { MoneyUtils } from 'src/common/utils/money.utils';
 import { MessengerInDelivery, MessengerInDeliveryDocument } from './schemas/messengers-in-delivery.schema';
 import { OrderStateContext } from './state/order-state.context';
+import { DeliveryService } from '../delivery/delivery.service';
+import { DeliveryQuoteDto } from '../delivery/dto/delivery-quote.dto';
+import { calculateDeliveryCharge } from '../delivery/utils/delivery-calculator';
+import { DEFAULT_PRODUCT_INFLUENCE_WEIGHT } from '../delivery/types/delivery.constants';
 
 interface OutOfStockItem {
   productId: string;
@@ -65,6 +69,7 @@ export class OrdersService {
     private readonly storesService: StoresService,
     private readonly productsService: ProductsService,
     private readonly usersService: UsersService,
+    private readonly deliveryService: DeliveryService,
   ) { }
 
   async checkout(user: User, checkoutOrderDto: CheckoutOrderDto): Promise<Order[]> {
@@ -87,6 +92,21 @@ export class OrdersService {
       if (!hasValidAddress) {
         throw new BadRequestException('You must have a valid address to make an order.');
       }
+
+      if (!user.deliveryZone) {
+        throw new BadRequestException(
+          'You must select your delivery zone before placing an order.',
+        );
+      }
+
+      const deliveryZone = await this.deliveryService.findZoneById(
+        user.deliveryZone.toString(),
+      );
+      if (!deliveryZone.isActive) {
+        throw new BadRequestException('Your delivery zone is no longer available.');
+      }
+
+      const platformTiers = await this.deliveryService.getPlatformWeightTiers();
 
       const productIds = checkoutOrderDto.items.map(item => item.productId);
       const products = await this.productsService.findProductsByIds(productIds);
@@ -215,7 +235,19 @@ export class OrdersService {
         );
 
         const subtotal = orderItems.reduce((sum, item) => MoneyUtils.sumCents(sum, item.totalPrice), 0);
-        const deliveryCharge = this.calculateDeliveryCharge();
+
+        const store = await this.storesService.findById(storeId);
+        const deliveryBreakdown = calculateDeliveryCharge({
+          items: group.items.map(({ product, quantity }) => ({
+            influenceWeight: product.influenceWeight ?? DEFAULT_PRODUCT_INFLUENCE_WEIGHT,
+            quantity,
+          })),
+          zone: deliveryZone,
+          zoneId: deliveryZone._id,
+          storeDeliveryConfig: store.deliveryConfig,
+          platformTiers,
+        });
+        const deliveryCharge = deliveryBreakdown.deliveryChargeCents;
         const additionalCharges = this.calculateAdditionalCharges();
         const additionalChargesTotal = additionalCharges.reduce((sum, charge) => MoneyUtils.sumCents(sum, charge.amount), 0);
         const total = MoneyUtils.sumCents(subtotal, deliveryCharge, additionalChargesTotal);
@@ -497,8 +529,85 @@ export class OrdersService {
     }
   }
 
-  private calculateDeliveryCharge(): number {
-    return 0;
+  async quoteDelivery(user: User, dto: DeliveryQuoteDto) {
+    if (!user.deliveryZone) {
+      throw new BadRequestException(
+        'You must select your delivery zone to calculate delivery charges.',
+      );
+    }
+
+    const deliveryZone = await this.deliveryService.findZoneById(
+      user.deliveryZone.toString(),
+    );
+    if (!deliveryZone.isActive) {
+      throw new BadRequestException('Your delivery zone is no longer available.');
+    }
+
+    const productIds = dto.items.map((item) => item.productId);
+    const products = await this.productsService.findProductsByIds(productIds);
+
+    if (products.length !== productIds.length) {
+      throw new NotFoundException('Some products not found');
+    }
+
+    const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+    const platformTiers = await this.deliveryService.getPlatformWeightTiers();
+
+    const storeGroups = new Map<
+      string,
+      Array<{ influenceWeight: number; quantity: number }>
+    >();
+
+    for (const item of dto.items) {
+      const product = productMap.get(item.productId);
+      if (!product) {
+        throw new NotFoundException(`Product ${item.productId} not found`);
+      }
+      const storeId = product.store.toString();
+      const group = storeGroups.get(storeId) ?? [];
+      group.push({
+        influenceWeight: product.influenceWeight ?? DEFAULT_PRODUCT_INFLUENCE_WEIGHT,
+        quantity: item.quantity,
+      });
+      storeGroups.set(storeId, group);
+    }
+
+    const quotes = [];
+
+    for (const [storeId, items] of storeGroups.entries()) {
+      const store = await this.storesService.findById(storeId);
+      const breakdown = calculateDeliveryCharge({
+        items,
+        zone: deliveryZone,
+        zoneId: deliveryZone._id,
+        storeDeliveryConfig: store.deliveryConfig,
+        platformTiers,
+      });
+
+      quotes.push({
+        storeId,
+        storeName: store.name,
+        deliveryCharge: MoneyUtils.centsToDecimal(breakdown.deliveryChargeCents),
+        zoneName: deliveryZone.name,
+      });
+    }
+
+    const totalDeliveryCents = quotes.reduce(
+      (sum, q) =>
+        MoneyUtils.sumCents(sum, MoneyUtils.decimalToCents(q.deliveryCharge)),
+      0,
+    );
+
+    return {
+      zone: {
+        id: deliveryZone._id.toString(),
+        name: deliveryZone.name,
+        municipality: deliveryZone.municipality,
+        province: deliveryZone.province,
+      },
+      stores: quotes,
+      totalDeliveryCharge: MoneyUtils.centsToDecimal(totalDeliveryCents),
+    };
   }
 
   private calculateAdditionalCharges(): Array<{ type: string; amount: number; description?: string }> {

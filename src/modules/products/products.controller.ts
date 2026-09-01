@@ -74,9 +74,18 @@ export class ProductsController {
     @Query('type', new ParseEnumPipe(ProductType, { optional: true })) type?: ProductType,
     @Query('includeInactive', new DefaultValuePipe(false), ParseBoolPipe) includeInactive?: boolean,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page?: number,
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) perPage?: number
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) perPage?: number,
+    @Query('deliveryZoneId') deliveryZoneId?: string,
   ): Promise<ApiResponseDto<PaginatedListDto<Product>>> {
-    const result = await this.productsService.findAll(storeId, categoryId, type, includeInactive, page, perPage);
+    const result = await this.productsService.findAll(
+      storeId,
+      categoryId,
+      type,
+      includeInactive,
+      page,
+      perPage,
+      deliveryZoneId,
+    );
     return new ApiResponseDto("Products retrieved successfully", result);
   }
 

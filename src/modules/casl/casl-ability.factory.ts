@@ -11,6 +11,8 @@ import { Order } from '../orders/schemas/order.schema';
 import { OrderStatus } from '../orders/types/orders.type';
 import { SellerApplication } from '../seller-applications/schemas/seller-application.schema';
 import { Store } from '../stores/schemas/store.schema';
+import { DeliveryZone } from '../delivery/schemas/delivery-zone.schema';
+import { PlatformDeliveryConfig } from '../delivery/schemas/platform-delivery-config.schema';
 
 /**
  * Defines the possible actions that can be performed on resources
@@ -36,6 +38,8 @@ export type Subjects = InferSubjects<
   | typeof Order
   | typeof SellerApplication
   | typeof Store
+  | typeof DeliveryZone
+  | typeof PlatformDeliveryConfig
 >
   | 'Health'
   | 'all';
@@ -66,6 +70,7 @@ export class CaslAbilityFactory {
     can(Action.READ, Product);
     can(Action.READ, Business);
     can(Action.READ, Store);
+    can(Action.READ, DeliveryZone);
     can(Action.READ, 'Health');
 
     //UPDATE

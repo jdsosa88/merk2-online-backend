@@ -83,6 +83,13 @@ export class Product {
   @Prop({ type: String, trim: true, maxlength: 50 })
   weight?: string;
 
+  /**
+   * Peso influenciador para cálculo de mensajería (ej. 0.1 ligero, 2.5 pesado).
+   * Se multiplica por cantidad en el carrito.
+   */
+  @Prop({ type: Number, min: 0.1, default: 1 })
+  influenceWeight: number;
+
   @Prop({ type: Number, min: 0, default: 0 })
   stock: number;
 

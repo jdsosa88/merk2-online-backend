@@ -175,6 +175,11 @@ export class UserFactory {
       geolocation: updateUserDto.geolocation
         ? this.getGeolocationFromDto(updateUserDto.geolocation)
         : existentUser.geolocation,
+      deliveryZone: updateUserDto.deliveryZone
+        ? typeof updateUserDto.deliveryZone === 'string'
+          ? new Types.ObjectId(updateUserDto.deliveryZone)
+          : updateUserDto.deliveryZone
+        : existentUser.deliveryZone,
       role: updateUserDto.role ? updateUserDto.role : existentUser.role,
       googleId: (updateUserDto as IUpdateUserDto).googleId
         ? (updateUserDto as IUpdateUserDto).googleId

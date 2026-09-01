@@ -27,9 +27,11 @@ import {
   UpdateStoreVarietyOptionDto,
   UpdateStoreVarietyTypeDto,
 } from './dto/variety.dto';
+import { UpdateStoreDeliveryConfigDto } from '../delivery/dto/update-store-delivery-config.dto';
 import {
   CreateStorePolicy,
   ManageStoreMessengersPolicy,
+  ManageStoreDeliveryConfigPolicy,
   ReadStorePolicy,
   UpdateStorePolicy,
 } from './policies/store.policies';
@@ -242,5 +244,28 @@ export class StoresController {
       optionId,
     );
     return new ApiResponseDto('Variety option deleted', store);
+  }
+
+  @Get(':id/delivery-config')
+  @CheckPolicies(new ManageStoreDeliveryConfigPolicy())
+  @ApiOperation({ summary: 'Configuración de mensajería de la tienda (zonas y recargos por peso)' })
+  async getDeliveryConfig(
+    @Param('id') id: string,
+    @AuthUser('id') userId: string,
+  ): Promise<ApiResponseDto> {
+    const config = await this.storesService.getStoreDeliveryConfig(id, userId);
+    return new ApiResponseDto('Store delivery config retrieved', config);
+  }
+
+  @Patch(':id/delivery-config')
+  @CheckPolicies(new ManageStoreDeliveryConfigPolicy())
+  @ApiOperation({ summary: 'Actualizar precios de mensajería por zona y recargos por peso' })
+  async updateDeliveryConfig(
+    @Param('id') id: string,
+    @AuthUser('id') userId: string,
+    @Body() dto: UpdateStoreDeliveryConfigDto,
+  ): Promise<ApiResponseDto> {
+    const store = await this.storesService.updateStoreDeliveryConfig(id, userId, dto);
+    return new ApiResponseDto('Store delivery config updated', store);
   }
 }
