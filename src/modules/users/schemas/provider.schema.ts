@@ -27,6 +27,16 @@ export class Provider extends User {
   })
   stores: Types.ObjectId[];
 
+  /**
+   * Área de venta del proveedor: todas sus tiendas operan en este
+   * provincia/municipio. Las zonas de mensajería se filtran por aquí.
+   */
+  @Prop({ type: String, trim: true, default: 'Granma' })
+  salesProvince: string;
+
+  @Prop({ type: String, trim: true, default: 'Manzanillo' })
+  salesMunicipality: string;
+
   @Prop({ type: SellerProfileSchema, required: false })
   sellerProfile?: SellerProfile;
 }

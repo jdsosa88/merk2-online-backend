@@ -20,7 +20,7 @@ import { Role } from '../users/types/users.type';
 import { StoreStatus } from '../stores/types/store.type';
 import { ListOrdersQueryDto } from './dto/list-orders-query.dto';
 import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
-import { OrderStatus } from './types/orders.type';
+import { OrderStatus, OrderChannel } from './types/orders.type';
 import { MoneyUtils } from 'src/common/utils/money.utils';
 import { MessengerInDelivery, MessengerInDeliveryDocument } from './schemas/messengers-in-delivery.schema';
 import { OrderStateContext } from './state/order-state.context';
@@ -28,6 +28,8 @@ import { DeliveryService } from '../delivery/delivery.service';
 import { DeliveryQuoteDto } from '../delivery/dto/delivery-quote.dto';
 import { calculateDeliveryCharge } from '../delivery/utils/delivery-calculator';
 import { DEFAULT_PRODUCT_INFLUENCE_WEIGHT } from '../delivery/types/delivery.constants';
+import { PosSaleDto } from './dto/pos-sale.dto';
+import { PosDeliveryQuoteDto } from './dto/pos-delivery-quote.dto';
 
 interface OutOfStockItem {
   productId: string;
@@ -263,6 +265,7 @@ export class OrdersService {
           status: OrderStatus.REQUESTED,
           statusUpdatedAt: new Date(),
           deliveryAddress: user.geolocation,
+          channel: OrderChannel.ONLINE,
           ...(scheduledFor ? { scheduledFor } : {}),
         });
 
@@ -289,6 +292,282 @@ export class OrdersService {
       console.error('Checkout error:', error);
       throw new InternalServerErrorException('Error creating orders');
     }
+  }
+
+  /**
+   * In-store POS sale or phone order registered by PROVIDER/MANAGER.
+   * Without delivery: completes immediately (counter sale).
+   * With delivery: REQUESTED + delivery charge for messenger fulfillment.
+   */
+  async createPosSale(user: User, dto: PosSaleDto): Promise<Order> {
+    try {
+      if (user.role !== Role.PROVIDER && user.role !== Role.MANAGER) {
+        throw new ForbiddenException('Only store staff can register in-store sales');
+      }
+
+      const includeDelivery = dto.includeDelivery === true;
+
+      const store = await this.storesService.findById(dto.storeId);
+      if (!store) {
+        throw new NotFoundException('Store not found');
+      }
+      if (store.status !== StoreStatus.ACTIVE) {
+        throw new BadRequestException(`Store ${store.name} is not active`);
+      }
+
+      this.assertUserCanSellAtStore(user, store);
+
+      let deliveryZone: any = null;
+      if (includeDelivery) {
+        if (!dto.deliveryZoneId || !dto.customerName?.trim() || !dto.customerPhone?.trim() || !dto.customerAddress?.trim()) {
+          throw new BadRequestException(
+            'Delivery orders require zone, customer name, phone and exact address',
+          );
+        }
+        deliveryZone = await this.deliveryService.findZoneById(dto.deliveryZoneId);
+        if (!deliveryZone.isActive) {
+          throw new BadRequestException('Selected delivery zone is no longer available');
+        }
+      }
+
+      const productIds = dto.items.map((item) => item.productId);
+      const products = await this.productsService.findProductsByIds(productIds);
+      if (products.length !== productIds.length) {
+        throw new NotFoundException('Some products not found');
+      }
+
+      const outOfStockItems: OutOfStockItem[] = [];
+      const lineItems: StoreGroup['items'] = [];
+
+      for (const item of dto.items) {
+        const product = products.find((p) => p._id.toString() === item.productId);
+        if (!product) {
+          throw new NotFoundException(`Product ${item.productId} not found`);
+        }
+
+        const productStoreId =
+          (product.store as any)?._id?.toString?.() || product.store?.toString?.();
+        if (productStoreId !== store._id.toString()) {
+          throw new BadRequestException(
+            `Product ${product.name} does not belong to this store`,
+          );
+        }
+
+        if (!product.isAvailable || !product.isActive) {
+          throw new BadRequestException(`Product ${product.name} is not available`);
+        }
+
+        if (product.stock < item.quantity) {
+          outOfStockItems.push({
+            productId: product._id.toString(),
+            productName: product.name,
+            availableStock: product.stock,
+            requestedQuantity: item.quantity,
+          });
+          continue;
+        }
+
+        const resolved = this.productsService.resolveCheckoutSelectedOptions(
+          product,
+          item.selectedOptions,
+        );
+        const resolvedAddons = this.productsService.resolveCheckoutSelectedAddons(
+          product,
+          item.selectedAddons,
+        );
+
+        lineItems.push({
+          productId: product._id,
+          product,
+          quantity: item.quantity,
+          selectedOptions: resolved.selectedOptions,
+          selectedAddons: resolvedAddons.selectedAddons,
+          unitPriceCents: MoneyUtils.sumCents(
+            resolved.unitPriceCents,
+            resolvedAddons.extraCents,
+          ),
+        });
+      }
+
+      if (outOfStockItems.length > 0) {
+        throw new BadRequestException(
+          {
+            message: 'Insufficient stock for some products',
+            data: outOfStockItems,
+          },
+          {
+            cause: 'INSUFFICIENT_STOCK',
+            description: 'Some products do not have enough stock',
+          },
+        );
+      }
+
+      const orderItems = lineItems.map(
+        ({ product, quantity, selectedOptions, selectedAddons, unitPriceCents }) => ({
+          product: product._id,
+          quantity,
+          pricePerUnit: unitPriceCents,
+          totalPrice: MoneyUtils.multiplyCents(unitPriceCents, quantity),
+          productName: product.name,
+          productSku: product.sku,
+          selectedOptions,
+          selectedAddons,
+        }),
+      );
+
+      const subtotal = orderItems.reduce(
+        (sum, item) => MoneyUtils.sumCents(sum, item.totalPrice),
+        0,
+      );
+
+      let deliveryCharge = 0;
+      if (includeDelivery && deliveryZone) {
+        const platformTiers = await this.deliveryService.getPlatformWeightTiers();
+        const breakdown = calculateDeliveryCharge({
+          items: lineItems.map(({ product, quantity }) => ({
+            influenceWeight: product.influenceWeight ?? DEFAULT_PRODUCT_INFLUENCE_WEIGHT,
+            quantity,
+          })),
+          zone: deliveryZone,
+          zoneId: deliveryZone._id,
+          storeDeliveryConfig: store.deliveryConfig,
+          platformTiers,
+        });
+        deliveryCharge = breakdown.deliveryChargeCents;
+      }
+
+      const total = MoneyUtils.sumCents(subtotal, deliveryCharge);
+
+      const order = new this.orderModel({
+        store: store._id,
+        items: orderItems,
+        subtotal,
+        deliveryCharge,
+        additionalCharges: [],
+        total,
+        status: includeDelivery ? OrderStatus.REQUESTED : OrderStatus.COMPLETED,
+        statusUpdatedAt: new Date(),
+        channel: OrderChannel.IN_STORE,
+        soldBy: user._id,
+        ...(dto.customerName?.trim()
+          ? { walkInCustomerName: dto.customerName.trim() }
+          : {}),
+        ...(includeDelivery
+          ? {
+              walkInCustomerPhone: dto.customerPhone!.trim(),
+              deliveryZone: deliveryZone._id,
+              deliveryAddress: {
+                address: dto.customerAddress!.trim(),
+                latitude: null,
+                longitude: null,
+              },
+            }
+          : {}),
+        ...(dto.notes?.trim() ? { notes: dto.notes.trim() } : {}),
+      });
+
+      const savedOrder = await order.save();
+
+      for (const { product, quantity } of lineItems) {
+        await this.productsService.updateStock(product._id.toString(), quantity, 'subtract');
+        await this.productsService.incrementTimesOrdered(product._id.toString());
+      }
+
+      return savedOrder;
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException
+      ) {
+        throw error;
+      }
+      console.error('POS sale error:', error);
+      throw new InternalServerErrorException('Error registering in-store sale');
+    }
+  }
+
+  /** Quote messaging fee for a POS phone order (explicit zone, no customer account). */
+  async quotePosDelivery(user: User, dto: PosDeliveryQuoteDto) {
+    if (user.role !== Role.PROVIDER && user.role !== Role.MANAGER) {
+      throw new ForbiddenException('Only store staff can quote POS delivery');
+    }
+
+    const store = await this.storesService.findById(dto.storeId);
+    this.assertUserCanSellAtStore(user, store);
+
+    const deliveryZone = await this.deliveryService.findZoneById(dto.deliveryZoneId);
+    if (!deliveryZone.isActive) {
+      throw new BadRequestException('Selected delivery zone is no longer available');
+    }
+
+    const productIds = dto.items.map((item) => item.productId);
+    const products = await this.productsService.findProductsByIds(productIds);
+    if (products.length !== productIds.length) {
+      throw new NotFoundException('Some products not found');
+    }
+
+    for (const product of products) {
+      const productStoreId =
+        (product.store as any)?._id?.toString?.() || product.store?.toString?.();
+      if (productStoreId !== store._id.toString()) {
+        throw new BadRequestException(`Product ${product.name} does not belong to this store`);
+      }
+    }
+
+    const productMap = new Map(products.map((p) => [p._id.toString(), p]));
+    const platformTiers = await this.deliveryService.getPlatformWeightTiers();
+    const items = dto.items.map((item) => {
+      const product = productMap.get(item.productId)!;
+      return {
+        influenceWeight: product.influenceWeight ?? DEFAULT_PRODUCT_INFLUENCE_WEIGHT,
+        quantity: item.quantity,
+      };
+    });
+
+    const breakdown = calculateDeliveryCharge({
+      items,
+      zone: deliveryZone,
+      zoneId: deliveryZone._id,
+      storeDeliveryConfig: store.deliveryConfig,
+      platformTiers,
+    });
+
+    return {
+      zone: {
+        id: deliveryZone._id.toString(),
+        name: deliveryZone.name,
+        municipality: deliveryZone.municipality,
+        province: deliveryZone.province,
+      },
+      storeId: store._id.toString(),
+      storeName: store.name,
+      deliveryCharge: MoneyUtils.centsToDecimal(breakdown.deliveryChargeCents),
+    };
+  }
+
+  private assertUserCanSellAtStore(user: User, store: { _id: Types.ObjectId; owner: Types.ObjectId }) {
+    const storeId = store._id.toString();
+    if (user.role === Role.PROVIDER) {
+      const isOwner = store.owner.toString() === user._id.toString();
+      const inStores = (user as any).stores?.some(
+        (s: Types.ObjectId) => s.toString() === storeId,
+      );
+      if (!isOwner && !inStores) {
+        throw new ForbiddenException('You do not have access to sell at this store');
+      }
+      return;
+    }
+    if (user.role === Role.MANAGER) {
+      const inStores = (user as any).stores?.some(
+        (s: Types.ObjectId) => s.toString() === storeId,
+      );
+      if (!inStores) {
+        throw new ForbiddenException('You do not have access to sell at this store');
+      }
+      return;
+    }
+    throw new ForbiddenException('You do not have access to sell at this store');
   }
 
   async updateOrderStatus(
@@ -397,6 +676,7 @@ export class OrdersService {
         .populate('customer', 'firstName lastName email phone')
         .populate('store', 'name description address')
         .populate('assignedMessenger', 'firstName lastName email phone')
+        .populate('soldBy', 'firstName lastName email')
         .populate('items.product', 'name sku images')
         .exec();
 
@@ -431,6 +711,7 @@ export class OrdersService {
         .populate('customer', 'firstName lastName email')
         .populate('store', 'name')
         .populate('assignedMessenger', 'firstName lastName')
+        .populate('soldBy', 'firstName lastName email')
         .sort(sort)
         .skip((page - 1) * perPage)
         .limit(perPage)
@@ -493,6 +774,14 @@ export class OrdersService {
         filter.assignedMessenger = new Types.ObjectId(query.messengerId);
       }
 
+      if (query.channel) {
+        filter.channel = query.channel;
+      }
+
+      if (query.soldBy) {
+        filter.soldBy = new Types.ObjectId(query.soldBy);
+      }
+
       if (query.hasPendingCharges) {
         filter.hasPendingCharges = query.hasPendingCharges === 'true';
       }
@@ -501,6 +790,7 @@ export class OrdersService {
         filter.$or = [
           { trackingNumber: { $regex: query.search, $options: 'i' } },
           { notes: { $regex: query.search, $options: 'i' } },
+          { walkInCustomerName: { $regex: query.search, $options: 'i' } },
           { 'items.productName': { $regex: query.search, $options: 'i' } },
         ];
       }
@@ -509,6 +799,7 @@ export class OrdersService {
         .find(filter)
         .populate('customer', 'firstName lastName email phone')
         .populate('assignedMessenger', 'firstName lastName')
+        .populate('soldBy', 'firstName lastName email')
         .sort({ createdAt: -1 })
         .skip((page - 1) * perPage)
         .limit(perPage)
@@ -563,7 +854,11 @@ export class OrdersService {
       if (!product) {
         throw new NotFoundException(`Product ${item.productId} not found`);
       }
-      const storeId = product.store.toString();
+      const storeId =
+        (product.store as any)?._id?.toString?.() || product.store?.toString?.();
+      if (!storeId || !Types.ObjectId.isValid(storeId)) {
+        throw new BadRequestException(`Product ${product.name} has an invalid store`);
+      }
       const group = storeGroups.get(storeId) ?? [];
       group.push({
         influenceWeight: product.influenceWeight ?? DEFAULT_PRODUCT_INFLUENCE_WEIGHT,
@@ -615,7 +910,15 @@ export class OrdersService {
   }
 
   private async canReadOrder(order: Order, user: User): Promise<boolean> {
-    if (order.customer._id.toString() === user._id.toString()) {
+    const customerId =
+      (order.customer as any)?._id?.toString?.() || order.customer?.toString?.();
+    if (customerId && customerId === user._id.toString()) {
+      return true;
+    }
+
+    const soldById =
+      (order.soldBy as any)?._id?.toString?.() || (order as any).soldBy?.toString?.();
+    if (soldById && soldById === user._id.toString()) {
       return true;
     }
 
@@ -627,6 +930,15 @@ export class OrdersService {
       (order.store as any)._id?.toString?.() || order.store.toString()
     );
     if (store.owner.toString() === user._id.toString()) {
+      return true;
+    }
+
+    if (
+      (user.role === Role.MANAGER || user.role === Role.PROVIDER) &&
+      (user as any).stores?.some(
+        (s: Types.ObjectId) => s.toString() === store._id.toString(),
+      )
+    ) {
       return true;
     }
 
@@ -675,11 +987,21 @@ export class OrdersService {
       filter.assignedMessenger = new Types.ObjectId(query.messengerId);
     }
 
+    if (query.channel) {
+      filter.channel = query.channel;
+    }
+
+    if (query.soldBy) {
+      filter.soldBy = new Types.ObjectId(query.soldBy);
+    }
+
     if (query.search) {
       filter.$or = [
         { trackingNumber: { $regex: query.search, $options: 'i' } },
         { notes: { $regex: query.search, $options: 'i' } },
+        { walkInCustomerName: { $regex: query.search, $options: 'i' } },
         { cancellationReason: { $regex: query.search, $options: 'i' } },
+        { 'items.productName': { $regex: query.search, $options: 'i' } },
       ];
     }
 
@@ -707,13 +1029,15 @@ export class OrdersService {
       return true;
     }
 
-    if (user.role === Role.MESSENGER) {
-      const messenger = user as any;
-      if (messenger.stores?.some(
-        (storeId: Types.ObjectId) => storeId.toString() === store._id.toString()
-      )) {
-        return true;
-      }
+    if (
+      user.role === Role.PROVIDER ||
+      user.role === Role.MANAGER ||
+      user.role === Role.MESSENGER
+    ) {
+      const linked = (user as any).stores?.some(
+        (storeId: Types.ObjectId) => storeId.toString() === store._id.toString(),
+      );
+      if (linked) return true;
     }
 
     return false;

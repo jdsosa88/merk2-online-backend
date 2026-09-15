@@ -34,6 +34,8 @@ import { Product, ProductDocument } from '../products/schemas/product.schema';
 import { OrderStatus } from '../orders/types/orders.type';
 import { DeliveryService } from '../delivery/delivery.service';
 import { UpdateStoreDeliveryConfigDto } from '../delivery/dto/update-store-delivery-config.dto';
+import { DELIVERY_REGION } from '../delivery/types/delivery.constants';
+import { DEFAULT_ZONE_PRICE_CENTS } from '../delivery/types/delivery.constants';
 
 const NON_SALES_STATUSES = [
   OrderStatus.CANCELLED,
@@ -107,7 +109,16 @@ export class StoresService {
       throw new ForbiddenException('Only approved providers can create stores');
     }
 
-    const deliveryConfig = await this.deliveryService.buildDefaultStoreDeliveryConfig();
+    const provider = owner as Provider;
+    const salesProvince =
+      provider.salesProvince?.trim() || DELIVERY_REGION.province;
+    const salesMunicipality =
+      provider.salesMunicipality?.trim() || DELIVERY_REGION.municipality;
+
+    const deliveryConfig = await this.deliveryService.buildDefaultStoreDeliveryConfig(
+      salesProvince,
+      salesMunicipality,
+    );
 
     const store = new this.storeModel({
       ...dto,
@@ -119,7 +130,6 @@ export class StoresService {
     });
     const saved = await store.save();
 
-    const provider = owner as Provider;
     const stores = [...(provider.stores || []).map((id) => id), saved._id];
     await this.usersService.saveUpdatedUser(ownerId, {
       stores,
@@ -129,6 +139,16 @@ export class StoresService {
   }
 
   async findMine(ownerId: string): Promise<Store[]> {
+    const user = await this.usersService.findOne(ownerId);
+    if (user.role === Role.MANAGER) {
+      const storeIds = ((user as any).stores || []) as Types.ObjectId[];
+      if (!storeIds.length) return [];
+      return this.storeModel
+        .find({ _id: { $in: storeIds } })
+        .sort({ createdAt: -1 })
+        .exec();
+    }
+
     return this.storeModel
       .find({ owner: new Types.ObjectId(ownerId) })
       .sort({ createdAt: -1 })
@@ -738,27 +758,99 @@ export class StoresService {
     const store = await this.findById(storeId);
     await this.assertCanManageDeliveryConfig(store, userId);
 
-    const zones = await this.deliveryService.listAllZones(false);
+    const owner = (await this.usersService.findOne(store.owner.toString())) as Provider;
+    const salesProvince =
+      owner.salesProvince?.trim() || DELIVERY_REGION.province;
+    const salesMunicipality =
+      owner.salesMunicipality?.trim() || DELIVERY_REGION.municipality;
+
+    const zones = await this.deliveryService.listZones({
+      province: salesProvince,
+      municipality: salesMunicipality,
+    });
     const platformTiers = await this.deliveryService.getPlatformWeightTiers();
 
-    return this.deliveryService.formatStoreDeliveryConfig(
-      store.deliveryConfig,
-      zones,
-      platformTiers,
-    );
+    return {
+      ...this.deliveryService.formatStoreDeliveryConfig(
+        store.deliveryConfig,
+        zones,
+        platformTiers,
+      ),
+      salesProvince,
+      salesMunicipality,
+    };
+  }
+
+  /**
+   * Recorta/amplía zonePrices de las tiendas del provider al cambiar su
+   * provincia/municipio de venta.
+   */
+  async syncProviderStoresDeliveryArea(
+    providerId: string,
+    province: string,
+    municipality: string,
+  ): Promise<void> {
+    const zones = await this.deliveryService.listZones({ province, municipality });
+    const zoneIds = new Set(zones.map((z) => z._id.toString()));
+    const stores = await this.storeModel
+      .find({ owner: new Types.ObjectId(providerId) })
+      .exec();
+
+    for (const store of stores) {
+      const existing = store.deliveryConfig?.zonePrices ?? [];
+      const kept = existing.filter((zp) => zoneIds.has(zp.zoneId.toString()));
+      const keptIds = new Set(kept.map((zp) => zp.zoneId.toString()));
+      const added = zones
+        .filter((z) => !keptIds.has(z._id.toString()))
+        .map((z) => ({
+          zoneId: z._id,
+          priceCents: z.defaultPriceCents ?? DEFAULT_ZONE_PRICE_CENTS,
+        }));
+
+      store.deliveryConfig = {
+        zonePrices: [...kept, ...added],
+        weightSurchargeTiers: store.deliveryConfig?.weightSurchargeTiers ?? [],
+      };
+      store.markModified('deliveryConfig');
+      await store.save();
+    }
   }
 
   async findStoreIdsDeliveringToZone(zoneId: string): Promise<Types.ObjectId[]> {
-    await this.deliveryService.findZoneById(zoneId);
+    const zone = await this.deliveryService.findZoneById(zoneId);
     const stores = await this.storeModel
       .find({ status: StoreStatus.ACTIVE })
-      .select('_id deliveryConfig')
+      .select('_id owner deliveryConfig')
+      .populate({
+        path: 'owner',
+        select: 'salesProvince salesMunicipality role',
+      })
       .exec();
+
+    const zoneProvince = zone.province.trim().toLowerCase();
+    const zoneMunicipality = zone.municipality.trim().toLowerCase();
 
     const ids = stores
       .filter((store) => {
+        const owner = store.owner as unknown as Provider | null;
+        if (!owner || owner.role !== Role.PROVIDER) return false;
+
+        const salesProvince = (
+          owner.salesProvince?.trim() || DELIVERY_REGION.province
+        ).toLowerCase();
+        const salesMunicipality = (
+          owner.salesMunicipality?.trim() || DELIVERY_REGION.municipality
+        ).toLowerCase();
+
+        if (
+          salesProvince !== zoneProvince ||
+          salesMunicipality !== zoneMunicipality
+        ) {
+          return false;
+        }
+
         const prices = store.deliveryConfig?.zonePrices ?? [];
-        if (!prices.length) return true;
+        if (!prices.length) return false;
         return prices.some((zp) => zp.zoneId.toString() === zoneId);
       })
       .map((store) => store._id);
@@ -787,12 +879,21 @@ export class StoresService {
     };
 
     if (nextConfig.zonePrices.length) {
-      const zoneIds = new Set(
-        (await this.deliveryService.listAllZones(false)).map((z) => z._id.toString()),
-      );
+      const owner = (await this.usersService.findOne(store.owner.toString())) as Provider;
+      const salesProvince =
+        owner.salesProvince?.trim() || DELIVERY_REGION.province;
+      const salesMunicipality =
+        owner.salesMunicipality?.trim() || DELIVERY_REGION.municipality;
+      const allowedZones = await this.deliveryService.listZones({
+        province: salesProvince,
+        municipality: salesMunicipality,
+      });
+      const zoneIds = new Set(allowedZones.map((z) => z._id.toString()));
       for (const zp of nextConfig.zonePrices) {
         if (!zoneIds.has(zp.zoneId.toString())) {
-          throw new BadRequestException(`Unknown delivery zone ${zp.zoneId}`);
+          throw new BadRequestException(
+            `Delivery zone ${zp.zoneId} is outside your sales area (${salesMunicipality})`,
+          );
         }
       }
     }

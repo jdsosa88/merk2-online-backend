@@ -100,6 +100,7 @@ export class ProductsService {
       const newProduct = new this.productModel({
         ...productData,
         sku: productData.sku.toUpperCase(),
+        tags: this.normalizeTags(productData.tags),
         store: new Types.ObjectId(productData.store),
         category: new Types.ObjectId(productData.category),
         parentProduct: productData.parentProduct
@@ -300,6 +301,9 @@ export class ProductsService {
       ? productDto.description
       : product.description;
     product.brand = productDto.brand ? productDto.brand : product.brand;
+    if (productDto.tags !== undefined) {
+      product.tags = this.normalizeTags(productDto.tags);
+    }
     product.price = productDto.price ? productDto.price : product.price;
     product.discountValue = productDto.discountValue
       ? productDto.discountValue
@@ -315,6 +319,9 @@ export class ProductsService {
     product.size = productDto.size ? productDto.size : product.size;
     product.colors = productDto.colors ? productDto.colors : product.colors;
     product.weight = productDto.weight ? productDto.weight : product.weight;
+    if (productDto.influenceWeight !== undefined) {
+      product.influenceWeight = productDto.influenceWeight;
+    }
     product.stock = productDto.stock ? productDto.stock : product.stock;
     product.isAvailable = productDto.isAvailable !== undefined
       ? productDto.isAvailable
@@ -473,15 +480,35 @@ export class ProductsService {
     maxPrice?: number,
     inStockOnly: boolean = false
   ): Promise<Product[]> {
+    const tokens = (searchTerm || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 12);
+
+    if (tokens.length === 0) {
+      return [];
+    }
+
+    const escapeRegex = (value: string) =>
+      value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
     const query: any = {
       isActive: true,
       isAvailable: true,
-      $or: [
-        { name: { $regex: searchTerm, $options: 'i' } },
-        { description: { $regex: searchTerm, $options: 'i' } },
-        { brand: { $regex: searchTerm, $options: 'i' } },
-        { sku: { $regex: searchTerm, $options: 'i' } }
-      ]
+      // Every token must match name, description, brand, sku, or any tag
+      $and: tokens.map((token) => {
+        const pattern = escapeRegex(token);
+        return {
+          $or: [
+            { name: { $regex: pattern, $options: 'i' } },
+            { description: { $regex: pattern, $options: 'i' } },
+            { brand: { $regex: pattern, $options: 'i' } },
+            { sku: { $regex: pattern, $options: 'i' } },
+            { tags: { $regex: pattern, $options: 'i' } },
+          ],
+        };
+      }),
     };
 
     if (StoreId) {
@@ -1008,6 +1035,24 @@ export class ProductsService {
     }
 
     return { selectedAddons: resolved, extraCents };
+  }
+
+  /** Trim, lowercase, dedupe; drop empty; cap at 30 tags. */
+  private normalizeTags(tags?: string[]): string[] {
+    if (!tags?.length) return [];
+    const seen = new Set<string>();
+    const normalized: string[] = [];
+    for (const raw of tags) {
+      const tag = String(raw || '')
+        .trim()
+        .toLowerCase()
+        .slice(0, 80);
+      if (!tag || seen.has(tag)) continue;
+      seen.add(tag);
+      normalized.push(tag);
+      if (normalized.length >= 30) break;
+    }
+    return normalized;
   }
 
   private mapVisualOptionsInput(

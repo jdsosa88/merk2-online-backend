@@ -44,4 +44,4 @@ export const DEFAULT_WEIGHT_SURCHARGE_TIERS = [
 ] as const;
 
 /** Peso influenciador por defecto para productos sin valor definido. */
-export const DEFAULT_PRODUCT_INFLUENCE_WEIGHT = 1;
+export const DEFAULT_PRODUCT_INFLUENCE_WEIGHT = 0.1;

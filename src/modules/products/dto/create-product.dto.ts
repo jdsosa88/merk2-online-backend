@@ -1,6 +1,6 @@
 import {
   IsString, IsNumber, IsOptional, IsArray, IsBoolean, IsEnum,
-  IsMongoId, MinLength, MaxLength, Min, Max, ValidateNested, IsNotEmpty
+  IsMongoId, MinLength, MaxLength, Min, Max, ValidateNested, IsNotEmpty, ArrayMaxSize
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -71,6 +71,18 @@ export class CreateProductDto {
   @MaxLength(50)
   brand?: string;
 
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Search tags for faster store lookup (phrases or keywords)',
+    example: ['vestido azul flores blancas', 'estampado rojo azul verde'],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @IsString({ each: true })
+  @MaxLength(80, { each: true })
+  tags?: string[];
+
   @ApiProperty({ example: 299.99 })
   @IsNumber()
   @Min(0)
@@ -115,9 +127,9 @@ export class CreateProductDto {
   weight?: string;
 
   @ApiPropertyOptional({
-    example: 1,
+    example: 0.1,
     description: 'Peso influenciador para mensajería (0.1 = muy ligero, 2.5 = pesado)',
-    default: 1,
+    default: 0.1,
   })
   @IsOptional()
   @IsNumber()

@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-import { OrderStatus } from '../types/orders.type';
+import { OrderChannel, OrderStatus } from '../types/orders.type';
 import { Geolocation } from 'src/common/schemas/geolocation.schema';
 
 export type OrderDocument = HydratedDocument<Order>;
@@ -97,8 +97,33 @@ export const AdditionalChargeSchema = SchemaFactory.createForClass(AdditionalCha
 
 @Schema({ timestamps: true })
 export class Order {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  customer: Types.ObjectId;
+  /** Online customer. Optional for in-store POS walk-ins without an account. */
+  @Prop({ type: Types.ObjectId, ref: 'User', required: false })
+  customer?: Types.ObjectId;
+
+  /** Seller (PROVIDER/MANAGER) who registered an in-store sale. */
+  @Prop({ type: Types.ObjectId, ref: 'User', required: false })
+  soldBy?: Types.ObjectId;
+
+  /** Optional label for walk-in / phone customer (POS). */
+  @Prop({ type: String, required: false, trim: true, maxlength: 120 })
+  walkInCustomerName?: string;
+
+  /** Phone for walk-in / phone orders (POS with delivery). */
+  @Prop({ type: String, required: false, trim: true, maxlength: 30 })
+  walkInCustomerPhone?: string;
+
+  /** Delivery zone selected for POS phone orders with messaging. */
+  @Prop({ type: Types.ObjectId, ref: 'DeliveryZone', required: false })
+  deliveryZone?: Types.ObjectId;
+
+  @Prop({
+    type: String,
+    required: true,
+    enum: [OrderChannel.ONLINE, OrderChannel.IN_STORE],
+    default: OrderChannel.ONLINE,
+  })
+  channel: OrderChannel;
 
   @Prop({ type: Types.ObjectId, ref: 'Store', required: true })
   store: Types.ObjectId;
@@ -148,7 +173,8 @@ export class Order {
   @Prop({ type: Date, required: false })
   scheduledFor?: Date;
 
-  @Prop({ type: Geolocation, required: true })
+  /** Required for online delivery orders; omitted for in-store POS. */
+  @Prop({ type: Geolocation, required: false })
   deliveryAddress?: Geolocation;
 
   @Prop({ type: Boolean, default: false })

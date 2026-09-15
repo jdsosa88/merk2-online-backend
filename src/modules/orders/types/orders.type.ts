@@ -9,3 +9,9 @@ export enum OrderStatus {
   COMPLETED = 'completed',
   RETURNED = 'returned',
 }
+
+/** online = delivery checkout; in_store = POS / counter sale (no messaging). */
+export enum OrderChannel {
+  ONLINE = 'online',
+  IN_STORE = 'in_store',
+}

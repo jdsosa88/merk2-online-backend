@@ -13,6 +13,8 @@ import {
 import { ApiOperation } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { CheckoutOrderDto } from './dto/checkout-order.dto';
+import { PosSaleDto } from './dto/pos-sale.dto';
+import { PosDeliveryQuoteDto } from './dto/pos-delivery-quote.dto';
 import { DeliveryQuoteDto } from '../delivery/dto/delivery-quote.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { AssignMessengerDto } from './dto/assign-messenger.dto';
@@ -53,6 +55,30 @@ export class OrdersController {
   ): Promise<ApiResponseDto<Order[]>> {
     const orders = await this.ordersService.checkout(user, checkoutOrderDto);
     return new ApiResponseDto('Orders created successfully', orders);
+  }
+
+  @Post('pos-sale')
+  @CheckPolicies(new CreateOrderPolicyHandler())
+  @ApiOperation({
+    summary: 'Register an in-store POS sale or phone order (optional delivery)',
+  })
+  async createPosSale(
+    @AuthUser() user: User,
+    @Body() posSaleDto: PosSaleDto,
+  ): Promise<ApiResponseDto<Order>> {
+    const order = await this.ordersService.createPosSale(user, posSaleDto);
+    return new ApiResponseDto('In-store sale registered successfully', order);
+  }
+
+  @Post('pos-delivery-quote')
+  @CheckPolicies(new CreateOrderPolicyHandler())
+  @ApiOperation({ summary: 'Quote messaging fee for a POS phone order' })
+  async quotePosDelivery(
+    @AuthUser() user: User,
+    @Body() dto: PosDeliveryQuoteDto,
+  ): Promise<ApiResponseDto> {
+    const quote = await this.ordersService.quotePosDelivery(user, dto);
+    return new ApiResponseDto('POS delivery quote calculated', quote);
   }
 
   @Post('delivery-quote')

@@ -12,6 +12,8 @@ import { Manager, ManagerSchema } from './schemas/manager.schema';
 import { Messenger, MessengerSchema } from './schemas/messenger.schema';
 import { BusinessModule } from '../business/business.module';
 import { ImagesModule } from '../images/images.module';
+import { StoresModule } from '../stores/stores.module';
+import { DeliveryModule } from '../delivery/delivery.module';
 
 @Module({
   imports: [
@@ -32,15 +34,18 @@ import { ImagesModule } from '../images/images.module';
             name: Messenger.name,
             schema: MessengerSchema,
           },
-        ]
-      }]),
+        ],
+      },
+    ]),
     CaslModule,
     VerificationCodeModule,
     ImagesModule,
-    forwardRef(() => BusinessModule)
+    forwardRef(() => BusinessModule),
+    forwardRef(() => StoresModule),
+    DeliveryModule,
   ],
   controllers: [UsersController, AdminUsersController],
   providers: [UsersService, UserFactory],
   exports: [UsersService],
 })
-export class UsersModule { }
+export class UsersModule {}

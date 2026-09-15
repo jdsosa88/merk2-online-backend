@@ -113,6 +113,24 @@ export class CreateProviderDto extends CreateUserDto {
   @IsArray()
   @IsMongoId({ each: true })
   stores?: Types.ObjectId[];
+
+  @ApiPropertyOptional({
+    example: 'Granma',
+    description: 'Provincia donde el provider venderá',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(2, 100)
+  salesProvince?: string;
+
+  @ApiPropertyOptional({
+    example: 'Manzanillo',
+    description: 'Municipio donde el provider venderá',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(2, 100)
+  salesMunicipality?: string;
 }
 
 export class CreateManagerDto extends CreateUserDto {

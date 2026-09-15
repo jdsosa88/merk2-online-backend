@@ -45,6 +45,23 @@ export class Product {
   @Prop({ type: String, trim: true, maxlength: 50, default: '' })
   brand?: string;
 
+  /**
+   * Free-form search tags (e.g. "vestido azul flores blancas", "estampado rojo").
+   * Stored lowercase/trimmed for case-insensitive matching.
+   */
+  @Prop({
+    type: [String],
+    default: [],
+    validate: {
+      validator: (tags: string[]) =>
+        Array.isArray(tags) &&
+        tags.length <= 30 &&
+        tags.every((t) => typeof t === 'string' && t.length > 0 && t.length <= 80),
+      message: 'tags must be at most 30 strings of 1–80 characters',
+    },
+  })
+  tags: string[];
+
   @Prop({ type: Number, required: true, min: 0 })
   price: number;
 
@@ -87,7 +104,7 @@ export class Product {
    * Peso influenciador para cálculo de mensajería (ej. 0.1 ligero, 2.5 pesado).
    * Se multiplica por cantidad en el carrito.
    */
-  @Prop({ type: Number, min: 0.1, default: 1 })
+  @Prop({ type: Number, min: 0.1, default: 0.1 })
   influenceWeight: number;
 
   @Prop({ type: Number, min: 0, default: 0 })
@@ -159,6 +176,9 @@ export class Product {
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);
+
+ProductSchema.index({ store: 1, tags: 1 });
+ProductSchema.index({ tags: 'text', name: 'text', description: 'text', brand: 'text', sku: 'text' });
 
 ProductSchema.methods.toJSON = function () {
   const obj = this.toObject();

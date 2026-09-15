@@ -98,6 +98,9 @@ export class OrderStateContext {
   }
 
   async createPendingDeliveryCharge(reason: string): Promise<void> {
+    if (!this.order.customer) {
+      return;
+    }
     const pendingCharge = new this.pendingChargeModel({
       user: this.order.customer,
       order: this.order._id,
@@ -133,7 +136,9 @@ export class OrderStateContext {
   }
 
   isCustomer(user: User): boolean {
-    return this.order.customer._id.toString() === user._id.toString();
+    const customerId = this.order.customer?._id?.toString?.()
+      ?? this.order.customer?.toString?.();
+    return Boolean(customerId && customerId === user._id.toString());
   }
 
   isStoreOwner(user: User): boolean {

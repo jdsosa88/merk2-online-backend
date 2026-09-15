@@ -1,8 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException, } from '@nestjs/common';
+import { BadRequestException, forwardRef, Inject, Injectable, NotFoundException, } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from './schemas/user.schema';
 import { Model, Types } from 'mongoose';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateUserDto, UpdateUserAllDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { MailerService } from '@nestjs-modules/mailer';
@@ -19,6 +19,9 @@ import { CreateUserFactoryDto, UpdateUserFactoryDto } from './types/user-factory
 import { Role } from './types/users.type';
 import { ConfigService } from '@nestjs/config';
 import { ImagesService } from '../images/images.service';
+import { StoresService } from '../stores/stores.service';
+import { DELIVERY_REGION } from '../delivery/types/delivery.constants';
+import { DeliveryService } from '../delivery/delivery.service';
 
 
 @Injectable()
@@ -30,6 +33,9 @@ export class UsersService {
     private readonly verificationCodeService: VerificationCodeService,
     private readonly configService: ConfigService,
     private readonly imagesService: ImagesService,
+    @Inject(forwardRef(() => StoresService))
+    private readonly storesService: StoresService,
+    private readonly deliveryService: DeliveryService,
   ) { }
 
   async create(createUserDto: CreateUserFactoryDto, role: Role = Role.CUSTOMER): Promise<User> {
@@ -110,7 +116,51 @@ export class UsersService {
 
   async update(id: string, updateUserDto: UpdateUserFactoryDto): Promise<User> {
     try {
-      return await this.saveUpdatedUser(id, updateUserDto);
+      const existing = await this.findOne(id);
+      const dto = updateUserDto as UpdateUserAllDto;
+      const salesAreaChanging =
+        existing.role === Role.PROVIDER &&
+        (dto.salesProvince !== undefined || dto.salesMunicipality !== undefined);
+
+      if (salesAreaChanging) {
+        const nextProvince = (
+          dto.salesProvince ??
+          (existing as Provider).salesProvince ??
+          DELIVERY_REGION.province
+        ).trim();
+        const nextMunicipality = (
+          dto.salesMunicipality ??
+          (existing as Provider).salesMunicipality ??
+          DELIVERY_REGION.municipality
+        ).trim();
+
+        const regions = await this.deliveryService.listSalesRegions();
+        const valid = regions.some(
+          (r) =>
+            r.province.toLowerCase() === nextProvince.toLowerCase() &&
+            r.municipality.toLowerCase() === nextMunicipality.toLowerCase(),
+        );
+        if (!valid) {
+          throw new BadRequestException(
+            `No hay zonas de mensajería para ${nextProvince} / ${nextMunicipality}`,
+          );
+        }
+
+        dto.salesProvince = nextProvince;
+        dto.salesMunicipality = nextMunicipality;
+      }
+
+      const user = await this.saveUpdatedUser(id, dto);
+
+      if (salesAreaChanging) {
+        await this.storesService.syncProviderStoresDeliveryArea(
+          id,
+          (user as Provider).salesProvince,
+          (user as Provider).salesMunicipality,
+        );
+      }
+
+      return user;
     } catch (error) {
       throw error;
     }

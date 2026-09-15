@@ -133,8 +133,15 @@ export class DeliveryService {
   }
 
   /** Precios por zona listos para una tienda nueva (copia defaults de plataforma). */
-  async buildDefaultStoreDeliveryConfig(): Promise<StoreDeliveryConfig> {
-    const zones = await this.listAllZones(false);
+  async buildDefaultStoreDeliveryConfig(
+    province?: string,
+    municipality?: string,
+  ): Promise<StoreDeliveryConfig> {
+    const zones =
+      province && municipality
+        ? await this.listZones({ province, municipality })
+        : await this.listAllZones(false);
+
     return {
       zonePrices: zones.map((zone) => ({
         zoneId: zone._id,
@@ -142,6 +149,33 @@ export class DeliveryService {
       })),
       weightSurchargeTiers: [],
     };
+  }
+
+  /** Provincias/municipios con al menos una zona activa (para selector del provider). */
+  async listSalesRegions(): Promise<
+    Array<{ province: string; municipality: string; zoneCount: number }>
+  > {
+    const rows = await this.zoneModel
+      .aggregate<{
+        _id: { province: string; municipality: string };
+        zoneCount: number;
+      }>([
+        { $match: { isActive: true } },
+        {
+          $group: {
+            _id: { province: '$province', municipality: '$municipality' },
+            zoneCount: { $sum: 1 },
+          },
+        },
+        { $sort: { '_id.province': 1, '_id.municipality': 1 } },
+      ])
+      .exec();
+
+    return rows.map((row) => ({
+      province: row._id.province,
+      municipality: row._id.municipality,
+      zoneCount: row.zoneCount,
+    }));
   }
 
   formatStoreDeliveryConfig(

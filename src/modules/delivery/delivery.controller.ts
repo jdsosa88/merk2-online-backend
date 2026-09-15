@@ -35,6 +35,16 @@ export class DeliveryController {
     return new ApiResponseDto('Delivery zones retrieved', zones);
   }
 
+  @Get('sales-regions')
+  @CheckPolicies(new ReadDeliveryZonePolicy())
+  @ApiOperation({
+    summary: 'Provincias/municipios con zonas activas (selector del vendedor)',
+  })
+  async listSalesRegions(): Promise<ApiResponseDto> {
+    const regions = await this.deliveryService.listSalesRegions();
+    return new ApiResponseDto('Sales regions retrieved', regions);
+  }
+
   @Get('zones/:id')
   @CheckPolicies(new ReadDeliveryZonePolicy())
   @ApiOperation({ summary: 'Obtener zona de entrega por id' })

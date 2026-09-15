@@ -153,6 +153,24 @@ export class UpdateUserAllDto extends UpdateUserDto {
   };
 
   @ApiPropertyOptional({
+    example: 'Granma',
+    description: 'Provincia donde el provider vende (todas sus tiendas)',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(2, 100)
+  salesProvince?: string;
+
+  @ApiPropertyOptional({
+    example: 'Manzanillo',
+    description: 'Municipio donde el provider vende (todas sus tiendas)',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(2, 100)
+  salesMunicipality?: string;
+
+  @ApiPropertyOptional({
     type: String,
     description: 'For MANAGER role: business ID assigned to',
     format: 'ObjectId'
