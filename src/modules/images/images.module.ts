@@ -3,13 +3,14 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Image, ImageSchema } from './schemas/image.schema';
 import { ImagesService } from './images.service';
+import { ImageOptimizerService } from './image-optimizer.service';
 import { ImagesController } from './images.controller';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Image.name, schema: ImageSchema }]),
   ],
-  providers: [ImagesService],
+  providers: [ImagesService, ImageOptimizerService],
   controllers: [ImagesController],
   exports: [ImagesService],
 })

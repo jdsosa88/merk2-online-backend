@@ -180,6 +180,25 @@ export const ProductSchema = SchemaFactory.createForClass(Product);
 ProductSchema.index({ store: 1, tags: 1 });
 ProductSchema.index({ tags: 'text', name: 'text', description: 'text', brand: 'text', sku: 'text' });
 
+/** Serialize Image refs as `{ _id, blurhash? }` when populated, else plain id string. */
+function serializeImageRef(image: any): string | { _id: string; blurhash?: string } {
+  if (!image) return String(image);
+  if (typeof image === 'string') return image;
+  if (image._bsontype === 'ObjectId') return image.toString();
+
+  const id = image._id?.toString?.() || (typeof image === 'object' ? null : String(image));
+  if (!id) return String(image);
+
+  // Populated Image document (has blurhash and/or mimeType/filename).
+  if (image.blurhash != null || image.mimeType != null || image.filename != null || image.url != null) {
+    return image.blurhash
+      ? { _id: id, blurhash: image.blurhash }
+      : { _id: id };
+  }
+
+  return id;
+}
+
 ProductSchema.methods.toJSON = function () {
   const obj = this.toObject();
 
@@ -187,24 +206,17 @@ ProductSchema.methods.toJSON = function () {
   obj.discountValue = this.discountValue ? this.discountValue / 100 : 0;
   obj.finalPrice = this.finalPrice / 100;
 
-  // Always expose image ids only (never populated Image documents / binary).
-  obj.images = (obj.images || []).map((image: any) =>
-    typeof image === 'string' ? image : image?._id?.toString?.() || String(image),
-  );
+  obj.images = (obj.images || []).map(serializeImageRef);
 
   if (Array.isArray(obj.visualOptions)) {
     obj.visualOptions = obj.visualOptions.map((option: any) => ({
       ...option,
       priceDelta: (option.priceDelta ?? 0) / 100,
-      image: option.image
-        ? typeof option.image === 'string'
-          ? option.image
-          : option.image?._id?.toString?.() || String(option.image)
-        : undefined,
+      image: option.image ? serializeImageRef(option.image) : undefined,
     }));
   }
 
-  // Populated addons come as plain objects; convert money + image ids like the parent product.
+  // Populated addons come as plain objects; convert money + image refs like the parent product.
   if (Array.isArray(obj.addons)) {
     obj.addons = obj.addons.map((addon: any) => {
       if (!addon || typeof addon === 'string' || addon._bsontype === 'ObjectId') {
@@ -216,9 +228,7 @@ ProductSchema.methods.toJSON = function () {
         price: typeof addon.price === 'number' ? addon.price / 100 : addon.price,
         finalPrice:
           typeof addon.finalPrice === 'number' ? addon.finalPrice / 100 : addon.finalPrice,
-        images: (addon.images || []).map((image: any) =>
-          typeof image === 'string' ? image : image?._id?.toString?.() || String(image),
-        ),
+        images: (addon.images || []).map(serializeImageRef),
       };
     });
   }

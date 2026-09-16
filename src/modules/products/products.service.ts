@@ -30,12 +30,33 @@ import {
 
 @Injectable()
 export class ProductsService {
+  private static readonly IMAGE_META_SELECT = '_id blurhash';
+
+  private static readonly ADDON_LIST_POPULATE = {
+    path: 'addons',
+    select: 'name price finalPrice sku isAvailable isReleased images',
+    populate: { path: 'images', select: ProductsService.IMAGE_META_SELECT },
+  };
+
+  private static readonly ADDON_DETAIL_POPULATE = {
+    path: 'addons',
+    select: 'name price finalPrice sku isAvailable isReleased description images',
+    populate: { path: 'images', select: ProductsService.IMAGE_META_SELECT },
+  };
+
   constructor(
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
     @Inject(forwardRef(() => StoresService)) private readonly storesService: StoresService,
     private readonly categoriesService: CategoriesService,
     private readonly imagesService: ImagesService,
   ) { }
+
+  /** Light Image populate so clients get blurhash placeholders without binary payloads. */
+  private withImageMeta(query: any) {
+    return query
+      .populate('images', ProductsService.IMAGE_META_SELECT)
+      .populate('visualOptions.image', ProductsService.IMAGE_META_SELECT);
+  }
 
   async create(createProductDto: CreateProductDto, userId: string): Promise<Product> {
     try {
@@ -191,15 +212,16 @@ export class ProductsService {
     const skip = (page - 1) * perPage;
 
     const [products, total] = await Promise.all([
-      this.productModel.find(query)
-        .populate('store', 'name _id')
-        .populate('category', 'name _id level')
-        .populate('addons', 'name price finalPrice sku isAvailable isReleased images')
-        .populate('parentProduct', 'name price finalPrice sku')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(perPage)
-        .exec(),
+      this.withImageMeta(
+        this.productModel.find(query)
+          .populate('store', 'name _id')
+          .populate('category', 'name _id level')
+          .populate(ProductsService.ADDON_LIST_POPULATE)
+          .populate('parentProduct', 'name price finalPrice sku')
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(perPage),
+      ).exec(),
       this.productModel.countDocuments(query).exec()
     ]);
 
@@ -214,12 +236,13 @@ export class ProductsService {
 
   async findOne(id: string): Promise<Product> {
     const _id = new Types.ObjectId(id);
-    const product = await this.productModel.findById(_id)
-      .populate('store', 'name _id')
-      .populate('category', 'name _id level')
-      .populate('addons', 'name price finalPrice sku isAvailable isReleased description images')
-      .populate('parentProduct', 'name price finalPrice sku store')
-      .exec();
+    const product = await this.withImageMeta(
+      this.productModel.findById(_id)
+        .populate('store', 'name _id')
+        .populate('category', 'name _id level')
+        .populate(ProductsService.ADDON_DETAIL_POPULATE)
+        .populate('parentProduct', 'name price finalPrice sku store'),
+    ).exec();
 
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
@@ -229,12 +252,13 @@ export class ProductsService {
   }
 
   async findBySku(sku: string): Promise<Product> {
-    const product = await this.productModel.findOne({ sku: sku.toUpperCase() })
-      .populate('store', 'name _id')
-      .populate('category', 'name _id level')
-      .populate('addons', 'name price finalPrice sku isAvailable isReleased')
-      .populate('parentProduct', 'name price finalPrice sku')
-      .exec();
+    const product = await this.withImageMeta(
+      this.productModel.findOne({ sku: sku.toUpperCase() })
+        .populate('store', 'name _id')
+        .populate('category', 'name _id level')
+        .populate(ProductsService.ADDON_LIST_POPULATE)
+        .populate('parentProduct', 'name price finalPrice sku'),
+    ).exec();
 
     if (!product) {
       throw new NotFoundException(`Product with SKU ${sku} not found`);
@@ -245,10 +269,11 @@ export class ProductsService {
 
   async findProductsByIds(productIds: string[]): Promise<Product[]> {
     const ids = productIds.map(id => new Types.ObjectId(id));
-    return this.productModel.find({ _id: { $in: ids } })
-      .populate('store', 'name status owner messengers varietyTypes')
-      .populate('addons', 'name price finalPrice sku isAvailable isReleased')
-      .exec();
+    return this.withImageMeta(
+      this.productModel.find({ _id: { $in: ids } })
+        .populate('store', 'name status owner messengers varietyTypes')
+        .populate(ProductsService.ADDON_LIST_POPULATE),
+    ).exec();
   }
 
   async update(id: string, updateProductDto: UpdateProductDto): Promise<Product> {
@@ -441,11 +466,16 @@ export class ProductsService {
       query.type = type;
     }
 
-    return this.productModel.find(query)
-      .populate('category', 'name _id')
-      .populate('addons', 'name price sku')
-      .sort({ type: 1, name: 1 })
-      .exec();
+    return this.withImageMeta(
+      this.productModel.find(query)
+        .populate('category', 'name _id')
+        .populate({
+          path: 'addons',
+          select: 'name price sku images',
+          populate: { path: 'images', select: ProductsService.IMAGE_META_SELECT },
+        })
+        .sort({ type: 1, name: 1 }),
+    ).exec();
   }
 
   async getCategoryProducts(categoryId: string, type?: ProductType): Promise<Product[]> {
@@ -464,11 +494,16 @@ export class ProductsService {
       query.type = type;
     }
 
-    return this.productModel.find(query)
-      .populate('store', 'name _id')
-      .populate('addons', 'name price sku')
-      .sort({ finalPrice: 1 })
-      .exec();
+    return this.withImageMeta(
+      this.productModel.find(query)
+        .populate('store', 'name _id')
+        .populate({
+          path: 'addons',
+          select: 'name price sku images',
+          populate: { path: 'images', select: ProductsService.IMAGE_META_SELECT },
+        })
+        .sort({ finalPrice: 1 }),
+    ).exec();
   }
 
   async searchProducts(
@@ -533,13 +568,18 @@ export class ProductsService {
       query.stock = { $gt: 0 };
     }
 
-    return this.productModel.find(query)
-      .populate('store', 'name _id')
-      .populate('category', 'name _id')
-      .populate('addons', 'name price sku')
-      .sort({ finalPrice: 1 })
-      .limit(50)
-      .exec();
+    return this.withImageMeta(
+      this.productModel.find(query)
+        .populate('store', 'name _id')
+        .populate('category', 'name _id')
+        .populate({
+          path: 'addons',
+          select: 'name price sku images',
+          populate: { path: 'images', select: ProductsService.IMAGE_META_SELECT },
+        })
+        .sort({ finalPrice: 1 })
+        .limit(50),
+    ).exec();
   }
 
   async updateStock(productId: string, quantity: number, operation: 'add' | 'subtract'): Promise<Product> {
@@ -706,9 +746,8 @@ export class ProductsService {
       const validatedProduct = await this.getValidatedProduct(params.productId, params.user);
       return await this.addImages(validatedProduct, params.images);
     } catch (error) {
-      for (let i = 0; i < params.images.length; i++) {
-        const image = params.images[i];
-        this.imagesService.deleteImageFile(image.filename);
+      for (const image of params.images || []) {
+        await this.cleanupUploadArtifacts(image.filename);
       }
       throw error;
     }
@@ -769,9 +808,19 @@ export class ProductsService {
       return product;
     } catch (error) {
       if (params.image?.filename) {
-        this.imagesService.deleteImageFile(params.image.filename);
+        await this.cleanupUploadArtifacts(params.image.filename);
       }
       throw error;
+    }
+  }
+
+  /** Removes original multer file and/or optimized `.webp` sibling left on disk after a failed upload. */
+  private async cleanupUploadArtifacts(filename: string): Promise<void> {
+    if (!filename) return;
+    await this.imagesService.deleteImageFile(filename);
+    if (!filename.toLowerCase().endsWith('.webp')) {
+      const webpName = filename.replace(/\.[^.]+$/, '.webp');
+      await this.imagesService.deleteImageFile(webpName);
     }
   }
 

@@ -33,6 +33,10 @@ export class Image {
   @Prop({ required: false })
   alt?: string;
 
+  /** Compact placeholder for progressive loading (expo-image / blurhash). */
+  @Prop({ required: false })
+  blurhash?: string;
+
   @Prop({ enum: ImageProvider, default: ImageProvider.LOCAL })
   provider: ImageProvider;
 }
