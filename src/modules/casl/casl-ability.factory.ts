@@ -108,7 +108,7 @@ export class CaslAbilityFactory {
         can(Action.MANAGE, Product);
         can(Action.CREATE, Order);
         can(Action.READ, Order);
-        can(Action.UPDATE, Order, ['status', 'assignedMessenger', 'notes', 'estimatedDeliveryTime']);
+        can(Action.UPDATE, Order, ['status', 'assignedMessenger', 'notes', 'estimatedDeliveryTime', 'items', 'returns']);
         can(Action.LIST, Order);
         // Keep limited legacy Business read/update for deprecated endpoints only
         can(Action.READ, Business, { owner: user._id });
@@ -128,8 +128,9 @@ export class CaslAbilityFactory {
         can(Action.READ, User);
         can(Action.READ, Store);
         can(Action.CREATE, Order);
-        can(Action.READ, Order, { assignedMessenger: user._id });
-        can(Action.UPDATE, Order, ['status', 'trackingNumber', 'deliveryAddress']);
+        // Service-layer filters enforce store association / assignment.
+        can(Action.READ, Order);
+        can(Action.UPDATE, Order, ['status', 'trackingNumber', 'deliveryAddress', 'items', 'returns']);
         can(Action.LIST, Order);
         break;
 

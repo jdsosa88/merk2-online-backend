@@ -152,13 +152,15 @@ export class OrderStateContext {
   }
 
   isAssignedMessenger(user: User): boolean {
-    const assignedMessenger = this.order.assignedMessenger?._id?.toString();
-    return assignedMessenger === user._id.toString();
+    const assignedMessenger =
+      this.order.assignedMessenger?._id?.toString?.() ||
+      this.order.assignedMessenger?.toString?.();
+    return Boolean(assignedMessenger && assignedMessenger === user._id.toString());
   }
 
   canAbort(user: User): boolean {
     if (this.order.status === OrderStatus.ON_THE_WAY) {
-      return this.isAssignedMessenger(user);
+      return this.canManageDelivery(user);
     }
     return this.isStoreOwner(user);
   }
@@ -167,14 +169,62 @@ export class OrderStateContext {
     return this.isCustomer(user);
   }
 
+  /** Kitchen / pre-delivery management (owner). */
   canManageStoreOrder(user: User): boolean {
     if (
       this.order.status === OrderStatus.READY_FOR_DELIVERY ||
       this.order.status === OrderStatus.ON_THE_WAY
     ) {
-      return this.isAssignedMessenger(user);
+      return this.canManageDelivery(user);
     }
     return this.isStoreOwner(user);
+  }
+
+  /**
+   * Delivery leg: store owner (may self-deliver) OR assigned messenger
+   * OR eligible store/platform messenger who can claim the order.
+   */
+  canManageDelivery(user: User): boolean {
+    if (this.isStoreOwner(user)) return true;
+    if (this.isAssignedMessenger(user)) return true;
+    return this.isEligibleStoreMessenger(user);
+  }
+
+  isEligibleStoreMessenger(user: User): boolean {
+    const store = this.order.store as any;
+    if (!store) return false;
+
+    const canWorkAsMessenger =
+      user.role === Role.MESSENGER ||
+      (user.role === Role.PROVIDER && (user as any).isMessenger === true) ||
+      (user.role === Role.MANAGER && (user as any).isMessenger === true);
+    if (!canWorkAsMessenger) return false;
+
+    const userStores: Types.ObjectId[] = (user as any).stores || [];
+    const storeId = store._id?.toString?.() || store.toString?.();
+    if (userStores.some((s) => s.toString() === storeId)) return true;
+
+    if (store.messengers?.some((id: Types.ObjectId) => id.toString() === user._id.toString())) {
+      return true;
+    }
+
+    return (user as any).isPlatformMessenger === true;
+  }
+
+  /** Assign current user as messenger when taking the delivery (owner or eligible messenger). */
+  async claimDeliveryIfNeeded(user: User): Promise<void> {
+    if (this.isAssignedMessenger(user)) return;
+
+    const assignedId = this.order.assignedMessenger?._id?.toString?.()
+      ?? this.order.assignedMessenger?.toString?.();
+
+    // Owner can proceed without reassigning an existing messenger.
+    if (this.isStoreOwner(user) && assignedId) return;
+
+    if (!this.isStoreOwner(user) && !this.isEligibleStoreMessenger(user)) return;
+
+    this.order.assignedMessenger = user._id as any;
+    await this.order.save();
   }
 
   /** @deprecated Prefer canManageStoreOrder */

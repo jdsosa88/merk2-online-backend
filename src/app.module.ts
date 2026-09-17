@@ -20,6 +20,7 @@ import { StoresModule } from './modules/stores/stores.module';
 import { ProductsModule } from './modules/products/products.module';
 import { TeamModule } from './modules/team/team.module';
 import { DeliveryModule } from './modules/delivery/delivery.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { DeliveryModule } from './modules/delivery/delivery.module';
     DeliveryModule,
     CategoriesModule,
     OrdersModule,
+    NotificationsModule,
     HealthModule,
     ImagesModule,
   ],

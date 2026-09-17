@@ -334,4 +334,31 @@ export class UsersService {
     }
     return user;
   }
+
+  async addExpoPushToken(userId: string, token: string): Promise<void> {
+    await this.userModel
+      .updateOne(
+        { _id: new Types.ObjectId(userId) },
+        { $addToSet: { expoPushTokens: token } },
+      )
+      .exec();
+  }
+
+  async removeExpoPushToken(userId: string, token: string): Promise<void> {
+    await this.userModel
+      .updateOne(
+        { _id: new Types.ObjectId(userId) },
+        { $pull: { expoPushTokens: token } },
+      )
+      .exec();
+  }
+
+  async getExpoPushTokens(userId: string): Promise<string[]> {
+    const user = await this.userModel
+      .findById(new Types.ObjectId(userId))
+      .select('expoPushTokens')
+      .lean()
+      .exec();
+    return user?.expoPushTokens ?? [];
+  }
 }

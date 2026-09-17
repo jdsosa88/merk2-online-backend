@@ -46,4 +46,7 @@ export const envValidationSchema = Joi.object({
   USER_PHONE_VERIFICATION_REQUIRED: Joi.boolean().default(true),
   //VerificationCode
   VERIFICATION_CODE_EXPIRES_HOURS: Joi.number().integer().min(1).max(72).default(3),
+
+  // Expo Push (opcional; recomendado en producción)
+  EXPO_ACCESS_TOKEN: Joi.string().optional(),
 });

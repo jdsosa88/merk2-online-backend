@@ -10,6 +10,8 @@ import { ProductsModule } from '../products/products.module';
 import { UsersModule } from '../users/users.module';
 import { DeliveryModule } from '../delivery/delivery.module';
 import { MessengerInDelivery, MessengerInDeliverySchema } from './schemas/messengers-in-delivery.schema';
+import { ImagesModule } from '../images/images.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { MessengerInDelivery, MessengerInDeliverySchema } from './schemas/messen
     forwardRef(() => ProductsModule),
     forwardRef(() => UsersModule),
     DeliveryModule,
+    ImagesModule,
+    NotificationsModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

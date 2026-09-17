@@ -4,6 +4,7 @@ import {
   BadRequestException,
   ForbiddenException,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -30,6 +31,11 @@ import { calculateDeliveryCharge } from '../delivery/utils/delivery-calculator';
 import { DEFAULT_PRODUCT_INFLUENCE_WEIGHT } from '../delivery/types/delivery.constants';
 import { PosSaleDto } from './dto/pos-sale.dto';
 import { PosDeliveryQuoteDto } from './dto/pos-delivery-quote.dto';
+import { CreatePartialReturnDto } from './dto/create-partial-return.dto';
+import { ConfirmDeliveryDto } from './dto/confirm-delivery.dto';
+import { ImagesService } from '../images/images.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { randomBytes } from 'crypto';
 
 interface OutOfStockItem {
   productId: string;
@@ -64,6 +70,8 @@ interface StoreGroup {
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
     @InjectModel(PendingCharge.name) private pendingChargeModel: Model<PendingChargeDocument>,
@@ -72,6 +80,8 @@ export class OrdersService {
     private readonly productsService: ProductsService,
     private readonly usersService: UsersService,
     private readonly deliveryService: DeliveryService,
+    private readonly imagesService: ImagesService,
+    private readonly notificationsService: NotificationsService,
   ) { }
 
   async checkout(user: User, checkoutOrderDto: CheckoutOrderDto): Promise<Order[]> {
@@ -266,6 +276,7 @@ export class OrdersService {
           statusUpdatedAt: new Date(),
           deliveryAddress: user.geolocation,
           channel: OrderChannel.ONLINE,
+          deliveryCode: this.generateDeliveryCode(),
           ...(scheduledFor ? { scheduledFor } : {}),
         });
 
@@ -449,6 +460,7 @@ export class OrdersService {
         statusUpdatedAt: new Date(),
         channel: OrderChannel.IN_STORE,
         soldBy: user._id,
+        ...(includeDelivery ? { deliveryCode: this.generateDeliveryCode() } : {}),
         ...(dto.customerName?.trim()
           ? { walkInCustomerName: dto.customerName.trim() }
           : {}),
@@ -597,7 +609,242 @@ export class OrdersService {
 
     await order.populate('customer store assignedMessenger');
 
+    this.notifyCustomerOrderStatus(order).catch((err) =>
+      this.logger.warn(`Push notify failed: ${err?.message ?? err}`),
+    );
+
     return order;
+  }
+
+  /**
+   * Partial return during delivery: reduce qty or remove lines, restore stock,
+   * record reason/description/optional evidence image. Offline-safe via clientLocalId.
+   */
+  async createPartialReturn(
+    orderId: string,
+    dto: CreatePartialReturnDto,
+    user: User,
+    evidenceFile?: Express.Multer.File,
+  ): Promise<Order> {
+    const order = await this.orderModel.findById(orderId)
+      .populate('store', 'name owner messengers messengerAssignmentType')
+      .exec();
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (
+      order.status !== OrderStatus.READY_FOR_DELIVERY &&
+      order.status !== OrderStatus.ON_THE_WAY
+    ) {
+      throw new BadRequestException(
+        'Partial returns are only allowed while the order is ready for delivery or on the way',
+      );
+    }
+
+    const context = new OrderStateContext(
+      order,
+      this.productsService,
+      this.pendingChargeModel,
+      this.usersService,
+      this.messengerInDelivery,
+    );
+
+    if (!context.canManageDelivery(user)) {
+      throw new ForbiddenException('Only the store owner or delivery messenger can register returns');
+    }
+
+    if (dto.clientLocalId) {
+      const existing = (order.returns || []).find(
+        (r) => r.clientLocalId && r.clientLocalId === dto.clientLocalId,
+      );
+      if (existing) {
+        return order;
+      }
+    }
+
+    await context.claimDeliveryIfNeeded(user);
+
+    const returnItems: Array<{
+      product: Types.ObjectId;
+      productName?: string;
+      quantity: number;
+      pricePerUnit: number;
+    }> = [];
+
+    for (const line of dto.items) {
+      const itemIndex = order.items.findIndex(
+        (item) => item.product.toString() === line.productId,
+      );
+      if (itemIndex < 0) {
+        throw new BadRequestException(`Product ${line.productId} is not in this order`);
+      }
+
+      const item = order.items[itemIndex];
+      if (line.quantity > item.quantity) {
+        throw new BadRequestException(
+          `Cannot return ${line.quantity} of ${item.productName || line.productId}; only ${item.quantity} on the order`,
+        );
+      }
+
+      returnItems.push({
+        product: item.product as Types.ObjectId,
+        productName: item.productName,
+        quantity: line.quantity,
+        pricePerUnit: item.pricePerUnit,
+      });
+
+      const remaining = item.quantity - line.quantity;
+      if (remaining <= 0) {
+        order.items.splice(itemIndex, 1);
+      } else {
+        item.quantity = remaining;
+        item.totalPrice = item.pricePerUnit * remaining;
+      }
+
+      try {
+        await this.productsService.updateStock(line.productId, line.quantity, 'add');
+      } catch (error) {
+        console.error(`Failed to restore stock for product ${line.productId}:`, error);
+      }
+    }
+
+    let evidenceImageId: Types.ObjectId | undefined;
+    if (evidenceFile) {
+      const image = await this.imagesService.createFromFile(
+        evidenceFile,
+        `Return evidence for order ${orderId}`,
+      );
+      evidenceImageId = image._id;
+    }
+
+    const subtotal = order.items.reduce((sum, item) => sum + item.totalPrice, 0);
+    const additional = (order.additionalCharges || []).reduce(
+      (sum, charge) => sum + (charge.amount || 0),
+      0,
+    );
+    order.subtotal = subtotal;
+    order.total = subtotal + (order.deliveryCharge || 0) + additional;
+
+    order.returns = order.returns || [];
+    order.returns.push({
+      _id: new Types.ObjectId(),
+      items: returnItems,
+      reason: dto.reason,
+      description: dto.description,
+      evidenceImage: evidenceImageId,
+      createdBy: user._id as any,
+      clientLocalId: dto.clientLocalId,
+    } as any);
+
+    order.updatedBy = user._id as any;
+    order.markModified('items');
+    order.markModified('returns');
+
+    if (order.items.length === 0) {
+      order.status = OrderStatus.RETURNED;
+      order.statusUpdatedAt = new Date();
+      order.cancellationReason = dto.reason;
+      if (order.deliveryCharge > 0 && order.customer) {
+        await context.createPendingDeliveryCharge(dto.reason);
+      }
+    }
+
+    await order.save();
+    await order.populate('customer store assignedMessenger returns.evidenceImage');
+    return order;
+  }
+
+  /**
+   * Messenger scans customer QR → official delivery confirmation (registers sale counters).
+   * Accepts raw deliveryCode or QR payload `merk2:delivery:<orderId>:<code>`.
+   */
+  async confirmDeliveryByCode(user: User, dto: ConfirmDeliveryDto): Promise<Order> {
+    const deliveryCode = this.extractDeliveryCode(dto.deliveryCode);
+    const order = await this.orderModel
+      .findOne({ deliveryCode })
+      .populate('store', 'name owner messengers messengerAssignmentType')
+      .populate('customer', 'firstName lastName email phone')
+      .populate('assignedMessenger', 'firstName lastName email phone')
+      .exec();
+
+    if (!order) {
+      throw new NotFoundException('Delivery code not found');
+    }
+
+    if (order.status === OrderStatus.COMPLETED) {
+      return order;
+    }
+
+    if (
+      order.status !== OrderStatus.ON_THE_WAY &&
+      order.status !== OrderStatus.READY_FOR_DELIVERY
+    ) {
+      throw new BadRequestException(
+        'QR confirmation is only allowed when the order is ready for delivery or on the way',
+      );
+    }
+
+    const context = new OrderStateContext(
+      order,
+      this.productsService,
+      this.pendingChargeModel,
+      this.usersService,
+      this.messengerInDelivery,
+    );
+
+    if (!context.canManageDelivery(user)) {
+      throw new ForbiddenException(
+        'Only the store owner or an eligible messenger can confirm this delivery',
+      );
+    }
+
+    await context.claimDeliveryIfNeeded(user);
+    await context.incrementOrderProductsTimesOrdered();
+
+    await context.updateOrder({
+      status: OrderStatus.COMPLETED,
+      deliveredVia: 'qr',
+      statusUpdatedAt: new Date(),
+      updatedBy: user._id,
+    });
+
+    await order.populate('customer store assignedMessenger');
+    this.notifyCustomerOrderStatus(order).catch((err) =>
+      this.logger.warn(`Push notify failed: ${err?.message ?? err}`),
+    );
+    return order;
+  }
+
+  private generateDeliveryCode(): string {
+    return randomBytes(16).toString('hex');
+  }
+
+  /** Accepts bare code or QR payload `merk2:delivery:<orderId>:<code>`. */
+  private extractDeliveryCode(raw: string): string {
+    const value = (raw || '').trim();
+    if (!value) {
+      throw new BadRequestException('deliveryCode is required');
+    }
+    if (value.startsWith('merk2:delivery:')) {
+      const parts = value.split(':');
+      const code = parts[3];
+      if (!code) {
+        throw new BadRequestException('Invalid delivery QR payload');
+      }
+      return code;
+    }
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed?.c && typeof parsed.c === 'string') return parsed.c;
+      if (parsed?.deliveryCode && typeof parsed.deliveryCode === 'string') {
+        return parsed.deliveryCode;
+      }
+    } catch {
+      // plain code
+    }
+    return value;
   }
 
   async assignMessenger(
@@ -664,10 +911,41 @@ export class OrdersService {
         .populate('assignedMessenger', 'firstName lastName email phone')
         .exec();
       if (!updatedOrder) throw new BadRequestException('Error updating order');
+
+      this.notificationsService
+        .notifyMessengerAssigned({
+          messengerId: assignMessengerDto.messengerId,
+          orderId: orderId.toString(),
+        })
+        .catch((err) =>
+          this.logger.warn(`Push notify messenger failed: ${err?.message ?? err}`),
+        );
+
       return updatedOrder;
     } catch (error) {
       throw error;
     }
+  }
+
+  private async notifyCustomerOrderStatus(order: OrderDocument): Promise<void> {
+    const customerId = this.extractRefId(order.customer);
+    if (!customerId) return;
+
+    await this.notificationsService.notifyOrderStatusChange({
+      customerId,
+      orderId: order._id.toString(),
+      status: order.status,
+    });
+  }
+
+  private extractRefId(ref: unknown): string | null {
+    if (!ref) return null;
+    if (typeof ref === 'string') return ref;
+    if (ref instanceof Types.ObjectId) return ref.toString();
+    if (typeof ref === 'object' && '_id' in (ref as object)) {
+      return String((ref as { _id: Types.ObjectId | string })._id);
+    }
+    return null;
   }
 
   async findOne(orderId: string, user: User): Promise<Order> {
@@ -946,6 +1224,30 @@ export class OrdersService {
       return true;
     }
 
+    // Messengers linked to the store can view ready / in-transit delivery orders.
+    const canWorkAsMessenger =
+      user.role === Role.MESSENGER ||
+      ((user.role === Role.PROVIDER || user.role === Role.MANAGER) &&
+        (user as any).isMessenger === true);
+    if (canWorkAsMessenger) {
+      const storeId = store._id.toString();
+      const linkedViaUserStores = (user as any).stores?.some(
+        (s: Types.ObjectId) => s.toString() === storeId,
+      );
+      const linkedViaStoreMessengers = store.messengers?.some(
+        (id: Types.ObjectId) => id.toString() === user._id.toString(),
+      );
+      if (
+        (linkedViaUserStores || linkedViaStoreMessengers || (user as any).isPlatformMessenger) &&
+        (order.status === OrderStatus.READY_FOR_DELIVERY ||
+          order.status === OrderStatus.ON_THE_WAY ||
+          order.status === OrderStatus.COMPLETED ||
+          order.status === OrderStatus.RETURNED)
+      ) {
+        return true;
+      }
+    }
+
     return false;
   }
 
@@ -962,7 +1264,32 @@ export class OrdersService {
 
       if (user.role === Role.MESSENGER && (user as any).stores?.length) {
         orConditions.push({
-          status: OrderStatus.READY_FOR_DELIVERY,
+          status: {
+            $in: [
+              OrderStatus.READY_FOR_DELIVERY,
+              OrderStatus.ON_THE_WAY,
+              OrderStatus.COMPLETED,
+              OrderStatus.RETURNED,
+            ],
+          },
+          store: { $in: (user as any).stores },
+        });
+      }
+
+      if (
+        (user.role === Role.PROVIDER || user.role === Role.MANAGER) &&
+        (user as any).isMessenger === true &&
+        (user as any).stores?.length
+      ) {
+        orConditions.push({
+          status: {
+            $in: [
+              OrderStatus.READY_FOR_DELIVERY,
+              OrderStatus.ON_THE_WAY,
+              OrderStatus.COMPLETED,
+              OrderStatus.RETURNED,
+            ],
+          },
           store: { $in: (user as any).stores },
         });
       }

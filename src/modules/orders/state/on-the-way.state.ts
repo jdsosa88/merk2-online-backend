@@ -28,15 +28,19 @@ export class OnTheWayState extends NonTerminalState {
   }
 
   private async handleCompleted(user: User, dto: UpdateOrderStatusDto) {
-    const hasPermission = this.context.canManageBusinessOrder(user);
+    const hasPermission = this.context.canManageDelivery(user);
     if (!hasPermission) {
-      throw new ForbiddenException(`Only the assigned messenger can mark the order as ${OrderStatus.COMPLETED}.`);
+      throw new ForbiddenException(
+        `Only the store owner or the assigned messenger can mark the order as ${OrderStatus.COMPLETED}.`,
+      );
     }
 
+    await this.context.claimDeliveryIfNeeded(user);
     await this.context.incrementOrderProductsTimesOrdered();
 
     await this.context.updateOrder({
       status: OrderStatus.COMPLETED,
+      deliveredVia: 'manual',
       statusUpdatedAt: new Date(),
       updatedBy: user._id,
     });

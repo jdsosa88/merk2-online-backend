@@ -55,12 +55,17 @@ export class User {
 
   @Prop({ type: Types.ObjectId, ref: 'Image', required: false })
   avatar?: Types.ObjectId;
+
+  /** Expo push tokens for this user's devices (ExponentPushToken[...]). */
+  @Prop({ type: [String], default: [] })
+  expoPushTokens?: string[];
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
 UserSchema.set('toJSON', {
   transform: (doc, ret) => {
     delete (ret as { password?: string }).password;
+    delete (ret as { expoPushTokens?: string[] }).expoPushTokens;
     delete ret.__v;
     return ret;
   },

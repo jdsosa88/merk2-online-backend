@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { OrderChannel, OrderStatus } from '../types/orders.type';
 import { Geolocation } from 'src/common/schemas/geolocation.schema';
+import { OrderReturn, OrderReturnSchema } from './order-return.schema';
 
 export type OrderDocument = HydratedDocument<Order>;
 
@@ -189,8 +190,23 @@ export class Order {
   @Prop({ type: String, required: false })
   trackingNumber?: string;
 
+  /**
+   * Secret code embedded in the customer QR used by messenger to confirm delivery.
+   * Unique per order; never treat as a public id.
+   */
+  @Prop({ type: String, required: false, unique: true, sparse: true, index: true })
+  deliveryCode?: string;
+
+  /** How the order was marked delivered (qr scan vs manual status). */
+  @Prop({ type: String, required: false, enum: ['qr', 'manual'] })
+  deliveredVia?: 'qr' | 'manual';
+
   @Prop({ type: Types.ObjectId, ref: 'User', required: false })
   updatedBy?: Types.ObjectId;
+
+  /** Partial returns registered during delivery (qty reduce / line remove). */
+  @Prop({ type: [OrderReturnSchema], default: [] })
+  returns: OrderReturn[];
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);
@@ -227,6 +243,16 @@ OrderSchema.methods.toJSON = function () {
     obj.additionalCharges = obj.additionalCharges.map((charge: any) => ({
       ...charge,
       amount: centsToDecimal(charge.amount),
+    }));
+  }
+
+  if (obj.returns) {
+    obj.returns = obj.returns.map((ret: any) => ({
+      ...ret,
+      items: (ret.items || []).map((item: any) => ({
+        ...item,
+        pricePerUnit: centsToDecimal(item.pricePerUnit ?? 0),
+      })),
     }));
   }
 

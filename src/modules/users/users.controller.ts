@@ -49,6 +49,7 @@ import { UpdateUserAllDto } from './dto/update-user.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FileService } from 'src/common/services/file.service';
 import { ImageDto } from 'src/common/dto/image.dto';
+import { RegisterPushTokenDto } from './dto/register-push-token.dto';
 
 
 @UseGuards(JwtAuthGuard, PoliciesGuard)
@@ -63,6 +64,26 @@ export class UsersController {
   async create(@Body() createUserDto: CreateUserDto): Promise<ApiResponseDto> {
     const user = await this.usersService.create(createUserDto);
     return new ApiResponseDto("User created, please check your email for the activation code", user);
+  }
+
+  @Post('push-token')
+  @CheckPolicies(new UpdateUserPolicyHandler())
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async registerPushToken(
+    @AuthUser('_id') userId: Types.ObjectId,
+    @Body() dto: RegisterPushTokenDto,
+  ): Promise<void> {
+    await this.usersService.addExpoPushToken(userId.toString(), dto.token);
+  }
+
+  @Delete('push-token')
+  @CheckPolicies(new UpdateUserPolicyHandler())
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async unregisterPushToken(
+    @AuthUser('_id') userId: Types.ObjectId,
+    @Body() dto: RegisterPushTokenDto,
+  ): Promise<void> {
+    await this.usersService.removeExpoPushToken(userId.toString(), dto.token);
   }
 
   @Get()

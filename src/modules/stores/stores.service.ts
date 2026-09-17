@@ -2,8 +2,10 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -99,6 +101,7 @@ export class StoresService {
     @InjectModel(Store.name) private readonly storeModel: Model<StoreDocument>,
     @InjectModel(Order.name) private readonly orderModel: Model<OrderDocument>,
     @InjectModel(Product.name) private readonly productModel: Model<ProductDocument>,
+    @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
     private readonly deliveryService: DeliveryService,
   ) {}

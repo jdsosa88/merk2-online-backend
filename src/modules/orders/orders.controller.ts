@@ -5,12 +5,14 @@ import {
   UseGuards,
   Get,
   Patch,
-  Param,
   Query,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
-import { ApiOperation } from '@nestjs/swagger';
+import { ApiConsumes, ApiOperation } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { OrdersService } from './orders.service';
 import { CheckoutOrderDto } from './dto/checkout-order.dto';
 import { PosSaleDto } from './dto/pos-sale.dto';
@@ -18,6 +20,8 @@ import { PosDeliveryQuoteDto } from './dto/pos-delivery-quote.dto';
 import { DeliveryQuoteDto } from '../delivery/dto/delivery-quote.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { AssignMessengerDto } from './dto/assign-messenger.dto';
+import { CreatePartialReturnDto } from './dto/create-partial-return.dto';
+import { ConfirmDeliveryDto } from './dto/confirm-delivery.dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { PoliciesGuard } from 'src/common/guards/policies.guard';
 import { AuthUser } from 'src/common/decorators/user.decorator';
@@ -35,11 +39,11 @@ import {
 } from './decorators/swagger-orders.decorator';
 import { ListOrdersQueryDto } from './dto/list-orders-query.dto';
 import { PaginatedListDto } from 'src/common/dto/paginated-list.dto';
-import { Types } from 'mongoose';
 import { CreateOrderPolicyHandler } from './policies/create-order.policy';
 import { ListOrdersPolicyHandler } from './policies/list-orders.policy';
 import { ReadOrderPolicyHandler } from './policies/read-order.policy';
 import { UpdateOrderPolicyHandler } from './policies/update-order.policy';
+import { FileService } from 'src/common/services/file.service';
 
 @UseGuards(JwtAuthGuard, PoliciesGuard)
 @Controller('orders')
@@ -146,5 +150,56 @@ export class OrdersController {
   ): Promise<ApiResponseDto<Order>> {
     const order = await this.ordersService.assignMessenger(assignMessengerDto, user);
     return new ApiResponseDto('Messenger assigned successfully', order);
+  }
+
+  @Post('returns')
+  @CheckPolicies(new UpdateOrderPolicyHandler())
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Register a partial return during delivery (reduce qty / remove items with reason and optional evidence image)',
+  })
+  @ApiConsumes('multipart/form-data', 'application/json')
+  @UseInterceptors(
+    FileInterceptor('evidence', {
+      storage: FileService.getDiskStorage(),
+      limits: { fileSize: 2 * 1024 * 1024 },
+      fileFilter: FileService.imageFileFilter,
+    }),
+  )
+  async createPartialReturn(
+    @Query('id') id: string,
+    @Body() body: any,
+    @UploadedFile() evidence: Express.Multer.File | undefined,
+    @AuthUser() user: User,
+  ): Promise<ApiResponseDto<Order>> {
+    const dto = this.parsePartialReturnBody(body);
+    const order = await this.ordersService.createPartialReturn(id, dto, user, evidence);
+    return new ApiResponseDto('Partial return registered', order);
+  }
+
+  @Post('confirm-delivery')
+  @CheckPolicies(new UpdateOrderPolicyHandler())
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Confirm delivery by scanning the customer QR (marks order completed and registers the sale)',
+  })
+  async confirmDelivery(
+    @Body() dto: ConfirmDeliveryDto,
+    @AuthUser() user: User,
+  ): Promise<ApiResponseDto<Order>> {
+    const order = await this.ordersService.confirmDeliveryByCode(user, dto);
+    return new ApiResponseDto('Delivery confirmed via QR', order);
+  }
+
+  private parsePartialReturnBody(body: any): CreatePartialReturnDto {
+    const itemsRaw = typeof body.items === 'string' ? JSON.parse(body.items) : body.items;
+    return {
+      items: itemsRaw,
+      reason: body.reason,
+      description: body.description,
+      clientLocalId: body.clientLocalId,
+    };
   }
 }

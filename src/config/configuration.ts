@@ -5,6 +5,7 @@ import { mailerConfig } from './types/mailer.config';
 import { productsConfig } from './types/products.config';
 import { verificationCodeConfig } from './types/verification-code.config';
 import { businessConfig } from './types/business.config';
+import { expoConfig } from './types/expo.config';
 
 export default () => ({
   ...appConfig(),
@@ -14,4 +15,5 @@ export default () => ({
   ...businessConfig(),
   ...productsConfig(),
   ...verificationCodeConfig(),
+  ...expoConfig(),
 });

@@ -25,10 +25,14 @@ export class ReadyForDeliveryState extends NonTerminalState {
   }
 
   private async handleOnTheWay(user: User, dto: UpdateOrderStatusDto) {
-    const hasPermission = this.context.canManageBusinessOrder(user);
+    const hasPermission = this.context.canManageDelivery(user);
     if (!hasPermission) {
-      throw new ForbiddenException(`Only the assigned messenger can mark the order as ${OrderStatus.ON_THE_WAY}.`);
+      throw new ForbiddenException(
+        `Only the store owner or an eligible messenger can mark the order as ${OrderStatus.ON_THE_WAY}.`,
+      );
     }
+
+    await this.context.claimDeliveryIfNeeded(user);
 
     const updateData: any = {
       status: OrderStatus.ON_THE_WAY,
