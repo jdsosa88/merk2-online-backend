@@ -1,16 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as admin from 'firebase-admin';
+import { existsSync, readFileSync } from 'fs';
 import { UsersService } from '../users/users.service';
 import { OrderStatus } from '../orders/types/orders.type';
 
 export type PushData = Record<string, unknown>;
-
-type ExpoPushTicket = {
-  status: 'ok' | 'error';
-  id?: string;
-  message?: string;
-  details?: { error?: string };
-};
 
 const ORDER_STATUS_COPY: Record<
   OrderStatus,
@@ -55,13 +50,70 @@ const ORDER_STATUS_COPY: Record<
 };
 
 @Injectable()
-export class NotificationsService {
+export class NotificationsService implements OnModuleInit {
   private readonly logger = new Logger(NotificationsService.name);
+  private messaging: admin.messaging.Messaging | null = null;
 
   constructor(
     private readonly usersService: UsersService,
     private readonly configService: ConfigService,
   ) {}
+
+  onModuleInit() {
+    this.initFirebase();
+  }
+
+  private initFirebase() {
+    if (admin.apps.length > 0) {
+      this.messaging = admin.messaging();
+      return;
+    }
+
+    const serviceAccountPath = this.configService.get<string>(
+      'firebase.serviceAccountPath',
+    );
+    const projectId = this.configService.get<string>('firebase.projectId');
+    const clientEmail = this.configService.get<string>('firebase.clientEmail');
+    const privateKey = this.configService.get<string>('firebase.privateKey');
+
+    try {
+      if (serviceAccountPath) {
+        if (!existsSync(serviceAccountPath)) {
+          this.logger.warn(
+            `FIREBASE_SERVICE_ACCOUNT_PATH no existe: ${serviceAccountPath}`,
+          );
+          return;
+        }
+        const raw = readFileSync(serviceAccountPath, 'utf8');
+        const serviceAccount = JSON.parse(raw) as admin.ServiceAccount;
+        admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount),
+        });
+      } else if (projectId && clientEmail && privateKey) {
+        admin.initializeApp({
+          credential: admin.credential.cert({
+            projectId,
+            clientEmail,
+            privateKey,
+          }),
+        });
+      } else {
+        this.logger.warn(
+          'Firebase no configurado (FIREBASE_SERVICE_ACCOUNT_PATH o FIREBASE_PROJECT_ID/CLIENT_EMAIL/PRIVATE_KEY). Push FCM deshabilitado.',
+        );
+        return;
+      }
+
+      this.messaging = admin.messaging();
+      this.logger.log('Firebase Admin inicializado para push FCM');
+    } catch (error) {
+      this.logger.error(
+        `No se pudo inicializar Firebase Admin: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
 
   async sendToUser(
     userId: string,
@@ -69,7 +121,7 @@ export class NotificationsService {
     body: string,
     data?: PushData,
   ): Promise<{ tokenCount: number }> {
-    const tokens = await this.usersService.getExpoPushTokens(userId);
+    const tokens = await this.usersService.getDevicePushTokens(userId);
     if (tokens.length === 0) {
       return { tokenCount: 0 };
     }
@@ -136,71 +188,75 @@ export class NotificationsService {
     const uniqueTokens = [...new Set(tokens.filter(Boolean))];
     if (uniqueTokens.length === 0) return;
 
-    const messages = uniqueTokens.map((to) => ({
-      to,
-      sound: 'default' as const,
-      title,
-      body,
-      data,
-    }));
+    if (!this.messaging) {
+      this.logger.warn(
+        'Firebase Messaging no disponible; no se enviaron pushes',
+      );
+      return;
+    }
+
+    const stringData = data
+      ? Object.fromEntries(
+          Object.entries(data).map(([key, value]) => [
+            key,
+            typeof value === 'string' ? value : JSON.stringify(value),
+          ]),
+        )
+      : undefined;
 
     try {
-      const headers: Record<string, string> = {
-        Accept: 'application/json',
-        'Accept-Encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      };
-
-      const accessToken = this.configService.get<string>('expo.accessToken');
-      if (accessToken) {
-        headers.Authorization = `Bearer ${accessToken}`;
-      }
-
-      const response = await fetch('https://exp.host/--/api/v2/push/send', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(messages),
+      const response = await this.messaging.sendEachForMulticast({
+        tokens: uniqueTokens,
+        notification: { title, body },
+        data: stringData,
+        android: {
+          priority: 'high',
+          notification: {
+            channelId: 'default',
+            sound: 'default',
+          },
+        },
       });
 
-      if (!response.ok) {
-        const text = await response.text();
-        this.logger.warn(`Expo push HTTP ${response.status}: ${text}`);
-        return;
+      if (response.failureCount > 0) {
+        await this.cleanupInvalidTokens(
+          uniqueTokens,
+          response.responses,
+          userIdForCleanup,
+        );
       }
 
-      const json = (await response.json()) as {
-        data?: ExpoPushTicket | ExpoPushTicket[];
-      };
-      const tickets = Array.isArray(json.data)
-        ? json.data
-        : json.data
-          ? [json.data]
-          : [];
-
-      await this.cleanupInvalidTokens(uniqueTokens, tickets, userIdForCleanup);
+      this.logger.log(
+        `FCM enviado: ${response.successCount} ok, ${response.failureCount} fail`,
+      );
     } catch (error) {
       this.logger.warn(
-        `Failed to send Expo push: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to send FCM push: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
     }
   }
 
   private async cleanupInvalidTokens(
     tokens: string[],
-    tickets: ExpoPushTicket[],
+    responses: admin.messaging.SendResponse[],
     userId?: string,
   ): Promise<void> {
     if (!userId) return;
 
-    for (let i = 0; i < tickets.length; i++) {
-      const ticket = tickets[i];
+    for (let i = 0; i < responses.length; i++) {
+      const result = responses[i];
       const token = tokens[i];
-      if (!ticket || !token || ticket.status !== 'error') continue;
+      if (!result || result.success || !token || !result.error) continue;
 
-      const errorCode = ticket.details?.error;
-      if (errorCode === 'DeviceNotRegistered') {
-        await this.usersService.removeExpoPushToken(userId, token);
-        this.logger.log(`Removed stale Expo push token for user ${userId}`);
+      const code = result.error.code;
+      if (
+        code === 'messaging/registration-token-not-registered' ||
+        code === 'messaging/invalid-registration-token'
+      ) {
+        await this.usersService.removeDevicePushToken(userId, token);
+        this.logger.log(`Removed stale device push token for user ${userId}`);
       }
     }
   }

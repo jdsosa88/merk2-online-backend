@@ -73,7 +73,7 @@ export class UsersController {
     @AuthUser('_id') userId: Types.ObjectId,
     @Body() dto: RegisterPushTokenDto,
   ): Promise<void> {
-    await this.usersService.addExpoPushToken(userId.toString(), dto.token);
+    await this.usersService.addDevicePushToken(userId.toString(), dto.token);
   }
 
   @Delete('push-token')
@@ -83,7 +83,7 @@ export class UsersController {
     @AuthUser('_id') userId: Types.ObjectId,
     @Body() dto: RegisterPushTokenDto,
   ): Promise<void> {
-    await this.usersService.removeExpoPushToken(userId.toString(), dto.token);
+    await this.usersService.removeDevicePushToken(userId.toString(), dto.token);
   }
 
   @Get()

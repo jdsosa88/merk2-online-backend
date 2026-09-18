@@ -6,6 +6,7 @@ import { productsConfig } from './types/products.config';
 import { verificationCodeConfig } from './types/verification-code.config';
 import { businessConfig } from './types/business.config';
 import { expoConfig } from './types/expo.config';
+import { firebaseConfig } from './types/firebase.config';
 
 export default () => ({
   ...appConfig(),
@@ -16,4 +17,5 @@ export default () => ({
   ...productsConfig(),
   ...verificationCodeConfig(),
   ...expoConfig(),
+  ...firebaseConfig(),
 });

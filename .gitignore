@@ -69,3 +69,7 @@ ecosystem.config.js
 # others
 *.diff
 /uploads
+
+# Firebase / push credentials (never commit private keys)
+*-firebase-adminsdk-*.json
+firebase-service-account*.json

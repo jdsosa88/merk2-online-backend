@@ -15,8 +15,8 @@ export const envValidationSchema = Joi.object({
   MONGO_URI: Joi.string().uri().required(),
 
   // Api key Auth
-  API_KEY:Joi.string().min(32).required(),
-  
+  API_KEY: Joi.string().min(32).required(),
+
   // JWT Auth (REQUERIDO)
   JWT_ACCESS_SECRET: Joi.string().min(32).required(),
   JWT_ACCESS_EXPIRATION: Joi.string().default('15m'),
@@ -47,6 +47,12 @@ export const envValidationSchema = Joi.object({
   //VerificationCode
   VERIFICATION_CODE_EXPIRES_HOURS: Joi.number().integer().min(1).max(72).default(3),
 
-  // Expo Push (opcional; recomendado en producción)
+  // Expo Push (legacy / opcional)
   EXPO_ACCESS_TOKEN: Joi.string().optional(),
+
+  // Firebase Admin (FCM nativo; recomendado — mismo proyecto que google-services.json)
+  FIREBASE_SERVICE_ACCOUNT_PATH: Joi.string().optional(),
+  FIREBASE_PROJECT_ID: Joi.string().optional(),
+  FIREBASE_CLIENT_EMAIL: Joi.string().optional(),
+  FIREBASE_PRIVATE_KEY: Joi.string().optional(),
 });

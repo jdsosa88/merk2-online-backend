@@ -335,30 +335,30 @@ export class UsersService {
     return user;
   }
 
-  async addExpoPushToken(userId: string, token: string): Promise<void> {
+  async addDevicePushToken(userId: string, token: string): Promise<void> {
     await this.userModel
       .updateOne(
         { _id: new Types.ObjectId(userId) },
-        { $addToSet: { expoPushTokens: token } },
+        { $addToSet: { devicePushTokens: token } },
       )
       .exec();
   }
 
-  async removeExpoPushToken(userId: string, token: string): Promise<void> {
+  async removeDevicePushToken(userId: string, token: string): Promise<void> {
     await this.userModel
       .updateOne(
         { _id: new Types.ObjectId(userId) },
-        { $pull: { expoPushTokens: token } },
+        { $pull: { devicePushTokens: token } },
       )
       .exec();
   }
 
-  async getExpoPushTokens(userId: string): Promise<string[]> {
+  async getDevicePushTokens(userId: string): Promise<string[]> {
     const user = await this.userModel
       .findById(new Types.ObjectId(userId))
-      .select('expoPushTokens')
+      .select('devicePushTokens')
       .lean()
       .exec();
-    return user?.expoPushTokens ?? [];
+    return user?.devicePushTokens ?? [];
   }
 }
