@@ -82,15 +82,16 @@ export class CaslAbilityFactory {
 
     //DELETE
     can(Action.DELETE, User, { _id: user._id });
-    can(Action.DELETE, Notification, { user: user._id });
+    // Inbox is always scoped to the authenticated user in NotificationsService.
+    can(Action.LIST, Notification);
+    can(Action.READ, Notification);
+    can(Action.UPDATE, Notification);
+    can(Action.DELETE, Notification);
 
     //LIST
     cannot(Action.LIST, User);
     can(Action.LIST, Business);
     can(Action.LIST, Store);
-    can(Action.LIST, Notification, { user: user._id });
-    can(Action.READ, Notification, { user: user._id });
-    can(Action.UPDATE, Notification, { user: user._id });
 
     //MANAGE
     cannot(Action.MANAGE, AppConfig);

@@ -234,24 +234,16 @@ describe('AuthService', () => {
     };
 
     it('should refresh token successfully', async () => {
-      const newTokens: AuthTokensDto = {
-        access_token: 'new-access-token',
-        refresh_token: 'new-refresh-token',
-      };
-      const mockNewRefreshToken = { _id: 'new-refresh-id', token: 'new-refresh-token' };
-
       mockJwtService.verify.mockReturnValue(mockPayload);
       mockRefreshTokenService.findByToken.mockResolvedValue(mockStoredToken);
       mockUsersService.findOne.mockResolvedValue(mockUser);
       mockJwtService.sign.mockReturnValueOnce('new-access-token');
-      mockJwtService.sign.mockReturnValueOnce('new-refresh-token');
-      mockRefreshTokenService.deletePreviousToken.mockResolvedValue(undefined);
-      mockRefreshTokenService.create.mockResolvedValue(mockNewRefreshToken);
 
       const result = await service.refreshToken(refreshToken);
 
-      expect(result.access_token).toBe(newTokens.access_token);
-      expect(result.refresh_token).toBe(newTokens.refresh_token);
+      expect(result.access_token).toBe('new-access-token');
+      expect(result.refresh_token).toBe(refreshToken);
+      expect(mockRefreshTokenService.create).not.toHaveBeenCalled();
       expect(mockJwtService.verify).toHaveBeenCalledWith(refreshToken, {
         secret: 'refresh-secret',
       });

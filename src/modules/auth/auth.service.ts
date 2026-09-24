@@ -51,25 +51,26 @@ export class AuthService {
 
   async refreshToken(refreshToken: string): Promise<AuthTokensDto> {
     try {
+      if (!refreshToken) {
+        throw new UnauthorizedException('Refresh token not provided');
+      }
+
       const payload = await this.verifyJwtRefreshToken(refreshToken);
 
       const storedToken: RefreshToken | null = await this.refreshTokenService.findByToken(refreshToken);
       if (!storedToken) throw new UnauthorizedException('Refresh token not found');
+      if (storedToken.expiresAt && storedToken.expiresAt.getTime() < Date.now()) {
+        await this.refreshTokenService.delete(refreshToken);
+        throw new UnauthorizedException('Refresh token expired');
+      }
 
       const user = await this.usersService.findOne(payload.sub);
       if (!user || !user.isActive) throw new UnauthorizedException('User not found or inactive');
 
-      const authTokens: AuthTokensDto = await this.generateAuthTokens(user._id);
-      const refreshTokenData: IRefreshToken = {
-        userId: user._id,
-        token: authTokens.refresh_token,
-        ip: storedToken.ip,
-        userAgent: storedToken.userAgent
-      };
-      const savedRefreshToken = await this.saveRefreshToken(refreshTokenData);
-      if (!savedRefreshToken) throw new BadRequestException("Refresh token could not be saved");
-
-      return authTokens;
+      // Keep the same refresh token. Rotating it on every access refresh races
+      // when several 401s retry at once and then the old token is "not found".
+      const access_token = this.jwtService.sign({ sub: user._id });
+      return { access_token, refresh_token: refreshToken };
     } catch (error) {
       throw error;
     }

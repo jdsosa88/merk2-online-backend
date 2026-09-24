@@ -12,7 +12,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Types } from 'mongoose';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { PoliciesGuard } from 'src/common/guards/policies.guard';
 import { AuthUser } from 'src/common/decorators/user.decorator';
@@ -30,6 +29,11 @@ import {
   UpdateNotificationPolicy,
 } from './policies/notification.policies';
 import { Notification } from './schemas/notification.schema';
+import { User } from '../users/schemas/user.schema';
+
+function authUserId(user: User): string {
+  return String(user._id);
+}
 
 @ApiTags('notifications')
 @ApiBearerAuth()
@@ -42,9 +46,9 @@ export class NotificationsController {
   @CheckPolicies(new ListNotificationsPolicy())
   @ApiOperation({ summary: 'List inbox notifications for the authenticated user (today + reservations)' })
   async list(
-    @AuthUser('_id') userId: Types.ObjectId,
+    @AuthUser() user: User,
   ): Promise<ApiResponseDto<Notification[]>> {
-    const items = await this.notificationsService.listForUser(userId.toString());
+    const items = await this.notificationsService.listForUser(authUserId(user));
     return new ApiResponseDto('Notifications retrieved', items);
   }
 
@@ -52,11 +56,11 @@ export class NotificationsController {
   @CheckPolicies(new ReadNotificationPolicy())
   @ApiOperation({ summary: 'Get a single notification by id' })
   async findOne(
-    @AuthUser('_id') userId: Types.ObjectId,
+    @AuthUser() user: User,
     @Query() idDto: IdDto,
   ): Promise<ApiResponseDto<Notification>> {
     const item = await this.notificationsService.findOneForUser(
-      userId.toString(),
+      authUserId(user),
       idDto.id,
     );
     return new ApiResponseDto('Notification retrieved', item);
@@ -69,15 +73,15 @@ export class NotificationsController {
     summary: 'Delete one notification (?id=) or all visible inbox notifications',
   })
   async remove(
-    @AuthUser('_id') userId: Types.ObjectId,
+    @AuthUser() user: User,
     @Query('id') id?: string,
   ): Promise<ApiResponseDto<{ deleted: number }>> {
     if (id) {
-      await this.notificationsService.deleteOne(userId.toString(), id);
+      await this.notificationsService.deleteOne(authUserId(user), id);
       return new ApiResponseDto('Notification deleted', { deleted: 1 });
     }
     const result = await this.notificationsService.deleteAllForUser(
-      userId.toString(),
+      authUserId(user),
     );
     return new ApiResponseDto('Notifications deleted', result);
   }
@@ -86,11 +90,11 @@ export class NotificationsController {
   @CheckPolicies(new UpdateNotificationPolicy())
   @ApiOperation({ summary: 'Mark a notification as read' })
   async markRead(
-    @AuthUser('_id') userId: Types.ObjectId,
+    @AuthUser() user: User,
     @Query() idDto: IdDto,
   ): Promise<ApiResponseDto<Notification>> {
     const item = await this.notificationsService.markRead(
-      userId.toString(),
+      authUserId(user),
       idDto.id,
     );
     return new ApiResponseDto('Notification marked as read', item);
@@ -101,10 +105,10 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Mark all visible inbox notifications as read' })
   async markAllRead(
-    @AuthUser('_id') userId: Types.ObjectId,
+    @AuthUser() user: User,
   ): Promise<ApiResponseDto<{ updated: number }>> {
     const result = await this.notificationsService.markAllRead(
-      userId.toString(),
+      authUserId(user),
     );
     return new ApiResponseDto('Notifications marked as read', result);
   }
@@ -129,13 +133,13 @@ export class NotificationsController {
     summary: 'Send a test push to the authenticated user devices',
   })
   async sendTest(
-    @AuthUser('_id') userId: Types.ObjectId,
+    @AuthUser() user: User,
     @Body() dto: TestPushDto,
   ): Promise<
     ApiResponseDto<{ tokenCount: number; title: string; body: string }>
   > {
     const result = await this.notificationsService.sendTestPushToUser(
-      userId.toString(),
+      authUserId(user),
       dto.title,
       dto.body,
     );

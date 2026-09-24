@@ -79,51 +79,34 @@ function startOfDayInTimeZone(timeZone: string, date = new Date()): Date {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).formatToParts(date);
-
-  const year = Number(parts.find((p) => p.type === 'year')?.value);
-  const month = Number(parts.find((p) => p.type === 'month')?.value);
-  const day = Number(parts.find((p) => p.type === 'day')?.value);
-
-  // Approximate UTC instant for local midnight by probing offsets
-  const guessUtc = Date.UTC(year, month - 1, day, 0, 0, 0);
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone,
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
     hourCycle: 'h23',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
+  }).formatToParts(date);
 
-  const getParts = (ms: number) => {
-    const map: Record<string, string> = {};
-    for (const p of formatter.formatToParts(new Date(ms))) {
-      if (p.type !== 'literal') map[p.type] = p.value;
-    }
-    return map;
-  };
+  const num = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value);
 
-  let lo = guessUtc - 36 * 3600 * 1000;
-  let hi = guessUtc + 36 * 3600 * 1000;
-  while (lo < hi) {
-    const mid = Math.floor((lo + hi) / 2);
-    const p = getParts(mid);
-    const midDay = `${p.year}-${p.month}-${p.day}`;
-    const target = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const midTime = Number(p.hour) * 3600 + Number(p.minute) * 60 + Number(p.second);
-    if (midDay < target || (midDay === target && midTime > 0)) {
-      lo = mid + 1;
-    } else if (midDay > target) {
-      hi = mid;
-    } else {
-      // midDay === target && midTime === 0
-      return new Date(mid);
-    }
-  }
-  return new Date(lo);
+  const asUtc = Date.UTC(
+    num('year'),
+    num('month') - 1,
+    num('day'),
+    num('hour'),
+    num('minute'),
+    num('second'),
+  );
+  const midnightAsUtc = Date.UTC(num('year'), num('month') - 1, num('day'), 0, 0, 0);
+  return new Date(date.getTime() - (asUtc - midnightAsUtc) - date.getMilliseconds());
+}
+
+function serializeNotification(doc: Record<string, unknown>): Notification {
+  return {
+    ...doc,
+    _id: String(doc._id),
+    user: String(doc.user),
+    relatedOrder: doc.relatedOrder ? String(doc.relatedOrder) : undefined,
+  } as unknown as Notification;
 }
 
 function orderRef(orderId: string): string {
@@ -406,7 +389,7 @@ export class NotificationsService implements OnModuleInit {
 
   async listForUser(userId: string): Promise<Notification[]> {
     const dayStart = startOfDayInTimeZone(HAVANA_TZ);
-    return this.notificationModel
+    const items = await this.notificationModel
       .find({
         user: new Types.ObjectId(userId),
         $or: [
@@ -416,7 +399,8 @@ export class NotificationsService implements OnModuleInit {
       })
       .sort({ createdAt: -1 })
       .lean()
-      .exec() as Promise<Notification[]>;
+      .exec();
+    return items.map((item) => serializeNotification(item as Record<string, unknown>));
   }
 
   async findOneForUser(

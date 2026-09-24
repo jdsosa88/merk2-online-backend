@@ -157,15 +157,13 @@ describe('RefreshTokenService', () => {
       expect(result).toEqual(mockRefreshToken);
       expect(mockModel.findOneAndDelete).toHaveBeenCalledWith({
         $or: [
-          { refreshToken: refreshTokenData.token },
+          { token: refreshTokenData.token },
           {
-            $and: [
-              { userId: refreshTokenData.userId },
-              { ip: refreshTokenData.ip },
-              { userAgent: refreshTokenData.userAgent }
-            ]
-          }
-        ]
+            userId: refreshTokenData.userId,
+            ip: refreshTokenData.ip,
+            userAgent: refreshTokenData.userAgent,
+          },
+        ],
       });
     });
 
@@ -186,16 +184,7 @@ describe('RefreshTokenService', () => {
       // Assert
       expect(result).toEqual(mockRefreshToken);
       expect(mockModel.findOneAndDelete).toHaveBeenCalledWith({
-        $or: [
-          { refreshToken: refreshTokenData.token },
-          {
-            $and: [
-              { userId: refreshTokenData.userId },
-              { ip: undefined },
-              { userAgent: undefined }
-            ]
-          }
-        ]
+        $or: [{ token: refreshTokenData.token }],
       });
     });
 
@@ -216,16 +205,7 @@ describe('RefreshTokenService', () => {
       // Assert
       expect(result).toBeNull();
       expect(mockModel.findOneAndDelete).toHaveBeenCalledWith({
-        $or: [
-          { refreshToken: refreshTokenData.token },
-          {
-            $and: [
-              { userId: refreshTokenData.userId },
-              { ip: undefined },
-              { userAgent: undefined }
-            ]
-          }
-        ]
+        $or: [{ token: refreshTokenData.token }],
       });
     });
   });

@@ -19,18 +19,21 @@ export class RefreshTokenService {
   }
 
   async deletePreviousToken(refreshTokenData: IRefreshToken): Promise<RefreshToken | null> {
-    return await this.refreshTokenModel.findOneAndDelete({
-      $or: [
-        { refreshToken: refreshTokenData.token },
-        {
-          $and: [
-            { userId: refreshTokenData.userId },
-            { ip: refreshTokenData.ip },
-            { userAgent: refreshTokenData.userAgent }
-          ]
-        }
-      ]
-    }).exec();
+    const filters: Record<string, unknown>[] = [];
+    if (refreshTokenData.token) {
+      filters.push({ token: refreshTokenData.token });
+    }
+    // Only collapse the same device session when both signals are present.
+    // Mongoose drops `undefined` fields; `{ userId }` alone would wipe every session.
+    if (refreshTokenData.userId && refreshTokenData.ip && refreshTokenData.userAgent) {
+      filters.push({
+        userId: refreshTokenData.userId,
+        ip: refreshTokenData.ip,
+        userAgent: refreshTokenData.userAgent,
+      });
+    }
+    if (!filters.length) return null;
+    return this.refreshTokenModel.findOneAndDelete({ $or: filters }).exec();
   }
   
   async delete(token: string): Promise<DeleteResult> {
