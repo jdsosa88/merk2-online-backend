@@ -288,6 +288,24 @@ export class OrdersService {
           }
         }
 
+        const ownerId = this.extractRefId(store.owner);
+        const messengerIds = (store.messengers ?? [])
+          .map((m: unknown) => this.extractRefId(m))
+          .filter((id): id is string => Boolean(id));
+
+        if (ownerId) {
+          this.notificationsService
+            .notifyOrderCreatedToStore({
+              orderId: savedOrder._id.toString(),
+              storeOwnerId: ownerId,
+              storeMessengerIds: messengerIds,
+              isReservationRelated: isReservationOrder,
+            })
+            .catch((err) =>
+              this.logger.warn(`Push notify order created failed: ${err?.message ?? err}`),
+            );
+        }
+
         createdOrders.push(savedOrder);
       }
 
@@ -609,7 +627,7 @@ export class OrdersService {
 
     await order.populate('customer store assignedMessenger');
 
-    this.notifyCustomerOrderStatus(order).catch((err) =>
+    this.notifyOrderStatusChange(order, user._id.toString()).catch((err) =>
       this.logger.warn(`Push notify failed: ${err?.message ?? err}`),
     );
 
@@ -811,7 +829,7 @@ export class OrdersService {
     });
 
     await order.populate('customer store assignedMessenger');
-    this.notifyCustomerOrderStatus(order).catch((err) =>
+    this.notifyOrderStatusChange(order, user._id.toString()).catch((err) =>
       this.logger.warn(`Push notify failed: ${err?.message ?? err}`),
     );
     return order;
@@ -912,10 +930,16 @@ export class OrdersService {
         .exec();
       if (!updatedOrder) throw new BadRequestException('Error updating order');
 
+      const isReservationRelated = Boolean(
+        updatedOrder.scheduledFor &&
+          new Date(updatedOrder.scheduledFor).getTime() > Date.now(),
+      );
+
       this.notificationsService
         .notifyMessengerAssigned({
           messengerId: assignMessengerDto.messengerId,
           orderId: orderId.toString(),
+          isReservationRelated,
         })
         .catch((err) =>
           this.logger.warn(`Push notify messenger failed: ${err?.message ?? err}`),
@@ -927,14 +951,33 @@ export class OrdersService {
     }
   }
 
-  private async notifyCustomerOrderStatus(order: OrderDocument): Promise<void> {
-    const customerId = this.extractRefId(order.customer);
-    if (!customerId) return;
+  private async notifyOrderStatusChange(
+    order: OrderDocument,
+    actorUserId?: string,
+  ): Promise<void> {
+    const store = order.store as unknown as {
+      owner?: unknown;
+      messengers?: unknown[];
+    } | null;
 
-    await this.notificationsService.notifyOrderStatusChange({
-      customerId,
+    const storeOwnerId = this.extractRefId(store?.owner);
+    const storeMessengerIds = (store?.messengers ?? [])
+      .map((m) => this.extractRefId(m))
+      .filter((id): id is string => Boolean(id));
+
+    const isReservationRelated = Boolean(
+      order.scheduledFor && new Date(order.scheduledFor).getTime() > Date.now(),
+    );
+
+    await this.notificationsService.notifyOrderStatusRecipients({
       orderId: order._id.toString(),
       status: order.status,
+      customerId: this.extractRefId(order.customer),
+      storeOwnerId,
+      storeMessengerIds,
+      assignedMessengerId: this.extractRefId(order.assignedMessenger),
+      actorUserId: actorUserId ?? null,
+      isReservationRelated,
     });
   }
 

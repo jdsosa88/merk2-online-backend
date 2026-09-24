@@ -361,4 +361,14 @@ export class UsersService {
       .exec();
     return user?.devicePushTokens ?? [];
   }
+
+  /** Active user ids for broadcast notifications (inbox + push). */
+  async findAllActiveUserIds(): Promise<string[]> {
+    const users = await this.userModel
+      .find({ isActive: true })
+      .select('_id')
+      .lean()
+      .exec();
+    return users.map((u) => u._id.toString());
+  }
 }

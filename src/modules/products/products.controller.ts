@@ -198,7 +198,7 @@ export class ProductsController {
   @ApiUploadProductImages()
   @UseInterceptors(FilesInterceptor('images', 10, {
     storage: FileService.getDiskStorage(),
-    limits: { fileSize: 2 * 1024 * 1024 },
+    limits: { fileSize: 8 * 1024 * 1024 },
     fileFilter: FileService.imageFileFilter,
   }))
   async uploadProductImages(
@@ -232,7 +232,7 @@ export class ProductsController {
   })
   @UseInterceptors(FileInterceptor('image', {
     storage: FileService.getDiskStorage(),
-    limits: { fileSize: 2 * 1024 * 1024 },
+    limits: { fileSize: 8 * 1024 * 1024 },
     fileFilter: FileService.imageFileFilter,
   }))
   async uploadVisualOptionImage(

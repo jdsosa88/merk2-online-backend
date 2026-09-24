@@ -13,6 +13,7 @@ import { SellerApplication } from '../seller-applications/schemas/seller-applica
 import { Store } from '../stores/schemas/store.schema';
 import { DeliveryZone } from '../delivery/schemas/delivery-zone.schema';
 import { PlatformDeliveryConfig } from '../delivery/schemas/platform-delivery-config.schema';
+import { Notification } from '../notifications/schemas/notification.schema';
 
 /**
  * Defines the possible actions that can be performed on resources
@@ -40,6 +41,7 @@ export type Subjects = InferSubjects<
   | typeof Store
   | typeof DeliveryZone
   | typeof PlatformDeliveryConfig
+  | typeof Notification
 >
   | 'Health'
   | 'all';
@@ -80,11 +82,15 @@ export class CaslAbilityFactory {
 
     //DELETE
     can(Action.DELETE, User, { _id: user._id });
+    can(Action.DELETE, Notification, { user: user._id });
 
     //LIST
     cannot(Action.LIST, User);
     can(Action.LIST, Business);
     can(Action.LIST, Store);
+    can(Action.LIST, Notification, { user: user._id });
+    can(Action.READ, Notification, { user: user._id });
+    can(Action.UPDATE, Notification, { user: user._id });
 
     //MANAGE
     cannot(Action.MANAGE, AppConfig);

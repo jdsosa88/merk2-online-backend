@@ -25,9 +25,15 @@ export class FileService {
   }
 
   static imageFileFilter(req: any, file: any, callback: any) {
-    if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
-      return callback(new BadRequestException('Only image files are allowed'), false);
+    const mime = String(file.mimetype || '').toLowerCase();
+    const ext = extname(file.originalname || '').toLowerCase();
+    const allowedExt = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    const allowedMime = /\/(jpg|jpeg|pjpeg|png|x-png|gif|webp)$/;
+    const mimeMissing = !mime || mime === 'application/octet-stream';
+
+    if (allowedMime.test(mime) || (mimeMissing && allowedExt.includes(ext))) {
+      return callback(null, true);
     }
-    callback(null, true);
+    return callback(new BadRequestException('Only image files are allowed'), false);
   }
 }

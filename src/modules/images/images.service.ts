@@ -86,7 +86,10 @@ export class ImagesService {
     try {
       await unlink(join('./uploads', filename));
     } catch (err) {
-      console.error(`Failed to delete file ${filename}:`, err);
+      const code = (err as NodeJS.ErrnoException)?.code;
+      if (code !== 'ENOENT') {
+        console.error(`Failed to delete file ${filename}:`, err);
+      }
     }
   }
 
